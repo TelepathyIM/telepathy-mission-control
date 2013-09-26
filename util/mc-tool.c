@@ -468,7 +468,7 @@ getter_list_init(void)
 
     getter_list_add("DisplayName", GET_STRING, tp_account_get_display_name);
     getter_list_add("Icon", GET_STRING, tp_account_get_icon_name);
-    getter_list_add("Valid", GET_BOOLEAN, tp_account_is_valid);
+    getter_list_add("Usable", GET_BOOLEAN, tp_account_is_usable);
     getter_list_add("Enabled", GET_BOOLEAN, tp_account_is_enabled);
     getter_list_add("Nickname", GET_STRING, tp_account_get_nickname);
     getter_list_add("ConnectAutomatically", GET_BOOLEAN,
@@ -518,16 +518,16 @@ compare_accounts (gconstpointer a,
 }
 
 static GList *
-dup_valid_accounts_sorted (TpAccountManager *manager)
+dup_usable_accounts_sorted (TpAccountManager *manager)
 {
-    return g_list_sort (tp_account_manager_dup_valid_accounts (manager),
+    return g_list_sort (tp_account_manager_dup_usable_accounts (manager),
                         compare_accounts);
 }
 
 static gboolean
 command_list (TpAccountManager *manager)
 {
-    GList *accounts = dup_valid_accounts_sorted (manager);
+    GList *accounts = dup_usable_accounts_sorted (manager);
 
     if (accounts != NULL) {
 	GList *ptr;
@@ -550,7 +550,7 @@ command_summary (TpAccountManager *manager)
     GList *accounts, *l;
     guint longest_account = 0;
 
-    accounts = tp_account_manager_dup_valid_accounts (manager);
+    accounts = tp_account_manager_dup_usable_accounts (manager);
     if (accounts == NULL) {
         return FALSE;
     }
@@ -731,7 +731,7 @@ command_show (TpAccount *account)
     show ("Display Name", tp_account_get_display_name (account));
     show ("Normalized", tp_account_get_normalized_name (account));
     show ("Enabled", tp_account_is_enabled (account) ? "enabled" : "disabled");
-    show ("Valid", tp_account_is_valid (account) ? "" : "false");
+    show ("Usable", tp_account_is_usable (account) ? "" : "false");
     show ("Icon", tp_account_get_icon_name (account));
     show ("Connects",
         tp_account_get_connect_automatically (account)
@@ -825,7 +825,7 @@ command_dump (TpAccountManager *manager)
 {
     GList *accounts, *l;
 
-    accounts = tp_account_manager_dup_valid_accounts (manager);
+    accounts = tp_account_manager_dup_usable_accounts (manager);
     if (accounts == NULL) {
         return FALSE;
     }

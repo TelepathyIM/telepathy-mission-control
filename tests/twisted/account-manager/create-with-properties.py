@@ -32,10 +32,8 @@ def test(q, bus, mc):
     call_async(q, account_manager.Properties, 'GetAll', cs.AM)
     properties, = q.expect('dbus-return', method='GetAll').value
     assert properties is not None
-    assert properties.get('ValidAccounts') == [], \
-        properties.get('ValidAccounts')
-    assert properties.get('InvalidAccounts') == [], \
-        properties.get('InvalidAccounts')
+    assertEquals([], properties.get('UsableAccounts'))
+    assertEquals([], properties.get('UnusableAccounts'))
     interfaces = properties.get('Interfaces')
     supported = properties.get('SupportedAccountProperties')
 
@@ -92,7 +90,7 @@ def test(q, bus, mc):
 
     am_signal, ret, rc = q.expect_many(
             EventPattern('dbus-signal', path=cs.AM_PATH,
-                signal='AccountValidityChanged', interface=cs.AM),
+                signal='AccountUsabilityChanged', interface=cs.AM),
             EventPattern('dbus-return', method='CreateAccount'),
             EventPattern('dbus-method-call', method='RequestConnection'),
             )
@@ -117,8 +115,7 @@ def test(q, bus, mc):
         properties.get('ConnectAutomatically')
     assert properties.get('Enabled') == True, \
         properties.get('Enabled')
-    assert properties.get('Valid') == True, \
-        properties.get('Valid')
+    assertEquals(True, properties.get('Usable'))
     assert properties.get('Icon') == 'quake3arena', \
         properties.get('Icon')
     assert properties.get('Nickname') == 'AnArKi', \

@@ -17,7 +17,7 @@
 # 02110-1301 USA
 
 import dbus
-"""Feature test for accounts becoming valid.
+"""Feature test for accounts becoming usable (formerly called "valid").
 """
 
 import os

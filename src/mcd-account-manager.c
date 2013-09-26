@@ -213,10 +213,13 @@ altered_one_cb (GObject *storage,
 
 /* callbacks for the various stages in an backend-driven account creation */
 static void
-async_created_validity_cb (McdAccount *account, const GError *invalid_reason, gpointer data)
+async_created_usability_cb (McdAccount *account,
+    const GError *unusable_reason,
+    gpointer data)
 {
-    DEBUG ("asynchronously created account %s is %svalid",
-           mcd_account_get_unique_name (account), (invalid_reason == NULL) ? "" : "in");
+    DEBUG ("asynchronously created account %s is %susable",
+           mcd_account_get_unique_name (account),
+           (unusable_reason == NULL) ? "" : "un");
 
     /* safely cached in the accounts hash by now */
     g_object_unref (account);
@@ -247,7 +250,7 @@ async_created_manager_cb (McdManager *cm, const GError *error, gpointer data)
 
     /* this triggers the final parameter check which results in dbus signals *
      * being fired and (potentially) the account going online automatically  */
-    mcd_account_check_validity (account, async_created_validity_cb, NULL);
+    mcd_account_check_usability (account, async_created_usability_cb, NULL);
 
     g_object_unref (cm);
 }
@@ -551,8 +554,9 @@ list_connection_names_cb (const gchar * const *names, gsize n,
 }
 
 static void
-on_account_validity_changed (McdAccount *account, gboolean valid,
-			     McdAccountManager *account_manager)
+on_account_usability_changed (McdAccount *account,
+    gboolean usable,
+    McdAccountManager *account_manager)
 {
     const gchar *object_path;
 
@@ -560,14 +564,14 @@ on_account_validity_changed (McdAccount *account, gboolean valid,
 
     if (_mcd_account_is_hidden (account))
     {
-        mc_svc_account_manager_interface_hidden_emit_hidden_account_validity_changed (
-            account_manager, object_path, valid);
+        mc_svc_account_manager_interface_hidden_emit_hidden_account_usability_changed (
+            account_manager, object_path, usable);
     }
     else
     {
-        tp_svc_account_manager_emit_account_validity_changed (account_manager,
-                                                              object_path,
-                                                              valid);
+        tp_svc_account_manager_emit_account_usability_changed (account_manager,
+                                                               object_path,
+                                                               usable);
     }
 }
 
@@ -614,7 +618,7 @@ unref_account (gpointer data)
 
     DEBUG ("called for %s", mcd_account_get_unique_name (account));
 
-    disconnect_signal (account, on_account_validity_changed);
+    disconnect_signal (account, on_account_usability_changed);
     disconnect_signal (account, on_account_removed);
 
     g_object_unref (account);
@@ -645,8 +649,8 @@ add_account (McdAccountManager *account_manager, McdAccount *account,
 
     /* if we have to connect to any signals from the account object, this is
      * the place to do it */
-    g_signal_connect (account, "validity-changed",
-		      G_CALLBACK (on_account_validity_changed),
+    g_signal_connect (account, "usability-changed",
+		      G_CALLBACK (on_account_usability_changed),
 		      account_manager);
     g_signal_connect (account, "removed", G_CALLBACK (on_account_removed),
 		      account_manager);
@@ -657,11 +661,11 @@ add_account (McdAccountManager *account_manager, McdAccount *account,
     /* some reports indicate this doesn't always fire for async backend  *
      * accounts: testing here hasn't shown this, but at least we will be *
      * able to tell if this happens from MC debug logs now:              */
-    DEBUG ("account %s validity: %d", name, mcd_account_is_valid (account));
-    /* if the account is already valid, synthesize a signal indicating that
+    DEBUG ("account %s usability: %d", name, mcd_account_is_usable (account));
+    /* if the account is already usable, synthesize a signal indicating that
      * it's been added */
-    if (mcd_account_is_valid (account))
-        on_account_validity_changed (account, TRUE, account_manager);
+    if (mcd_account_is_usable (account))
+        on_account_usability_changed (account, TRUE, account_manager);
 }
 
 static void
@@ -734,17 +738,17 @@ complete_account_creation_finish (McdAccount *account,
 }
 
 static void
-complete_account_creation_check_validity_cb (McdAccount *account,
-                                             const GError *invalid_reason,
+complete_account_creation_check_usability_cb (McdAccount *account,
+                                             const GError *unusable_reason,
                                              gpointer user_data)
 {
     McdCreateAccountData *cad = user_data;
 
-    if (invalid_reason != NULL)
+    if (unusable_reason != NULL)
     {
         cad->ok = FALSE;
-        g_set_error_literal (&cad->error, invalid_reason->domain,
-            invalid_reason->code, invalid_reason->message);
+        g_set_error_literal (&cad->error, unusable_reason->domain,
+            unusable_reason->code, unusable_reason->message);
     }
 
     complete_account_creation_finish (account, cad);
@@ -775,7 +779,8 @@ complete_account_creation_set_cb (McdAccount *account, GPtrArray *not_yet,
     if (cad->ok)
     {
         add_account (account_manager, account, G_STRFUNC);
-        mcd_account_check_validity (account, complete_account_creation_check_validity_cb, cad);
+        mcd_account_check_usability (account,
+            complete_account_creation_check_usability_cb, cad);
     }
     else
     {
@@ -936,7 +941,9 @@ account_manager_hidden_iface_init (
 }
 
 static void
-accounts_to_gvalue (GHashTable *accounts, gboolean valid, gboolean hidden,
+accounts_to_gvalue (GHashTable *accounts,
+                    gboolean usable,
+                    gboolean hidden,
                     GValue *value)
 {
     static GType ao_type = G_TYPE_INVALID;
@@ -955,7 +962,7 @@ accounts_to_gvalue (GHashTable *accounts, gboolean valid, gboolean hidden,
 
     while (g_hash_table_iter_next (&iter, &k, (gpointer)&account))
     {
-        if (mcd_account_is_valid (account) == valid &&
+        if (mcd_account_is_usable (account) == usable &&
             _mcd_account_is_hidden (account) == hidden)
         {
             g_ptr_array_add (account_array,
@@ -968,8 +975,9 @@ accounts_to_gvalue (GHashTable *accounts, gboolean valid, gboolean hidden,
 }
 
 static void
-get_valid_accounts (TpSvcDBusProperties *self, const gchar *name,
-		    GValue *value)
+get_usable_accounts (TpSvcDBusProperties *self,
+    const gchar *name,
+    GValue *value)
 {
     McdAccountManager *account_manager = MCD_ACCOUNT_MANAGER (self);
     McdAccountManagerPrivate *priv = account_manager->priv;
@@ -979,8 +987,9 @@ get_valid_accounts (TpSvcDBusProperties *self, const gchar *name,
 }
 
 static void
-get_invalid_accounts (TpSvcDBusProperties *self, const gchar *name,
-		      GValue *value)
+get_unusable_accounts (TpSvcDBusProperties *self,
+    const gchar *name,
+    GValue *value)
 {
     McdAccountManager *account_manager = MCD_ACCOUNT_MANAGER (self);
     McdAccountManagerPrivate *priv = account_manager->priv;
@@ -1015,16 +1024,17 @@ get_supported_account_properties (TpSvcDBusProperties *svc,
 }
 
 static const McdDBusProp account_manager_properties[] = {
-    { "ValidAccounts", NULL, get_valid_accounts },
-    { "InvalidAccounts", NULL, get_invalid_accounts },
+    { "UsableAccounts", NULL, get_usable_accounts },
+    { "UnusableAccounts", NULL, get_unusable_accounts },
     { "Interfaces", NULL, mcd_dbus_get_interfaces },
     { "SupportedAccountProperties", NULL, get_supported_account_properties },
     { 0 },
 };
 
 static void
-get_valid_hidden_accounts (TpSvcDBusProperties *self, const gchar *name,
-                           GValue *value)
+get_usable_hidden_accounts (TpSvcDBusProperties *self,
+    const gchar *name,
+    GValue *value)
 {
     McdAccountManager *account_manager = MCD_ACCOUNT_MANAGER (self);
     McdAccountManagerPrivate *priv = account_manager->priv;
@@ -1033,8 +1043,9 @@ get_valid_hidden_accounts (TpSvcDBusProperties *self, const gchar *name,
 }
 
 static void
-get_invalid_hidden_accounts (TpSvcDBusProperties *self, const gchar *name,
-                             GValue *value)
+get_unusable_hidden_accounts (TpSvcDBusProperties *self,
+    const gchar *name,
+    GValue *value)
 {
     McdAccountManager *account_manager = MCD_ACCOUNT_MANAGER (self);
     McdAccountManagerPrivate *priv = account_manager->priv;
@@ -1043,8 +1054,8 @@ get_invalid_hidden_accounts (TpSvcDBusProperties *self, const gchar *name,
 }
 
 static const McdDBusProp account_manager_hidden_properties[] = {
-    { "ValidHiddenAccounts", NULL, get_valid_hidden_accounts },
-    { "InvalidHiddenAccounts", NULL, get_invalid_hidden_accounts },
+    { "UsableHiddenAccounts", NULL, get_usable_hidden_accounts },
+    { "UnusableHiddenAccounts", NULL, get_unusable_hidden_accounts },
     { 0 },
 };
 

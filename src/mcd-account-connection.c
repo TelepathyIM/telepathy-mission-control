@@ -68,7 +68,7 @@ _mcd_account_connection_begin (McdAccount *account,
     ctx = g_malloc (sizeof (McdAccountConnectionContext));
     ctx->user_initiated = user_initiated;
 
-    /* If we get this far, the account should be valid, so getting the
+    /* If we get this far, the account should be usable, so getting the
      * parameters should succeed.
      */
     ctx->params = _mcd_account_dup_parameters (account);

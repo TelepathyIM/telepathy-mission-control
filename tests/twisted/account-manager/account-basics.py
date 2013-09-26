@@ -38,10 +38,8 @@ def test(q, bus, mc):
     properties = account_manager.GetAll(cs.AM,
             dbus_interface=cs.PROPERTIES_IFACE)
     assert properties is not None
-    assert properties.get('ValidAccounts') == [], \
-        properties.get('ValidAccounts')
-    assert properties.get('InvalidAccounts') == [], \
-        properties.get('InvalidAccounts')
+    assertEquals([], properties.get('UsableAccounts'))
+    assertEquals([], properties.get('UnusableAccounts'))
     interfaces = properties.get('Interfaces')
 
     params = dbus.Dictionary({"account": "someguy@example.com",
@@ -54,10 +52,10 @@ def test(q, bus, mc):
     properties = account_manager.GetAll(cs.AM,
             dbus_interface=cs.PROPERTIES_IFACE)
     assert properties is not None
-    assert properties.get('ValidAccounts') == [account_path], properties
-    account_path = properties['ValidAccounts'][0]
+    assertEquals([account_path], properties.get('UsableAccounts'))
+    account_path = properties['UsableAccounts'][0]
     assert isinstance(account_path, dbus.ObjectPath), repr(account_path)
-    assert properties.get('InvalidAccounts') == [], properties
+    assertEquals([], properties.get('UnusableAccounts'))
 
     account_iface = dbus.Interface(account, cs.ACCOUNT)
     account_props = dbus.Interface(account, cs.PROPERTIES_IFACE)
@@ -73,7 +71,7 @@ def test(q, bus, mc):
     assert properties.get('DisplayName') == 'fakeaccount', \
         properties.get('DisplayName')
     assert properties.get('Icon') == '', properties.get('Icon')
-    assert properties.get('Valid') == True, properties.get('Valid')
+    assertEquals(True, properties.get('Usable'))
     assert properties.get('Enabled') == False, properties.get('Enabled')
     #assert properties.get('Nickname') == 'fakenick', properties.get('Nickname')
     assert properties.get('Parameters') == params, properties.get('Parameters')
@@ -326,9 +324,8 @@ def test(q, bus, mc):
     properties = account_manager.GetAll(cs.AM,
             dbus_interface=cs.PROPERTIES_IFACE)
     assert properties is not None
-    assert properties.get('ValidAccounts') == [], properties
-    assert properties.get('InvalidAccounts') == [], properties
-
+    assertEquals([], properties.get('UsableAccounts'))
+    assertEquals([], properties.get('UnusableAccounts'))
 
 if __name__ == '__main__':
     exec_test(test, {})

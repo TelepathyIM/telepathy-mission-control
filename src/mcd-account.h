@@ -90,14 +90,14 @@ void mcd_account_delete (McdAccount *account, McdAccountDeleteCb callback,
 const gchar *mcd_account_get_unique_name (McdAccount *account);
 const gchar *mcd_account_get_object_path (McdAccount *account);
 
-gboolean mcd_account_is_valid (McdAccount *account);
+gboolean mcd_account_is_usable (McdAccount *account);
 
-typedef void (*McdAccountCheckValidityCb) (McdAccount *account,
-                                           const GError *invalid_reason,
-                                           gpointer user_data);
-void mcd_account_check_validity (McdAccount *account,
-                                 McdAccountCheckValidityCb callback,
-                                 gpointer user_data);
+typedef void (*McdAccountCheckUsabilityCb) (McdAccount *account,
+    const GError *unusable_reason,
+    gpointer user_data);
+void mcd_account_check_usability (McdAccount *account,
+    McdAccountCheckUsabilityCb callback,
+    gpointer user_data);
 
 gboolean mcd_account_is_enabled (McdAccount *account);
 

@@ -60,7 +60,7 @@ def test(q, bus, mc):
 
     am_signal, ret = q.expect_many(
             EventPattern('dbus-signal', path=cs.AM_PATH,
-                interface=cs.AM, signal='AccountValidityChanged'),
+                interface=cs.AM, signal='AccountUsabilityChanged'),
             EventPattern('dbus-return', method='CreateAccount'),
             )
     account_path = ret.value[0]

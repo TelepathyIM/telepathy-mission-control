@@ -160,8 +160,8 @@ def exec_test_deferred (fun, params, protocol=None, timeout=None,
         am = AccountManager(bus)
         am_props = am.Properties.GetAll(cs.AM)
 
-        for a in (am_props.get('ValidAccounts', []) +
-                am_props.get('InvalidAccounts', [])):
+        for a in (am_props.get('UsableAccounts', []) +
+                am_props.get('UnusableAccounts', [])):
             account = Account(bus, a)
 
             try:
@@ -1035,12 +1035,12 @@ def create_fakecm_account(q, bus, mc, params, properties={},
     # expect a different signal. It annoys me that this has to be in here, but,
     # eh.
     if properties.get(cs.ACCOUNT_IFACE_HIDDEN + '.Hidden', False):
-        validity_changed_pattern = servicetest.EventPattern('dbus-signal',
-            path=cs.AM_PATH, signal='HiddenAccountValidityChanged',
+        usability_changed_pattern = servicetest.EventPattern('dbus-signal',
+            path=cs.AM_PATH, signal='HiddenAccountUsabilityChanged',
             interface=cs.AM_IFACE_HIDDEN)
     else:
-        validity_changed_pattern = servicetest.EventPattern('dbus-signal',
-            path=cs.AM_PATH, signal='AccountValidityChanged', interface=cs.AM)
+        usability_changed_pattern = servicetest.EventPattern('dbus-signal',
+            path=cs.AM_PATH, signal='AccountUsabilityChanged', interface=cs.AM)
 
     # The spec has no order guarantee here.
     # FIXME: MC ought to also introspect the CM and find out that the params
@@ -1048,13 +1048,13 @@ def create_fakecm_account(q, bus, mc, params, properties={},
     a_signal, am_signal, ret = q.expect_many(
             servicetest.EventPattern('dbus-signal',
                 signal='AccountPropertyChanged', interface=cs.ACCOUNT,
-                predicate=(lambda e: 'Valid' in e.args[0])),
-            validity_changed_pattern,
+                predicate=(lambda e: 'Usable' in e.args[0])),
+            usability_changed_pattern,
             servicetest.EventPattern('dbus-return', method='CreateAccount'),
             )
     account_path = ret.value[0]
     assert am_signal.args == [account_path, True], am_signal.args
-    assert a_signal.args[0]['Valid'] == True, a_signal.args
+    assert a_signal.args[0]['Usable'] == True, a_signal.args
 
     assert account_path is not None
 

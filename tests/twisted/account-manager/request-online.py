@@ -52,10 +52,10 @@ def test(q, bus, mc):
         "password": "secrecy"}, signature='sv')
     (cm_name_ref, account) = create_fakecm_account(q, bus, mc, params)
 
-    # The account is initially valid but disabled, and hence offline
+    # The account is initially usable but disabled, and hence offline
     props = account.GetAll(cs.ACCOUNT, dbus_interface=cs.PROPERTIES_IFACE)
     assert not props['Enabled']
-    assert props['Valid']
+    assert props['Usable']
     # The spec says it should be (Offline, "", "") but I don't think the
     # strings really matter. If anything, the second one should start out at
     # "offline".
@@ -71,7 +71,7 @@ def test(q, bus, mc):
 
     props = account.GetAll(cs.ACCOUNT, dbus_interface=cs.PROPERTIES_IFACE)
     assert props['Enabled']
-    assert props['Valid']
+    assert props['Usable']
     # Ditto above re. string fields.
     assertEquals(cs.PRESENCE_OFFLINE, props['CurrentPresence'][0])
 

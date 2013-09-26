@@ -40,8 +40,8 @@ def test_unhidden_account(q, bus, mc):
     assert not account.Properties.Get(cs.ACCOUNT_IFACE_HIDDEN, 'Hidden')
 
     am_hidden_props = am.Properties.GetAll(cs.AM_IFACE_HIDDEN)
-    assertEquals([], am_hidden_props['ValidHiddenAccounts'])
-    assertEquals([], am_hidden_props['InvalidHiddenAccounts'])
+    assertEquals([], am_hidden_props['UsableHiddenAccounts'])
+    assertEquals([], am_hidden_props['UnusableHiddenAccounts'])
 
 def test_create_hidden_account(q, bus, mc):
     """
@@ -62,16 +62,16 @@ def test_create_hidden_account(q, bus, mc):
 
     q.forbid_events([
         EventPattern('dbus-signal', path=cs.AM_PATH,
-            signal='AccountValidityChanged', interface=cs.AM),
+            signal='AccountUsabilityChanged', interface=cs.AM),
         ])
     cm_name_ref, account = create_fakecm_account(q, bus, mc, params, properties)
 
-    valid_accounts = am.Properties.Get(cs.AM, 'ValidAccounts')
-    assertDoesNotContain(account.object_path, valid_accounts)
+    usable_accounts = am.Properties.Get(cs.AM, 'UsableAccounts')
+    assertDoesNotContain(account.object_path, usable_accounts)
 
-    valid_hidden_accounts = am.Properties.Get(cs.AM_IFACE_HIDDEN,
-        'ValidHiddenAccounts')
-    assertContains(account.object_path, valid_hidden_accounts)
+    usable_hidden_accounts = am.Properties.Get(cs.AM_IFACE_HIDDEN,
+        'UsableHiddenAccounts')
+    assertContains(account.object_path, usable_hidden_accounts)
 
     # Blow MC away, revive it, and check that the account is still hidden.
     tell_mc_to_die(q, bus)
@@ -80,11 +80,11 @@ def test_create_hidden_account(q, bus, mc):
 
     assert account.Properties.Get(cs.ACCOUNT_IFACE_HIDDEN, 'Hidden')
 
-    assertDoesNotContain(account.object_path, properties['ValidAccounts'])
+    assertDoesNotContain(account.object_path, properties['UsableAccounts'])
 
-    valid_hidden_accounts = am.Properties.Get(cs.AM_IFACE_HIDDEN,
-        'ValidHiddenAccounts')
-    assertContains(account.object_path, valid_hidden_accounts)
+    usable_hidden_accounts = am.Properties.Get(cs.AM_IFACE_HIDDEN,
+        'UsableHiddenAccounts')
+    assertContains(account.object_path, usable_hidden_accounts)
 
     # Delete the account, and check that its removal is signalled only on
     # AM.I.Hidden, not on the main AM interface.

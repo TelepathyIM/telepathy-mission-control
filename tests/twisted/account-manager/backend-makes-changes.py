@@ -50,7 +50,7 @@ def test(q, bus, mc, fake_accounts_service=None, **kwargs):
                     {'account': 0, 'password': cs.PARAM_SECRET}]),
             EventPattern('dbus-signal',
                 path=cs.AM_PATH,
-                signal='AccountValidityChanged',
+                signal='AccountUsabilityChanged',
                 args=[account_path, True]),
             )
     account = Account(bus, account_path)
@@ -64,7 +64,7 @@ def test(q, bus, mc, fake_accounts_service=None, **kwargs):
             path=account_path,
             signal='AccountPropertyChanged',
             interface=cs.ACCOUNT,
-            # Can't match on args because Valid: True sometimes gets into
+            # Can't match on args because Usable: True sometimes gets into
             # this AccountPropertyChanged signal. MC should stop merging
             # unrelated signals one day...
             predicate=(lambda e:

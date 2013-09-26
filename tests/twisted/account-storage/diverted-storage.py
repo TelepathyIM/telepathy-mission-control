@@ -25,7 +25,7 @@ import dbus
 import dbus.service
 
 from servicetest import EventPattern, tp_name_prefix, tp_path_prefix, \
-        call_async
+        call_async, assertEquals
 from mctest import (
     exec_test, create_fakecm_account, get_fakecm_account, connect_to_mc,
     keyfile_read, read_account_keyfile, tell_mc_to_die, resuscitate_mc,
@@ -46,10 +46,8 @@ def test(q, bus, mc):
 
     account_manager, properties, interfaces = connect_to_mc(q, bus, mc)
 
-    assert properties.get('ValidAccounts') == [], \
-        properties.get('ValidAccounts')
-    assert properties.get('InvalidAccounts') == [], \
-        properties.get('InvalidAccounts')
+    assertEquals([], properties.get('UsableAccounts'))
+    assertEquals([], properties.get('UnusableAccounts'))
 
     params = dbus.Dictionary({"account": "someguy@example.com",
         "password": "secrecy"}, signature='sv')
@@ -61,10 +59,10 @@ def test(q, bus, mc):
     properties = account_manager.GetAll(cs.AM,
             dbus_interface=cs.PROPERTIES_IFACE)
     assert properties is not None
-    assert properties.get('ValidAccounts') == [account_path], properties
-    account_path = properties['ValidAccounts'][0]
+    assertEquals([account_path], properties.get('UsableAccounts'))
+    account_path = properties['UsableAccounts'][0]
     assert isinstance(account_path, dbus.ObjectPath), repr(account_path)
-    assert properties.get('InvalidAccounts') == [], properties
+    assertEquals([], properties.get('UnusableAccounts'))
 
     account_iface = dbus.Interface(account, cs.ACCOUNT)
     account_props = dbus.Interface(account, cs.PROPERTIES_IFACE)

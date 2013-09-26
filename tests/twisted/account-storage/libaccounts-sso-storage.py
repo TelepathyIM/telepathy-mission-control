@@ -66,10 +66,10 @@ def prepare_accounts_db(ctl_dir):
 def test(q, bus, mc):
     account_manager, properties, interfaces = connect_to_mc(q, bus, mc)
 
-    va = properties.get('ValidAccounts')
+    va = properties.get('UsableAccounts')
     assert va == [], va
 
-    ia = properties.get('InvalidAccounts')
+    ia = properties.get('UnusableAccounts')
     assert len(ia) == 1
 
     account_path = ia[0]
