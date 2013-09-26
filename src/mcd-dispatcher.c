@@ -1545,7 +1545,7 @@ send_message_got_channel (McdRequest *request,
         message->close_after = close_after;
 
         DEBUG ("calling send on channel interface");
-        tp_cli_channel_interface_messages_call_send_message
+        tp_cli_channel_type_text_call_send_message
           (mcd_channel_get_tp_channel (channel),
            -1,
            message->payload,
