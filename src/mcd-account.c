@@ -5038,7 +5038,8 @@ mcd_account_self_contact_changed_cb (McdAccount *self,
       TP_CONTACT_FEATURE_AVATAR_TOKEN,
       TP_CONTACT_FEATURE_AVATAR_DATA,
       TP_CONTACT_FEATURE_ALIAS,
-      TP_CONTACT_FEATURE_PRESENCE
+      TP_CONTACT_FEATURE_PRESENCE,
+      0
   };
   TpContact *self_contact;
 
@@ -5060,8 +5061,7 @@ mcd_account_self_contact_changed_cb (McdAccount *self,
       tp_contact_get_identifier (self_contact));
 
   tp_connection_upgrade_contacts_async (tp_connection,
-      1, &self_contact,
-      G_N_ELEMENTS (contact_features), contact_features,
+      1, &self_contact, contact_features,
       mcd_account_self_contact_upgraded_cb,
       tp_weak_ref_new (self, NULL, NULL));
 }
