@@ -16,7 +16,7 @@
  *
  * [D-BUS Service]
  * Name=....AccountManager
- * Exec=/usr/lib/telepathy/mc-wait-for-name --activate ....MissionControl5 ....AccountManager
+ * Exec=/usr/lib/telepathy/mc-wait-for-name --activate ....MissionControl6 ....AccountManager
  *
  * Copyright (C) 2009 Nokia Corporation
  * Copyright (C) 2009, 2012 Collabora Ltd.

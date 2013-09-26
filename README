@@ -1,8 +1,8 @@
 ===========================
-telepathy-mission-control 5
+telepathy-mission-control 6
 ===========================
 
-Telepathy Mission Control 5 is an account manager and channel dispatcher for
+Telepathy Mission Control 6 is an account manager and channel dispatcher for
 the Telepathy framework, allowing user interfaces and other clients
 to share connections to real-time communication services without conflicting.
 It implements the AccountManager and ChannelDispatcher D-Bus APIs as described
@@ -115,7 +115,7 @@ The current development version of MC is available from the
   <http://git.collabora.co.uk/?p=telepathy-mission-control.git> (gitweb)
 
 Stable branches will be made available from branches with names like
-'telepathy-mission-control-5.2' in the same repository.
+'telepathy-mission-control-6.0' in the same repository.
 
 Contributions for review should be attached to bugs in freedesktop.org
 Bugzilla, with the "patch" tag. If there's no relevant bug, open one:

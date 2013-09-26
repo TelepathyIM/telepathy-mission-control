@@ -1,3 +1,0 @@
-[D-BUS Service]
-Name=org.freedesktop.Telepathy.AccountManager
-Exec=@libexecdir@/mission-control-5

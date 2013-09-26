@@ -1275,7 +1275,7 @@ def tell_mc_to_die(q, bus):
     # Make sure MC exits
     q.expect('dbus-signal', signal='NameOwnerChanged',
         predicate=(lambda e:
-            e.args[0] == 'org.freedesktop.Telepathy.AccountManager' and
+            e.args[0] == 'im.telepathy1.AccountManager' and
             e.args[2] == ''))
 
 def resuscitate_mc(q, bus, mc):

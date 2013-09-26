@@ -6,7 +6,7 @@ includedir=@includedir@
 MCP_API_VERSION=@MCP_API_VERSION@
 MCP_ABI_VERSION=@MCP_ABI_VERSION@
 plugindir=${libdir}/mission-control-plugins.@MCP_ABI_VERSION@
-missioncontrolpath=${libexecdir}/mission-control-5
+missioncontrolpath=${libexecdir}/mission-control-6
 abs_top_srcdir=@abs_top_srcdir@
 abs_top_builddir=@abs_top_builddir@
 

@@ -1,13 +1,13 @@
-.TH MISSION-CONTROL-5 "8" "July 2009" "Telepathy" "D-Bus services"
+.TH MISSION-CONTROL-6 "8" "July 2009" "Telepathy" "D-Bus services"
 \" Copyright © 2009 Collabora Ltd. <http://www.collabora.co.uk/>
 \" This document may be distributed under the same terms as
 \" telepathy-mission-control itself.
 .SH NAME
-mission-control-5 \- Telepathy account manager/chanel dispatcher
+mission-control-6 \- Telepathy account manager/chanel dispatcher
 .SH SYNOPSIS
-\fB@libexecdir@/mission\-control\-5\fR
+\fB@libexecdir@/mission\-control\-6\fR
 .SH DESCRIPTION
-Mission Control 5 implements the AccountManager and ChannelDispatcher services
+Mission Control 6 implements the AccountManager and ChannelDispatcher services
 described in the Telepathy D-Bus specification, allowing clients like
 .BR empathy (1)
 to store account details, connect to accounts, request communication channels,

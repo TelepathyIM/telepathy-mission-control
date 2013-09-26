@@ -24,4 +24,4 @@ ln -f ${MC_TEST_LOG_DIR}/missioncontrol-$$.log missioncontrol.log
 DBUS_SYSTEM_BUS_ADDRESS="$DBUS_SESSION_BUS_ADDRESS"
 export DBUS_SYSTEM_BUS_ADDRESS
 
-@libexecdir@/mission-control-5
+@libexecdir@/mission-control-6
