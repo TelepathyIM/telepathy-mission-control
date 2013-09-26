@@ -77,7 +77,7 @@ G_DEFINE_TYPE (McdConnection, mcd_connection, MCD_TYPE_OPERATION);
 struct _McdConnectionPrivate
 {
     /* Factory for TpConnection objects */
-    TpSimpleClientFactory *client_factory;
+    TpClientFactory *client_factory;
 
     /* Channel dispatcher */
     McdDispatcher *dispatcher;
@@ -1852,7 +1852,7 @@ mcd_connection_class_init (McdConnectionClass * klass)
 
     g_object_class_install_property (object_class, PROP_CLIENT_FACTORY,
         g_param_spec_object ("client-factory", "Client factory",
-            "Client factory", TP_TYPE_SIMPLE_CLIENT_FACTORY,
+            "Client factory", TP_TYPE_CLIENT_FACTORY,
             G_PARAM_WRITABLE | G_PARAM_CONSTRUCT_ONLY));
 
     g_object_class_install_property
@@ -2206,7 +2206,7 @@ _mcd_connection_set_tp_connection (McdConnection *connection,
     }
 
     g_assert (priv->tp_conn == NULL);
-    priv->tp_conn = tp_simple_client_factory_ensure_connection (
+    priv->tp_conn = tp_client_factory_ensure_connection (
         priv->client_factory, obj_path, NULL, &inner_error);
     DEBUG ("new connection is %p", priv->tp_conn);
     if (!priv->tp_conn)

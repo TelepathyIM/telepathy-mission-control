@@ -1423,7 +1423,7 @@ main (int argc, char **argv)
     TpAccountManager *am = NULL;
     TpAccount *a = NULL;
     TpDBusDaemon *dbus = NULL;
-    TpSimpleClientFactory *client_factory = NULL;
+    TpClientFactory *client_factory = NULL;
     GError *error = NULL;
     const GQuark features[] = { TP_ACCOUNT_FEATURE_CORE,
         TP_ACCOUNT_FEATURE_ADDRESSING, TP_ACCOUNT_FEATURE_STORAGE, 0 };
@@ -1442,22 +1442,22 @@ main (int argc, char **argv)
             app_name, command.common.name, error->message);
         goto out;
     }
-    client_factory = tp_simple_client_factory_new (dbus);
+    client_factory = tp_client_factory_new (dbus);
 
     if (command.common.account == NULL) {
-        TpSimpleClientFactory *factory;
+        TpClientFactory *factory;
 
         am = tp_account_manager_new (dbus);
         factory = tp_proxy_get_factory (am);
 
-        tp_simple_client_factory_add_account_features (factory, features);
+        tp_client_factory_add_account_features (factory, features);
 
         tp_proxy_prepare_async (am, NULL, manager_ready, NULL);
     }
     else {
 
 	command.common.account = ensure_prefix (command.common.account);
-        a = tp_simple_client_factory_ensure_account (client_factory,
+        a = tp_client_factory_ensure_account (client_factory,
             command.common.account, NULL, &error);
 
 	if (error != NULL)

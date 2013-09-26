@@ -90,7 +90,7 @@ struct _McdMasterPrivate
 
     /* We create these for our member objects */
     TpDBusDaemon *dbus_daemon;
-    TpSimpleClientFactory *client_factory;
+    TpClientFactory *client_factory;
 
     /* Current pending sleep timer */
     gint shutdown_timeout_id;
@@ -203,7 +203,7 @@ mcd_master_constructor (GType type, guint n_params,
     umask (0077);
 #endif
 
-    priv->client_factory = tp_simple_client_factory_new (priv->dbus_daemon);
+    priv->client_factory = tp_client_factory_new (priv->dbus_daemon);
     priv->account_manager = mcd_account_manager_new (priv->client_factory);
 
     priv->dispatcher = mcd_dispatcher_new (priv->dbus_daemon, master);

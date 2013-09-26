@@ -361,7 +361,7 @@ mcp_dispatch_operation_destroy_channels (McpDispatchOperation *self,
  */
 gboolean
 mcp_dispatch_operation_find_channel_by_type (McpDispatchOperation *self,
-    TpSimpleClientFactory *client_factory,
+    TpClientFactory *client_factory,
     guint start_from,
     TpHandleType handle_type,
     GQuark channel_type,
@@ -411,7 +411,7 @@ mcp_dispatch_operation_find_channel_by_type (McpDispatchOperation *self,
               TpConnection *connection =
                 mcp_dispatch_operation_ref_connection (self, client_factory);
 
-              *ret_ref_channel = tp_simple_client_factory_ensure_channel (
+              *ret_ref_channel = tp_client_factory_ensure_channel (
                   client_factory, connection, channel_path, properties, NULL);
 
               g_object_unref (connection);
@@ -439,7 +439,7 @@ mcp_dispatch_operation_find_channel_by_type (McpDispatchOperation *self,
  */
 TpConnection *
 mcp_dispatch_operation_ref_connection (McpDispatchOperation *self,
-    TpSimpleClientFactory *client_factory)
+    TpClientFactory *client_factory)
 {
   const gchar *conn_path;
 
@@ -449,7 +449,7 @@ mcp_dispatch_operation_ref_connection (McpDispatchOperation *self,
 
   if (conn_path != NULL)
     {
-      return tp_simple_client_factory_ensure_connection (client_factory,
+      return tp_client_factory_ensure_connection (client_factory,
           conn_path, NULL, NULL);
     }
 
@@ -469,7 +469,7 @@ mcp_dispatch_operation_ref_connection (McpDispatchOperation *self,
  */
 TpChannel *
 mcp_dispatch_operation_ref_nth_channel (McpDispatchOperation *self,
-    TpSimpleClientFactory *client_factory,
+    TpClientFactory *client_factory,
     guint n)
 {
   TpConnection *connection;
@@ -495,7 +495,7 @@ mcp_dispatch_operation_ref_nth_channel (McpDispatchOperation *self,
   if (channel_properties == NULL)
     goto finally;
 
-  channel = tp_simple_client_factory_ensure_channel (client_factory,
+  channel = tp_client_factory_ensure_channel (client_factory,
       connection, channel_path, channel_properties, NULL);
 
 finally:

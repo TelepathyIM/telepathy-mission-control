@@ -61,7 +61,7 @@ struct _McdAccountManagerClass
 
 GType mcd_account_manager_get_type (void);
 McdAccountManager *mcd_account_manager_new (
-    TpSimpleClientFactory *client_factory);
+    TpClientFactory *client_factory);
 
 TpDBusDaemon *mcd_account_manager_get_dbus_daemon
     (McdAccountManager *account_manager);

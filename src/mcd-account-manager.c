@@ -89,7 +89,7 @@ G_DEFINE_TYPE_WITH_CODE (McdAccountManager, mcd_account_manager, G_TYPE_OBJECT,
 struct _McdAccountManagerPrivate
 {
     TpDBusDaemon *dbus_daemon;
-    TpSimpleClientFactory *client_factory;
+    TpClientFactory *client_factory;
     McdConnectivityMonitor *minotaur;
 
     McdStorage *storage;
@@ -534,7 +534,7 @@ list_connection_names_cb (const gchar * const *names, gsize n,
             g_strdelimit (path, ".", '/');
 
             DEBUG ("Killing connection");
-            proxy = tp_simple_client_factory_ensure_connection (
+            proxy = tp_client_factory_ensure_connection (
                 priv->client_factory, path, NULL, NULL);
 
             if (proxy)
@@ -1467,10 +1467,9 @@ set_property (GObject *obj, guint prop_id,
     {
     case PROP_CLIENT_FACTORY:
         g_assert (priv->client_factory == NULL);  /* construct-only */
-        priv->client_factory =
-            TP_SIMPLE_CLIENT_FACTORY (g_value_dup_object (val));
+        priv->client_factory = TP_CLIENT_FACTORY (g_value_dup_object (val));
         priv->dbus_daemon =
-            tp_simple_client_factory_get_dbus_daemon (priv->client_factory);
+            tp_client_factory_get_dbus_daemon (priv->client_factory);
         g_object_ref (priv->dbus_daemon);
         break;
 
@@ -1553,7 +1552,7 @@ mcd_account_manager_class_init (McdAccountManagerClass *klass)
          g_param_spec_object ("client-factory",
                               "Client factory",
                               "Client factory",
-                              TP_TYPE_SIMPLE_CLIENT_FACTORY,
+                              TP_TYPE_CLIENT_FACTORY,
                               G_PARAM_WRITABLE | G_PARAM_CONSTRUCT_ONLY));
 }
 
@@ -1628,7 +1627,7 @@ _mcd_account_manager_constructed (GObject *obj)
 }
 
 McdAccountManager *
-mcd_account_manager_new (TpSimpleClientFactory *client_factory)
+mcd_account_manager_new (TpClientFactory *client_factory)
 {
     gpointer *obj;
 

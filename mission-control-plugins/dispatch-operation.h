@@ -53,15 +53,15 @@ GType mcp_dispatch_operation_get_type (void) G_GNUC_CONST;
 
 gboolean mcp_dispatch_operation_find_channel_by_type (
     McpDispatchOperation *self,
-    TpSimpleClientFactory *client_factory,
+    TpClientFactory *client_factory,
     guint start_from, TpHandleType handle_type, GQuark channel_type,
     guint *ret_index, gchar **ret_dup_path,
     GHashTable **ret_ref_immutable_properties, TpChannel **ret_ref_channel);
 
 TpConnection *mcp_dispatch_operation_ref_connection (
-    McpDispatchOperation *self, TpSimpleClientFactory *client_factory);
+    McpDispatchOperation *self, TpClientFactory *client_factory);
 TpChannel *mcp_dispatch_operation_ref_nth_channel (McpDispatchOperation *self,
-    TpSimpleClientFactory *client_factory,
+    TpClientFactory *client_factory,
     guint n);
 
 /* virtual methods */

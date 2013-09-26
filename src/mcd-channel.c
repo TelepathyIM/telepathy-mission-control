@@ -603,7 +603,7 @@ mcd_channel_new_from_properties (TpConnection *connection,
     TpChannel *tp_chan;
     GError *error = NULL;
 
-    tp_chan = tp_simple_client_factory_ensure_channel (
+    tp_chan = tp_client_factory_ensure_channel (
         tp_proxy_get_factory (connection), connection, object_path,
         properties, &error);
 
@@ -690,7 +690,7 @@ _mcd_channel_create_proxy (McdChannel *channel, TpConnection *connection,
 
     g_return_val_if_fail (MCD_IS_CHANNEL (channel), FALSE);
 
-    tp_chan = tp_simple_client_factory_ensure_channel (
+    tp_chan = tp_client_factory_ensure_channel (
         tp_proxy_get_factory (connection), connection, object_path,
         properties, &error);
 
