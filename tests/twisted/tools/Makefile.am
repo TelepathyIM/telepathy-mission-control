@@ -27,25 +27,25 @@ run-mc.sh: run-mc.sh.in Makefile
 	@chmod +x $@
 
 servicedir-uninstalled/%.conf: servicedir-uninstalled/%.conf.in Makefile
-	$(AM_V_at)$(mkdir_p) servicedir-uninstalled
+	$(AM_V_at)$(MKDIR_P) servicedir-uninstalled
 	$(AM_V_GEN)sed -e "s|[@]abs_top_builddir[@]|@abs_top_builddir@|g" $< > $@
 
 servicedir-installed/%.conf: servicedir-installed/%.conf.in Makefile
-	$(AM_V_at)$(mkdir_p) servicedir-installed
+	$(AM_V_at)$(MKDIR_P) servicedir-installed
 	$(AM_V_GEN)sed -e "s|[@]mctestsdir[@]|@mctestsdir@|g" $< > $@
 
 # We don't use the full filename for the .in because > 99 character filenames
 # in tarballs are non-portable (and automake 1.8 doesn't let us build
 # non-archaic tarballs)
 servicedir-uninstalled/org.freedesktop.Telepathy.%.service: servicedir-uninstalled/%.service.in Makefile
-	$(AM_V_at)$(mkdir_p) servicedir-uninstalled
+	$(AM_V_at)$(MKDIR_P) servicedir-uninstalled
 	$(AM_V_GEN)sed \
 		-e "s|[@]abs_top_srcdir[@]|@abs_top_srcdir@|g" \
 		-e "s|[@]abs_top_builddir[@]|@abs_top_builddir@|g" \
 		$< > $@
 
 servicedir-installed/org.freedesktop.Telepathy.%.service: servicedir-installed/%.service.in Makefile
-	$(AM_V_at)$(mkdir_p) servicedir-installed
+	$(AM_V_at)$(MKDIR_P) servicedir-installed
 	$(AM_V_GEN)sed \
 		-e "s|[@]mctestsdir[@]|@mctestsdir@|g" \
 		$< > $@

@@ -225,12 +225,12 @@ Android.mk: Makefile.am $(nodist_libmcd_convenience_la_SOURCES)
 tools_dir = $(top_srcdir)/tools
 
 _gen/mcd.xml: mcd.xml $(wildcard $(top_srcdir)/xml/*.xml)
-	$(AM_V_at)$(mkdir_p) _gen
+	$(AM_V_at)$(MKDIR_P) _gen
 	$(AM_V_GEN)$(XSLTPROC) $(XSLTPROCFLAGS) --xinclude $(tools_dir)/identity.xsl \
 		$< > $@
 
 _gen/%.xml: $(top_srcdir)/xml/%.xml $(wildcard $(top_srcdir)/xml/*.xml)
-	$(AM_V_at)$(mkdir_p) _gen
+	$(AM_V_at)$(MKDIR_P) _gen
 	$(AM_V_GEN)$(XSLTPROC) $(XSLTPROCFLAGS) --xinclude $(tools_dir)/identity.xsl \
 		$< > $@
 
@@ -287,12 +287,12 @@ _gen/gtypes.h _gen/gtypes-body.h: _gen/mcd.xml \
 # like account, account-manager, ...)
 
 _gen/%.xml: $(top_srcdir)/xml/%.xml $(wildcard $(top_srcdir)/xml/*.xml) Makefile.am
-	$(AM_V_at)$(mkdir_p) _gen
+	$(AM_V_at)$(MKDIR_P) _gen
 	$(AM_V_GEN)$(XSLTPROC) $(XSLTPROCFLAGS) --xinclude $(tools_dir)/identity.xsl \
 		$< > $@
 
 _gen/%.xml: %.xml $(wildcard $(top_srcdir)/xml/*.xml) Makefile.am
-	$(AM_V_at)$(mkdir_p) _gen
+	$(AM_V_at)$(MKDIR_P) _gen
 	$(AM_V_GEN)$(XSLTPROC) $(XSLTPROCFLAGS) --xinclude $(tools_dir)/identity.xsl \
 		$< > $@
 
