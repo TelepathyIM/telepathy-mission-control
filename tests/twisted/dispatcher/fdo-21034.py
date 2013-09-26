@@ -61,6 +61,7 @@ def test(q, bus, mc):
     call_async(q, cd, 'CreateChannel',
             account.object_path, request, dbus.Int64(1234),
             'grr.arg',      # a valid bus name, but the wrong prefix
+            dbus.Dictionary({}, signature='sv'),
             dbus_interface=cs.CD)
     ret = q.expect('dbus-error', method='CreateChannel')
     assert ret.error.get_dbus_name() == cs.INVALID_ARGUMENT
@@ -68,6 +69,7 @@ def test(q, bus, mc):
     call_async(q, cd, 'CreateChannel',
             account.object_path, request, dbus.Int64(1234),
             'can has cheeseburger?',      # a totally invalid bus name
+            dbus.Dictionary({}, signature='sv'),
             dbus_interface=cs.CD)
     ret = q.expect('dbus-error', method='CreateChannel')
     assert ret.error.get_dbus_name() == cs.INVALID_ARGUMENT

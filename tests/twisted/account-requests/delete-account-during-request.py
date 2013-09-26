@@ -24,8 +24,8 @@ an account is deleted while requesting a channel from that account.
 import dbus
 import dbus.service
 
-from servicetest import EventPattern, tp_name_prefix, tp_path_prefix, \
-        call_async
+from servicetest import (EventPattern, tp_name_prefix, tp_path_prefix,
+        call_async, assertEquals)
 from mctest import exec_test, SimulatedConnection, SimulatedClient, \
         create_fakecm_account, enable_fakecm_account, SimulatedChannel, \
         expect_client_setup, ChannelDispatcher
@@ -58,8 +58,14 @@ def test(q, bus, mc):
             cs.CHANNEL + '.TargetHandleType': cs.HT_CONTACT,
             cs.CHANNEL + '.TargetID': 'juliet',
             }, signature='sv')
-    request_path = cd.CreateChannel(account.object_path, request,
-        user_action_time, client.bus_name)
+    call_async(q, cd, 'CreateChannel', account.object_path,
+            request, user_action_time, client.bus_name,
+            dbus.Dictionary({}, signature='sv'))
+    e = q.expect('dbus-return', method='CreateChannel')
+    (request_path, immutable_props) = e.value
+    assertEquals(account.object_path, immutable_props.get(cs.CR + '.Account'))
+    assertEquals([request], immutable_props.get(cs.CR + '.Requests'))
+    assertEquals(user_action_time, immutable_props.get(cs.CR + '.UserActionTime'))
 
     add_request = q.expect('dbus-method-call', handled=False,
         interface=cs.CLIENT_IFACE_REQUESTS, method='AddRequest',

@@ -79,6 +79,7 @@ def test_channel_creation(q, bus, account, client, conn, ensure):
     call_async(q, cd,
             (ensure and 'EnsureChannel' or 'CreateChannel'),
             account.object_path, request, user_action_time, "",
+            dbus.Dictionary({}, signature='sv'),
             dbus_interface=cs.CD)
     ret = q.expect('dbus-return',
             method=(ensure and 'EnsureChannel' or 'CreateChannel'))

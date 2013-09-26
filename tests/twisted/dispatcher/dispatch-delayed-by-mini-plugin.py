@@ -277,7 +277,9 @@ def test(q, bus, mc):
     user_action_time = dbus.Int64(1238582606)
     call_async(q, cd, 'EnsureChannel',
             account.object_path, chan.immutable, user_action_time,
-            kopete.bus_name, dbus_interface=cs.CD)
+            kopete.bus_name,
+            dbus.Dictionary({}, signature='sv'),
+            dbus_interface=cs.CD)
     ret, add_request_call = q.expect_many(
             EventPattern('dbus-return', method='EnsureChannel'),
             EventPattern('dbus-method-call', handled=False,

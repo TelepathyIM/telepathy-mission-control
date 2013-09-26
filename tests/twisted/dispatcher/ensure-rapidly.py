@@ -80,6 +80,7 @@ def test_channel_creation(q, bus, account, client, conn,
             }, signature='sv')
     call_async(q, cd, 'EnsureChannel',
             account.object_path, request, user_action_time1, client.bus_name,
+            dbus.Dictionary({}, signature='sv'),
             dbus_interface=cs.CD)
     ret = q.expect('dbus-return', method='EnsureChannel')
     request_path = ret.value[0]
@@ -110,6 +111,7 @@ def test_channel_creation(q, bus, account, client, conn,
     # the UI re-requests.
     call_async(q, cd, 'EnsureChannel',
             account.object_path, request, user_action_time2, client.bus_name,
+            dbus.Dictionary({}, signature='sv'),
             dbus_interface=cs.CD)
     ret = q.expect('dbus-return', method='EnsureChannel')
     request_path = ret.value[0]

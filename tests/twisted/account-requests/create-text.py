@@ -24,8 +24,8 @@ a channel can be created successfully.
 import dbus
 import dbus.service
 
-from servicetest import EventPattern, tp_name_prefix, tp_path_prefix, \
-        call_async
+from servicetest import (EventPattern, tp_name_prefix, tp_path_prefix,
+        call_async, assertEquals)
 from mctest import exec_test, SimulatedConnection, SimulatedClient, \
         create_fakecm_account, enable_fakecm_account, SimulatedChannel, \
         expect_client_setup, ChannelDispatcher
@@ -71,12 +71,18 @@ def test_channel_creation(q, bus, account, client, conn, ensure):
             }, signature='sv')
 
     if ensure:
-        method = cd.EnsureChannel
+        method = 'EnsureChannel'
     else:
-        method = cd.CreateChannel
+        method = 'CreateChannel'
 
-    request_path = method(account.object_path, request,
-        user_action_time, client.bus_name)
+    call_async(q, cd, method, account.object_path, request,
+        user_action_time, client.bus_name,
+        dbus.Dictionary({}, signature='sv'))
+    e = q.expect('dbus-return', method=method)
+    (request_path, immutable_props) = e.value
+    assertEquals(account.object_path, immutable_props.get(cs.CR + '.Account'))
+    assertEquals([request], immutable_props.get(cs.CR + '.Requests'))
+    assertEquals(user_action_time, immutable_props.get(cs.CR + '.UserActionTime'))
 
     cr = bus.get_object(cs.CD, request_path)
     request_props = cr.GetAll(cs.CR, dbus_interface=cs.PROPERTIES_IFACE)

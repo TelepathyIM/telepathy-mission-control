@@ -40,7 +40,8 @@ def test_ensure(q, bus, account, conn, chan, expected_handler_path):
     called on the current handler. (Previously, DelegateChannels() and
     PresentChannel() both broke this.)"""
     cd = ChannelDispatcher(bus)
-    call_async(q, cd, 'EnsureChannel', account.object_path, REQUEST, 0, '')
+    call_async(q, cd, 'EnsureChannel', account.object_path, REQUEST, 0, '',
+            dbus.Dictionary({}, signature='sv'))
     e = q.expect('dbus-return', method='EnsureChannel')
 
     cr = ChannelRequest(bus, e.value[0])
@@ -256,11 +257,11 @@ def test(q, bus, mc):
     expect_client_setup(q, [empathy])
 
     # gnome-shell requests a channel for itself
-    call_async(q, cd, 'CreateChannelWithHints',
+    call_async(q, cd, 'CreateChannel',
             account.object_path, REQUEST, 0,
             cs.tp_name_prefix + '.Client.GnomeShell',
             {})
-    e = q.expect('dbus-return', method='CreateChannelWithHints')
+    e = q.expect('dbus-return', method='CreateChannel')
 
     cr = ChannelRequest(bus, e.value[0])
     cr.Proceed()

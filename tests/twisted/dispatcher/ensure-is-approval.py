@@ -184,6 +184,7 @@ def test(q, bus, mc):
             }, signature='sv')
     call_async(q, cd, 'EnsureChannel',
             account.object_path, request, user_action_time, kopete.bus_name,
+            dbus.Dictionary({}, signature='sv'),
             dbus_interface=cs.CD)
     ret, add_request_call = q.expect_many(
             EventPattern('dbus-return', method='EnsureChannel'),

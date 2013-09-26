@@ -102,6 +102,7 @@ def test(q, bus, unused, **kwargs):
             }, signature='sv')
     call_async(q, cd, 'CreateChannel',
             account.object_path, request, user_action_time, client.bus_name,
+            dbus.Dictionary({}, signature='sv'),
             dbus_interface=cs.CD)
 
     ret = q.expect('dbus-return', method='CreateChannel')

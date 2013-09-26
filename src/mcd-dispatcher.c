@@ -829,7 +829,6 @@ mcd_dispatcher_class_init (McdDispatcherClass * klass)
 {
     static TpDBusPropertiesMixinPropImpl cd_props[] = {
         { "Interfaces", "interfaces", NULL },
-        { "SupportsRequestHints", "supports-request-hints", NULL },
         { NULL }
     };
     static TpDBusPropertiesMixinPropImpl op_list_props[] = {
@@ -875,12 +874,6 @@ mcd_dispatcher_class_init (McdDispatcherClass * klass)
          g_param_spec_boxed ("interfaces", "Interfaces", "Interfaces",
                              G_TYPE_STRV,
                              G_PARAM_READABLE | G_PARAM_STATIC_STRINGS));
-
-    g_object_class_install_property (
-        object_class, PROP_SUPPORTS_REQUEST_HINTS,
-        g_param_spec_boolean ("supports-request-hints", "SupportsRequestHints",
-                              "Yes, we support CreateChannelWithHints etc.",
-                              TRUE, G_PARAM_READABLE | G_PARAM_STATIC_STRINGS));
 
     g_object_class_install_property
         (object_class, PROP_DISPATCH_OPERATIONS,
@@ -1253,6 +1246,7 @@ dispatcher_request_channel (McdDispatcher *self,
     McdRequest *request = NULL;
     GError *error = NULL;
     const gchar *path;
+    GHashTable *immutables;
 
     g_return_if_fail (account_path != NULL);
     g_return_if_fail (requested_properties != NULL);
@@ -1297,7 +1291,10 @@ dispatcher_request_channel (McdDispatcher *self,
 
     /* This is OK because the signatures of CreateChannel and EnsureChannel
      * are the same */
-    tp_svc_channel_dispatcher_return_from_create_channel (context, path);
+    immutables = _mcd_request_dup_immutable_properties (request);
+    tp_svc_channel_dispatcher_return_from_create_channel (context, path,
+        immutables);
+    g_hash_table_unref (immutables);
 
     _mcd_request_predict_handler (request);
 
@@ -1318,42 +1315,6 @@ finally:
 
 static void
 dispatcher_create_channel (TpSvcChannelDispatcher *iface,
-                           const gchar *account_path,
-                           GHashTable *requested_properties,
-                           gint64 user_action_time,
-                           const gchar *preferred_handler,
-                           DBusGMethodInvocation *context)
-{
-    dispatcher_request_channel (MCD_DISPATCHER (iface),
-                                account_path,
-                                requested_properties,
-                                user_action_time,
-                                preferred_handler,
-                                NULL,
-                                context,
-                                FALSE);
-}
-
-static void
-dispatcher_ensure_channel (TpSvcChannelDispatcher *iface,
-                           const gchar *account_path,
-                           GHashTable *requested_properties,
-                           gint64 user_action_time,
-                           const gchar *preferred_handler,
-                           DBusGMethodInvocation *context)
-{
-    dispatcher_request_channel (MCD_DISPATCHER (iface),
-                                account_path,
-                                requested_properties,
-                                user_action_time,
-                                preferred_handler,
-                                NULL,
-                                context,
-                                TRUE);
-}
-
-static void
-dispatcher_create_channel_with_hints (TpSvcChannelDispatcher *iface,
     const gchar *account_path,
     GHashTable *requested_properties,
     gint64 user_action_time,
@@ -1372,7 +1333,7 @@ dispatcher_create_channel_with_hints (TpSvcChannelDispatcher *iface,
 }
 
 static void
-dispatcher_ensure_channel_with_hints (TpSvcChannelDispatcher *iface,
+dispatcher_ensure_channel (TpSvcChannelDispatcher *iface,
     const gchar *account_path,
     GHashTable *requested_properties,
     gint64 user_action_time,
@@ -2182,8 +2143,6 @@ dispatcher_iface_init (gpointer g_iface,
     g_iface, dispatcher_##x)
     IMPLEMENT (create_channel);
     IMPLEMENT (ensure_channel);
-    IMPLEMENT (create_channel_with_hints);
-    IMPLEMENT (ensure_channel_with_hints);
     IMPLEMENT (delegate_channels);
     IMPLEMENT (present_channel);
 #undef IMPLEMENT

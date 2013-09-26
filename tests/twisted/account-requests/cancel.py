@@ -65,8 +65,9 @@ def test(q, bus, mc):
             cs.CHANNEL + '.TargetHandleType': cs.HT_CONTACT,
             cs.CHANNEL + '.TargetID': 'juliet',
             }, signature='sv')
-    request_path = cd.CreateChannel(account.object_path, request,
-        user_action_time, client.bus_name)
+    (request_path, immutable_props) = cd.CreateChannel(account.object_path,
+        request, user_action_time, client.bus_name,
+        dbus.Dictionary({}, signature='sv'))
 
     add_request = q.expect('dbus-method-call', handled=False,
         interface=cs.CLIENT_IFACE_REQUESTS, method='AddRequest',

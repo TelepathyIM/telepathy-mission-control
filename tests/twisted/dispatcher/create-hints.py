@@ -61,21 +61,21 @@ def test_channel_creation(q, bus, account, client, conn,
         prefer = client
 
     cd = ChannelDispatcher(bus)
-    assert cd.Properties.Get(cs.CD, "SupportsRequestHints")
 
-    # chat UI calls ChannelDispatcher.EnsureChannelWithHints or
-    # CreateChannelWithHints
+    # chat UI calls ChannelDispatcher.EnsureChannel or
+    # CreateChannel, with non-trivial "hints". This used
+    # to be a separate method in Telepathy 0.x.
     request = dbus.Dictionary({
             cs.CHANNEL + '.ChannelType': channel_type,
             cs.CHANNEL + '.TargetHandleType': cs.HT_CONTACT,
             cs.CHANNEL + '.TargetID': 'juliet',
             }, signature='sv')
     call_async(q, cd,
-            (ensure and 'EnsureChannelWithHints' or 'CreateChannelWithHints'),
+            (ensure and 'EnsureChannel' or 'CreateChannel'),
             account.object_path, request, user_action_time, prefer.bus_name,
             hints, dbus_interface=cs.CD)
     ret = q.expect('dbus-return',
-            method=(ensure and 'EnsureChannelWithHints' or 'CreateChannelWithHints'))
+            method=(ensure and 'EnsureChannel' or 'CreateChannel'))
     request_path = ret.value[0]
 
     # chat UI connects to signals and calls ChannelRequest.Proceed()
