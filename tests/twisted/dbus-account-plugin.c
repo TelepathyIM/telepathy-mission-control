@@ -23,6 +23,9 @@
 #include "config.h"
 #include "dbus-account-plugin.h"
 
+#include <telepathy-glib/telepathy-glib.h>
+#include <telepathy-glib/telepathy-glib-dbus.h>
+
 #define DEBUG(format, ...) g_debug ("%s: " format, G_STRFUNC, ##__VA_ARGS__)
 
 #define TESTDOT "org.freedesktop.Telepathy.Test."
