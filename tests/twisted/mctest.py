@@ -1269,7 +1269,7 @@ def tell_mc_to_die(q, bus):
     the version built for tests."""
 
     secret_debug_api = dbus.Interface(bus.get_object(cs.AM, "/"),
-        'org.freedesktop.Telepathy.MissionControl5.RegressionTests')
+        'im.telepathy1.MissionControl6.RegressionTests')
     secret_debug_api.Abort()
 
     # Make sure MC exits

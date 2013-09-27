@@ -39,7 +39,7 @@ def sync_connectivity_state(mc):
     #
     # The test-specific version of MC implements the 'BillyIdle' method, which
     # returns from a low-priority idle.
-    mc.BillyIdle(dbus_interface='org.freedesktop.Telepathy.MissionControl5.RegressionTests')
+    mc.BillyIdle(dbus_interface='im.telepathy1.MissionControl6.RegressionTests')
 
 def test(q, bus, mc):
     params = dbus.Dictionary(
