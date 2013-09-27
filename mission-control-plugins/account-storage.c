@@ -54,7 +54,7 @@
  *   iface->priority = 0;
  *   iface->name = "foo";
  *   iface->desc = "The FOO storage backend";
- *   iface->provider = "org.freedesktop.Telepathy.MissionControl5.FooStorage";
+ *   iface->provider = "im.telepathy1.MissionControl6.FooStorage";
  *
  *   iface->get = foo_plugin_get;
  *   iface->set = foo_plugin_get;

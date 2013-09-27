@@ -1409,7 +1409,7 @@ _mcd_dispatcher_add_connection (McdDispatcher *self,
      * for it */
 }
 
-/* org.freedesktop.Telepathy.ChannelDispatcher.Messages */
+/* ChannelDispatcher.Messages */
 typedef struct
 {
     McdDispatcher *dispatcher;
