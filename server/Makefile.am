@@ -47,7 +47,7 @@ Android.mk: Makefile.am
 	 -:REL_TOP $(top_srcdir) -:ABS_TOP $(abs_top_srcdir) \
 	 -:SOURCES $(mission_control_5_SOURCES) \
 	 -:CFLAGS $(DEFAULT_INCLUDES) $(DEFS) $(CFLAGS) $(AM_CFLAGS) \
-	 -:CPPFLAGS $(CPPFLAGS) $(AM_CPPFLAGS) $(INCLUDES) \
+	 -:CPPFLAGS $(CPPFLAGS) $(AM_CPPFLAGS) \
 	  -DBUILD_AS_ANDROID_SERVICE \
 	 -:LDFLAGS $(mission_control_5_LDADD) \
 	 -:LIBFILTER_STATIC mcd-convenience mission-control-plugins \

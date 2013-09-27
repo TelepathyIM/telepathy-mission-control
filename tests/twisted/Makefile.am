@@ -220,7 +220,7 @@ mc_debug_server_SOURCES = mc-debug-server.c
 mc_debug_server_LDADD = \
 	$(top_builddir)/src/libmcd-convenience.la
 
-INCLUDES = \
+AM_CPPFLAGS = \
 	-I$(top_srcdir) -I$(top_builddir) \
 	-I$(top_srcdir)/src -I$(top_builddir)/src \
 	$(DBUS_CFLAGS) \

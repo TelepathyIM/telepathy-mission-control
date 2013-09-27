@@ -37,7 +37,7 @@ Android.mk: Makefile.am
 	 -:EXECUTABLE mc-tool -:TAGS eng debug \
 	 -:REL_TOP $(top_srcdir) -:ABS_TOP $(abs_top_srcdir) \
 	 -:SOURCES $(mc_tool_SOURCES) \
-	 -:CFLAGS $(DEFS) $(CFLAGS) $(DEFAULT_INCLUDES) $(INCLUDES) \
+	 -:CFLAGS $(DEFS) $(CFLAGS) $(DEFAULT_INCLUDES) \
 	  $(AM_CFLAGS) \
 	 -:CPPFLAGS $(CPPFLAGS) $(AM_CPPFLAGS) \
 	 -:LDFLAGS $(LDADD) \

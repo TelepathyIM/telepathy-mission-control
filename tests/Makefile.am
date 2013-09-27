@@ -1,4 +1,4 @@
-INCLUDES = \
+AM_CPPFLAGS = \
 	$(DBUS_CFLAGS) \
 	$(TELEPATHY_CFLAGS) \
 	-I$(top_srcdir) \
@@ -43,5 +43,5 @@ account_store_SOURCES = \
 if ENABLE_LIBACCOUNTS_SSO
 account_store_SOURCES += account-store-libaccounts.c account-store-libaccounts.h
 account_store_LDADD += $(LIBACCOUNTS_SSO_LIBS)
-INCLUDES += $(LIBACCOUNTS_SSO_CFLAGS)
+AM_CPPFLAGS += $(LIBACCOUNTS_SSO_CFLAGS)
 endif
