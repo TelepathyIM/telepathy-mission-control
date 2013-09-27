@@ -105,7 +105,6 @@ struct _McdConnectionPrivate
     TpConnectionStatusReason abort_reason;
     guint got_contact_capabilities : 1;
     guint has_presence_if : 1;
-    guint has_capabilities_if : 1;
     guint has_contact_capabilities_if : 1;
     guint has_power_saving_if : 1;
 
@@ -1097,8 +1096,6 @@ on_connection_ready (GObject *source_object, GAsyncResult *result,
 
     priv->has_presence_if = tp_proxy_has_interface_by_id
         (tp_conn, TP_IFACE_QUARK_CONNECTION_INTERFACE_SIMPLE_PRESENCE);
-    priv->has_capabilities_if = tp_proxy_has_interface_by_id (tp_conn,
-							      TP_IFACE_QUARK_CONNECTION_INTERFACE_CAPABILITIES);
     priv->has_contact_capabilities_if = tp_proxy_has_interface_by_id (tp_conn,
         TP_IFACE_QUARK_CONNECTION_INTERFACE_CONTACT_CAPABILITIES);
     priv->has_power_saving_if = tp_proxy_has_interface_by_id (tp_conn,
