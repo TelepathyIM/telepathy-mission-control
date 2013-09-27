@@ -76,7 +76,7 @@ static const McdInterfaceData account_manager_interfaces[] = {
 			 TP_IFACE_ACCOUNT_MANAGER),
     MCD_IMPLEMENT_IFACE (mc_svc_account_manager_interface_hidden_get_type,
 			 account_manager_hidden,
-			 MC_IFACE_ACCOUNT_MANAGER_INTERFACE_HIDDEN),
+			 MC_IFACE_ACCOUNT_MANAGER_INTERFACE_HIDDEN1),
     { G_TYPE_INVALID, }
 };
 
@@ -1015,7 +1015,7 @@ get_supported_account_properties (TpSvcDBusProperties *svc,
         TP_IFACE_ACCOUNT_INTERFACE_AVATAR ".Avatar",
         MC_IFACE_ACCOUNT_INTERFACE_CONDITIONS ".Condition",
         TP_PROP_ACCOUNT_INTERFACE_STORAGE_STORAGE_PROVIDER,
-        MC_IFACE_ACCOUNT_INTERFACE_HIDDEN ".Hidden",
+        MC_IFACE_ACCOUNT_INTERFACE_HIDDEN1 ".Hidden",
         NULL
     };
 

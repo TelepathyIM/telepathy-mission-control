@@ -38,7 +38,7 @@
 /* auto-generated stubs */
 #include "_gen/svc-Account_Interface_Conditions.h"
 #include "_gen/svc-Account_Interface_External_Password_Storage.h"
-#include "_gen/svc-Account_Interface_Hidden.h"
+#include "_gen/svc-Account_Interface_Hidden1.h"
 
 #include "_gen/cli-Connection_Manager_Interface_Account_Storage.h"
 

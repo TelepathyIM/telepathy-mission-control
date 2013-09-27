@@ -92,7 +92,7 @@ static const McdInterfaceData account_interfaces[] = {
         TP_IFACE_ACCOUNT_INTERFACE_ADDRESSING),
     MCD_IMPLEMENT_IFACE (mc_svc_account_interface_hidden_get_type,
                          account_hidden,
-                         MC_IFACE_ACCOUNT_INTERFACE_HIDDEN),
+                         MC_IFACE_ACCOUNT_INTERFACE_HIDDEN1),
     MCD_IMPLEMENT_OPTIONAL_IFACE (
         mc_svc_account_interface_external_password_storage_get_type,
         account_external_password_storage,

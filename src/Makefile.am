@@ -48,8 +48,8 @@ mc_gen_headers = \
 	_gen/interfaces.h \
 	_gen/svc-Account_Interface_Conditions.h \
 	_gen/svc-Account_Interface_External_Password_Storage.h \
-	_gen/svc-Account_Interface_Hidden.h \
-	_gen/svc-Account_Manager_Interface_Hidden.h \
+	_gen/svc-Account_Interface_Hidden1.h \
+	_gen/svc-Account_Manager_Interface_Hidden1.h \
 	_gen/svc-dispatcher.h
 
 nodist_libmcd_convenience_la_SOURCES = \
@@ -62,8 +62,8 @@ nodist_libmcd_convenience_la_SOURCES = \
 	_gen/signals-marshal.list \
 	_gen/svc-Account_Interface_Conditions.c \
 	_gen/svc-Account_Interface_External_Password_Storage.c \
-	_gen/svc-Account_Interface_Hidden.c \
-	_gen/svc-Account_Manager_Interface_Hidden.c \
+	_gen/svc-Account_Interface_Hidden1.c \
+	_gen/svc-Account_Manager_Interface_Hidden1.c \
 	_gen/svc-dispatcher.c \
 	mcd-enum-types.c \
 	mcd-enum-types.h \
@@ -78,10 +78,10 @@ CLEANFILES = \
 	$(BUILT_SOURCES) \
 	_gen/cli-Connection_Manager_Interface_Account_Storage-gtk-doc.h \
 	_gen/svc-dispatcher-gtk-doc.h \
-	_gen/svc-Account_Interface_Hidden-gtk-doc.h \
+	_gen/svc-Account_Interface_Hidden1-gtk-doc.h \
 	_gen/svc-Account_Interface_External_Password_Storage-gtk-doc.h \
 	_gen/svc-Account_Interface_Conditions-gtk-doc.h \
-	_gen/svc-Account_Manager_Interface_Hidden-gtk-doc.h \
+	_gen/svc-Account_Manager_Interface_Hidden1-gtk-doc.h \
 	_gen/gtypes-gtk-doc.h \
 	$(NULL)
 
