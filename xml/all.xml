@@ -19,8 +19,8 @@
         from="Telepathy specification (Connection)"/>
     <tp:external-type name="Protocol" type="s"
 	from="Telepathy specification (ConnectionManager)"/>
-    <tp:external-type name="Simple_Presence" type="(uss)"
-	from="Telepathy specification (SimplePresence)"/>
+    <tp:external-type name="Presence" type="(uss)"
+	from="Telepathy specification (Presence)"/>
     <tp:external-type name="Conn_Mgr_Param_Flags" type="u"
 	from="Telepathy specification (ConnectionManager)"/>
     <tp:external-type name="Requestable_Channel_Class" type="(a{sv}as)"

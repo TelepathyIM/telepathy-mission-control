@@ -324,7 +324,7 @@ _mcd_connection_set_presence (McdConnection * connection,
             _mcd_account_set_changing_presence (priv->account, FALSE);
         }
 
-        tp_cli_connection_interface_simple_presence_call_set_presence
+        tp_cli_connection_interface_presence_call_set_presence
             (priv->tp_conn, -1, adj_status, message, presence_set_status_cb,
              priv, NULL, (GObject *)connection);
     }
@@ -356,7 +356,7 @@ presence_get_statuses_cb (TpProxy *proxy, const GValue *v_statuses,
                    error->message);
         return;
     }
-    else if (G_VALUE_TYPE (v_statuses) != TP_HASH_TYPE_SIMPLE_STATUS_SPEC_MAP)
+    else if (G_VALUE_TYPE (v_statuses) != TP_HASH_TYPE_STATUS_SPEC_MAP)
     {
         g_warning ("%s: Get(Statuses) returned the wrong type: %s",
                    mcd_account_get_unique_name (priv->account),
@@ -415,7 +415,7 @@ _mcd_connection_setup_presence (McdConnection *connection)
     McdConnectionPrivate *priv =  connection->priv;
 
     tp_cli_dbus_properties_call_get
-        (priv->tp_conn, -1, TP_IFACE_CONNECTION_INTERFACE_SIMPLE_PRESENCE,
+        (priv->tp_conn, -1, TP_IFACE_CONNECTION_INTERFACE_PRESENCE,
          "Statuses", presence_get_statuses_cb, priv, NULL,
          (GObject *)connection);
 }
@@ -1099,7 +1099,7 @@ on_connection_ready (GObject *source_object, GAsyncResult *result,
     }
 
     priv->has_presence_if = tp_proxy_has_interface_by_id
-        (tp_conn, TP_IFACE_QUARK_CONNECTION_INTERFACE_SIMPLE_PRESENCE);
+        (tp_conn, TP_IFACE_QUARK_CONNECTION_INTERFACE_PRESENCE);
     priv->has_contact_capabilities_if = tp_proxy_has_interface_by_id (tp_conn,
         TP_IFACE_QUARK_CONNECTION_INTERFACE_CONTACT_CAPABILITIES);
     priv->has_power_saving_if = tp_proxy_has_interface_by_id (tp_conn,
@@ -1258,7 +1258,7 @@ mcd_connection_early_get_interfaces_cb (TpProxy *proxy,
 
             /* if the interface is not recognised, q will just be 0 */
 
-            if (q == TP_IFACE_QUARK_CONNECTION_INTERFACE_SIMPLE_PRESENCE)
+            if (q == TP_IFACE_QUARK_CONNECTION_INTERFACE_PRESENCE)
             {
                 /* nail on the interface (TpConnection will eventually know
                  * how to do this for itself) */
@@ -1268,7 +1268,7 @@ mcd_connection_early_get_interfaces_cb (TpProxy *proxy,
                 self->priv->tasks_before_connect++;
 
                 tp_cli_dbus_properties_call_get (tp_conn, -1,
-                    TP_IFACE_CONNECTION_INTERFACE_SIMPLE_PRESENCE, "Statuses",
+                    TP_IFACE_CONNECTION_INTERFACE_PRESENCE, "Statuses",
                     mcd_connection_early_get_statuses_cb, NULL, NULL,
                     (GObject *) self);
             }

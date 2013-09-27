@@ -4981,7 +4981,7 @@ mcd_account_self_contact_upgraded_cb (GObject *source_object,
               G_CALLBACK (mcd_account_update_self_presence),
               self, G_CONNECT_SWAPPED);
 
-          /* If the connection doesn't support SimplePresence then the
+          /* If the connection doesn't support Presence then the
            * presence will be (UNSET, '', '') which is what we want anyway. */
           mcd_account_update_self_presence (self,
               tp_contact_get_presence_type (self_contact),

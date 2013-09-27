@@ -397,7 +397,7 @@ mcd_storage_init_value_for_attribute (GValue *value,
           {
             if (!tp_strdiff (s, "(uss)"))
               {
-                g_value_init (value, TP_STRUCT_TYPE_SIMPLE_PRESENCE);
+                g_value_init (value, TP_STRUCT_TYPE_PRESENCE);
                 return TRUE;
               }
           }
@@ -1299,7 +1299,7 @@ mcd_keyfile_get_value (GKeyFile *keyfile,
                 ret = TRUE;
               }
           }
-        else if (type == TP_STRUCT_TYPE_SIMPLE_PRESENCE)
+        else if (type == TP_STRUCT_TYPE_PRESENCE)
           {
             gchar **v = g_key_file_get_string_list (keyfile, group,
                 key, NULL, error);
@@ -1311,7 +1311,7 @@ mcd_keyfile_get_value (GKeyFile *keyfile,
             else if (g_strv_length (v) != 3)
               {
                 g_set_error (error, TP_ERROR, TP_ERROR_NOT_AVAILABLE,
-                    "Invalid simple-presence structure stored in keyfile");
+                    "Invalid presence structure stored in keyfile");
               }
             else
               {
@@ -1328,7 +1328,7 @@ mcd_keyfile_get_value (GKeyFile *keyfile,
                   }
                 else
                   {
-                    /* a syntactically valid simple presence */
+                    /* a syntactically valid presence */
                     g_value_take_boxed (value,
                         tp_value_array_build (3,
                           G_TYPE_UINT, (guint) u,
@@ -1797,7 +1797,7 @@ mcd_keyfile_set_value (GKeyFile *keyfile,
                 g_key_file_set_string_list (keyfile, name, key,
                     (const gchar * const *) arr->pdata, arr->len);
               }
-            else if (G_VALUE_HOLDS (value, TP_STRUCT_TYPE_SIMPLE_PRESENCE))
+            else if (G_VALUE_HOLDS (value, TP_STRUCT_TYPE_PRESENCE))
               {
                 guint type;
                 /* enough for "4294967296" + \0 */
