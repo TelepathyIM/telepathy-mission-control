@@ -41,7 +41,7 @@ mission_control_6_LDADD = \
 	$(TELEPATHY_LIBS) \
 	$(DBUS_LIBS) \
 	$(top_builddir)/src/libmcd-convenience.la \
-	$(top_builddir)/mission-control-plugins/libmission-control-plugins.la
+	$(top_builddir)/mission-control-plugins/libmission-control-plugins-6.la
 
 Android.mk: Makefile.am
 	androgenizer -:PROJECT telepathy-mission-control \

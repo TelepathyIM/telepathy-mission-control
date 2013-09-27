@@ -35,7 +35,7 @@ esac
 # If API has been removed or changed since last release, change MCP_API (which
 # is part of the directory name under /usr/include) to the version that
 # changed it
-MCP_API_VERSION=5.15
+MCP_API_VERSION=6
 AC_SUBST([MCP_API_VERSION])
 
 # If ABI has been removed or changed since last release
@@ -46,7 +46,7 @@ AC_SUBST([MCP_API_VERSION])
 #     set revision to 0
 # else if library source has changed since last release
 #     increment revision
-MCP_LT_CURRENT=6
+MCP_LT_CURRENT=0
 MCP_LT_REVISION=0
 MCP_LT_AGE=0
 AC_SUBST([MCP_LT_CURRENT])

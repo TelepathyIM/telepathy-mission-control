@@ -84,7 +84,7 @@ GTKDOC_CFLAGS = \
     $(DBUS_CFLAGS) \
     $(GLIB_CFLAGS)
 GTKDOC_LIBS = \
-    $(top_builddir)/mission-control-plugins/libmission-control-plugins.la \
+    $(top_builddir)/mission-control-plugins/libmission-control-plugins-6.la \
     $(TELEPATHY_LIBS) \
     $(DBUS_LIBS) \
     $(GLIB_LIBS)

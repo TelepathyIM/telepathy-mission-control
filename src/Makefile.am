@@ -86,7 +86,7 @@ CLEANFILES = \
 	$(NULL)
 
 libmcd_convenience_la_LIBADD = \
-	$(top_builddir)/mission-control-plugins/libmission-control-plugins.la \
+	$(top_builddir)/mission-control-plugins/libmission-control-plugins-6.la \
 	$(TELEPATHY_LIBS) \
 	$(DBUS_LIBS) \
 	$(GLIB_LIBS) \
