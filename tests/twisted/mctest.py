@@ -291,6 +291,9 @@ class SimulatedConnection(object):
             q.add_dbus_method_impl(self.GetInterfaces,
                     path=self.object_path, interface=cs.CONN,
                     method='GetInterfaces')
+            q.add_dbus_method_impl(self.Get_Interfaces,
+                    path=self.object_path, interface=cs.PROPERTIES_IFACE,
+                    method='Get', args=[cs.CONN, 'Interfaces'])
 
         q.add_dbus_method_impl(self.RequestHandles,
                 path=self.object_path, interface=cs.CONN,
@@ -494,6 +497,11 @@ class SimulatedConnection(object):
 
     def GetInterfaces(self, e):
         self.q.dbus_return(e.message, self.interfaces, signature='as')
+
+    def Get_Interfaces(self, e):
+        self.q.dbus_return(e.message,
+                dbus.Array(self.interfaces, signature='s'),
+                signature='v')
 
     def Connect(self, e):
         self.StatusChanged(cs.CONN_STATUS_CONNECTING,

@@ -1220,12 +1220,13 @@ mcd_connection_early_get_statuses_cb (TpProxy *proxy,
 }
 
 static void
-mcd_connection_early_get_interfaces_cb (TpConnection *tp_conn,
-                                        const gchar **interfaces,
+mcd_connection_early_get_interfaces_cb (TpProxy *proxy,
+                                        const GValue *value,
                                         const GError *error,
                                         gpointer user_data,
                                         GObject *weak_object)
 {
+    TpConnection *tp_conn = TP_CONNECTION (proxy);
     McdConnection *self = MCD_CONNECTION (weak_object);
     const gchar **iter;
 
@@ -1243,9 +1244,11 @@ mcd_connection_early_get_interfaces_cb (TpConnection *tp_conn,
                tp_proxy_get_object_path (tp_conn),
                g_quark_to_string (error->domain), error->code, error->message);
     }
-    else
+    else if (G_VALUE_HOLDS (value, G_TYPE_STRV))
     {
-        for (iter = interfaces; *iter != NULL; iter++)
+        for (iter = g_value_get_boxed (value);
+             iter != NULL && *iter != NULL;
+             iter++)
         {
             GQuark q = g_quark_try_string (*iter);
 
@@ -1298,6 +1301,12 @@ mcd_connection_early_get_interfaces_cb (TpConnection *tp_conn,
               tp_proxy_add_interface_by_id ((TpProxy *) tp_conn, q);
             }
         }
+    }
+    else
+    {
+        DEBUG ("%s: Early GetInterfaces returned unexpected type %s",
+               tp_proxy_get_object_path (tp_conn),
+               G_VALUE_TYPE_NAME (value));
     }
 
     mcd_connection_done_task_before_connect (self);
@@ -1427,7 +1436,8 @@ request_connection_cb (TpConnectionManager *proxy, const gchar *bus_name,
 
     /* TpConnection doesn't yet know how to get this information before
      * the Connection goes to CONNECTED, so we'll have to do it ourselves */
-    tp_cli_connection_call_get_interfaces (priv->tp_conn, -1,
+    tp_cli_dbus_properties_call_get (priv->tp_conn, -1,
+        TP_IFACE_CONNECTION, "Interfaces",
         mcd_connection_early_get_interfaces_cb, NULL, NULL,
         (GObject *) connection);
 

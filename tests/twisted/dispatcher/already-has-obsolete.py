@@ -69,14 +69,15 @@ def test(q, bus, mc):
             handled=False)
 
     # Don't allow the Connection to become ready until we want it to, by
-    # avoiding a return from GetInterfaces
+    # avoiding a return from Get(Interfaces) or GetInterfaces.
     conn = SimulatedConnection(q, bus, 'fakecm', 'fakeprotocol', '_',
             'myself', implement_get_interfaces=False, has_requests=False)
 
     q.dbus_return(e.message, conn.bus_name, conn.object_path, signature='so')
 
-    # this is the pre-Connect one
-    e = q.expect('dbus-method-call', method='GetInterfaces',
+    # This is the pre-Connect one, from Mission Control.
+    e = q.expect('dbus-method-call', method='Get',
+            args=[cs.CONN, 'Interfaces'],
             path=conn.object_path, handled=False)
     q.dbus_raise(e.message, cs.DISCONNECTED, 'Not connected yet')
 
@@ -84,7 +85,11 @@ def test(q, bus, mc):
             path=conn.object_path, handled=True)
     conn.StatusChanged(cs.CONN_STATUS_CONNECTED, cs.CSR_NONE_SPECIFIED)
 
+    # This is from TpConnection. It's an implementation detail that it calls
+    # GetInterfaces at this point; in 'next' it will call GetAll (but
+    # this test will be obsolete anyway, so it doesn't really matter).
     get_interfaces_call = q.expect('dbus-method-call', method='GetInterfaces',
+            args=[],
             path=conn.object_path, handled=False)
 
     # subscribe to the OperationList interface (MC assumes that until this
@@ -94,7 +99,7 @@ def test(q, bus, mc):
     cd_props = dbus.Interface(cd, cs.PROPERTIES_IFACE)
     assert cd_props.Get(cs.CD_IFACE_OP_LIST, 'DispatchOperations') == []
 
-    # Before returning from GetInterfaces, make a Channel spring into
+    # Before returning from Get(Interfaces), make a Channel spring into
     # existence
 
     channel_properties = dbus.Dictionary(text_fixed_properties,
@@ -111,8 +116,8 @@ def test(q, bus, mc):
     chan = SimulatedChannel(conn, channel_properties)
     chan.announce()
 
-    # Now reply to GetInterfaces and say we don't have Requests
-    conn.GetInterfaces(get_interfaces_call)
+    # Now reply to Get(Interfaces) and say we don't have Requests
+    conn.Get_Interfaces(get_interfaces_call)
 
     # MC shoots down the connection. Goodbye!
     q.expect_many(
