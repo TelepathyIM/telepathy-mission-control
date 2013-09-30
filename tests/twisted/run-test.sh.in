@@ -82,8 +82,10 @@ else
   list=$(cat "${test_build}"/twisted/mc-twisted-tests.list)
 fi
 
-any_failed=0
+n=0
+n_failed=0
 for i in $list ; do
+  n=$(( $n + 1 ))
   echo "Testing $i ..."
 
   tmp="${MC_TEST_CURDIR}/tmp-`echo $i | tr ./ __`"
@@ -136,16 +138,22 @@ for i in $list ; do
       fi
       ;;
     (*)
-      any_failed=1
+      n_failed=$(( $n_failed + 1 ))
       echo "FAIL: $i ($e)"
       (
         cd $tmp && for x in *.log; do
           echo "===== log file: $x ====="
           cat "$x"
         done
+        echo "===== end of log files for $i ====="
       )
       ;;
   esac
 done
 
-exit $any_failed
+if test $n_failed != 0; then
+  echo "Tests run: $n; tests failed: $n_failed"
+  exit 1
+else
+  exit 0
+fi
