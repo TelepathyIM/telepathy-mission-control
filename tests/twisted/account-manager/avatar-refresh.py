@@ -148,29 +148,6 @@ class Account(object):
             # Nobody has an avatar - nothing should happen
             self.winner = None
 
-        # Hack around bugs... ideally, the tests would pass without these.
-        if server_delays and local_avatar == 'old' and remote_avatar:
-            # What we *should* do is wait for GetKnownAvatarTokens
-            # (because GetContactAttributes isn't guaranteed to fetch
-            # our own up-to-date avatar token from the server), then
-            # download the remote avatar. We currently don't.
-            self.winner = 'MC'
-        elif server_delays and remote_avatar and not local_avatar:
-            # What we *should* do is wait for GetKnownAvatarTokens
-            # (because GetContactAttributes isn't guaranteed to fetch
-            # our own up-to-date avatar token from the server), then
-            # download the remote avatar. At the moment we never actually
-            # download it at all.
-            self.winner = None
-        elif avatars_persist and local_avatar == 'old' and not remote_avatar:
-            # What we *should* do is work out that the avatar on the
-            # server has been deleted since we last signed in,
-            # and delete our local avatar to match. (telepathy-spec
-            # does provide a way to distinguish between this and
-            # "the protocol doesn't store avatars", but it's
-            # really subtle; it's hardly surprising if this is wrong.)
-            self.winner = 'MC'
-
     def test(self, q, bus, mc):
         expected_params = {
                 'account': self.id,

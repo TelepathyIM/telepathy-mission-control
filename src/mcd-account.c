@@ -172,6 +172,7 @@ struct _McdAccountPrivate
     gboolean always_on;
     gboolean changing_presence;
     gboolean setting_avatar;
+    gboolean waiting_for_initial_avatar;
     gboolean waiting_for_connectivity;
 
     gboolean hidden;
@@ -1412,6 +1413,13 @@ mcd_account_self_contact_notify_avatar_file_cb (McdAccount *self,
   if (self->priv->setting_avatar)
     {
       DEBUG ("Ignoring avatar change notification: we are setting ours");
+      return;
+    }
+
+  if (self->priv->waiting_for_initial_avatar)
+    {
+      DEBUG ("Ignoring avatar change notification: we are waiting for the "
+          "initial value");
       return;
     }
 
@@ -4813,28 +4821,49 @@ _mcd_account_get_old_avatar_filename (McdAccount *account,
 }
 
 static void
-mcd_account_process_initial_avatar_token (McdAccount *self)
+mcd_account_process_initial_avatar_token (McdAccount *self,
+    const gchar *token)
 {
+  GArray *avatar = NULL;
+  gchar *mime_type = NULL;
   gchar *prev_token;
-  const gchar *token;
 
   g_assert (self->priv->self_contact != NULL);
 
   prev_token = _mcd_account_get_avatar_token (self);
-  token = tp_contact_get_avatar_token (self->priv->self_contact);
+
+  DEBUG ("%s", self->priv->unique_name);
+
+  if (prev_token == NULL)
+    DEBUG ("no previous local avatar token");
+  else
+    DEBUG ("previous local avatar token: '%s'", prev_token);
+
+  if (avatar == NULL)
+    DEBUG ("no previous local avatar");
+  else
+    DEBUG ("previous local avatar: %u bytes, MIME type '%s'", avatar->len,
+        (mime_type != NULL ? mime_type : "(null)"));
+
+  if (token == NULL)
+    DEBUG ("no remote avatar token");
+  else
+    DEBUG ("remote avatar token: '%s'", token);
+
+  _mcd_account_get_avatar (self, &avatar, &mime_type);
 
   /* If we have a stored avatar but no avatar token, we must have
    * changed it locally; set it.
    *
-   * Meanwhile, if the self-contact's avatar token is empty, this is a
-   * protocol like link-local XMPP where avatars don't persist.
-   * Upload ours, if any. */
-  if (tp_str_empty (prev_token) || tp_str_empty (token))
+   * Meanwhile, if the self-contact's avatar token is missing, this is
+   * a protocol like link-local XMPP where avatars don't persist.
+   * We can distinguish between this case (token is missing, so token = NULL)
+   * and the case where there is no avatar on an XMPP server (token is
+   * present and empty), although it's ridiculously subtle.
+   *
+   * Either way, upload our avatar, if any. */
+  if (tp_str_empty (prev_token) || token == NULL)
     {
-      GArray *avatar = NULL;
-      gchar *mime_type = NULL;
-
-      _mcd_account_get_avatar (self, &avatar, &mime_type);
 
       if (avatar != NULL)
         {
@@ -4844,19 +4873,19 @@ mcd_account_process_initial_avatar_token (McdAccount *self)
             DEBUG ("We have an avatar and the server doesn't");
 
           mcd_account_send_avatar_to_connection (self, avatar, mime_type);
-          g_array_unref (avatar);
-          g_free (mime_type);
-          return;
+          goto out;
         }
-
-      tp_clear_pointer (&avatar, g_array_unref);
-      g_free (mime_type);
     }
 
   /* Otherwise, if the self-contact's avatar token
    * differs from ours, one of our "other selves" must have changed
    * it remotely. Behave the same as if it changes remotely
-   * mid-session - i.e. download it and use it as our new avatar. */
+   * mid-session - i.e. download it and use it as our new avatar.
+   *
+   * In particular, this includes the case where we had
+   * a non-empty avatar last time we signed in, but another client
+   * has deleted it from the server since then (prev_token nonempty,
+   * token = ""). */
   if (tp_strdiff (token, prev_token))
     {
       GFile *file = tp_contact_get_avatar_file (self->priv->self_contact);
@@ -4873,15 +4902,52 @@ mcd_account_process_initial_avatar_token (McdAccount *self)
        * notify::avatar-file will go off. */
     }
 
+out:
   g_free (prev_token);
+  tp_clear_pointer (&avatar, g_array_unref);
+  g_free (mime_type);
 }
 
+static void
+account_conn_get_known_avatar_tokens_cb (TpConnection *conn,
+    GHashTable *tokens,
+    const GError *error,
+    gpointer user_data,
+    GObject *weak_object)
+{
+  McdAccount *self = g_object_ref (weak_object);
+
+  self->priv->waiting_for_initial_avatar = FALSE;
+
+  if (error != NULL)
+    {
+      DEBUG ("%s: GetKnownAvatarTokens raised %s #%d: %s",
+          self->priv->unique_name, g_quark_to_string (error->domain),
+          error->code, error->message);
+    }
+  else if (self->priv->self_contact == user_data)
+    {
+      TpHandle handle = tp_contact_get_handle (self->priv->self_contact);
+
+      mcd_account_process_initial_avatar_token (self,
+          g_hash_table_lookup (tokens, GUINT_TO_POINTER (handle)));
+    }
+  else
+    {
+      DEBUG ("%s: GetKnownAvatarTokens for outdated self-contact '%s', "
+          "ignoring",
+          self->priv->unique_name, tp_contact_get_identifier (user_data));
+    }
+
+  g_object_unref (self);
+}
 
 static void
 mcd_account_self_contact_upgraded_cb (GObject *source_object,
     GAsyncResult *res,
     gpointer user_data)
 {
+  TpConnection *conn = TP_CONNECTION (source_object);
   McdAccount *self = tp_weak_ref_dup_object (user_data);
   GPtrArray *contacts = NULL;
   GError *error = NULL;
@@ -4891,8 +4957,7 @@ mcd_account_self_contact_upgraded_cb (GObject *source_object,
 
   g_return_if_fail (MCD_IS_ACCOUNT (self));
 
-  if (tp_connection_upgrade_contacts_finish (TP_CONNECTION (source_object),
-          res, &contacts, &error))
+  if (tp_connection_upgrade_contacts_finish (conn, res, &contacts, &error))
     {
       TpContact *self_contact;
 
@@ -4911,7 +4976,6 @@ mcd_account_self_contact_upgraded_cb (GObject *source_object,
           tp_g_signal_connect_object (self_contact, "notify::avatar-file",
               G_CALLBACK (mcd_account_self_contact_notify_avatar_file_cb),
               self, G_CONNECT_SWAPPED);
-          mcd_account_process_initial_avatar_token (self);
 
           tp_g_signal_connect_object (self_contact, "presence-changed",
               G_CALLBACK (mcd_account_update_self_presence),
@@ -4924,6 +4988,22 @@ mcd_account_self_contact_upgraded_cb (GObject *source_object,
               tp_contact_get_presence_status (self_contact),
               tp_contact_get_presence_message (self_contact),
               self_contact);
+
+          /* We have to use GetKnownAvatarTokens() because of its special
+           * case for CMs that don't always download an up-to-date
+           * avatar token before signalling CONNECTED. */
+          if (tp_proxy_has_interface_by_id (conn,
+              TP_IFACE_QUARK_CONNECTION_INTERFACE_AVATARS))
+            {
+              guint self_handle = tp_contact_get_handle (self_contact);
+              GArray *arr = g_array_new (FALSE, FALSE, sizeof (guint));
+
+              g_array_append_val (arr, self_handle);
+              tp_cli_connection_interface_avatars_call_get_known_avatar_tokens (
+                  conn, -1, arr, account_conn_get_known_avatar_tokens_cb,
+                  g_object_ref (self_contact), g_object_unref,
+                  (GObject *) self);
+            }
         }
       else if (self->priv->self_contact == NULL)
         {
@@ -5073,6 +5153,7 @@ _mcd_account_set_connection (McdAccount *account, McdConnection *connection)
     tp_clear_object (&priv->tp_connection);
 
     priv->connection = connection;
+    priv->waiting_for_initial_avatar = TRUE;
 
     if (connection)
     {
