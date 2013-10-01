@@ -225,7 +225,8 @@ class SimulatedConnection(object):
             implement_get_interfaces=True, has_requests=True,
             has_presence=False, has_aliasing=False, has_avatars=False,
             avatars_persist=True, extra_interfaces=[], has_hidden=False,
-            implement_get_aliases=True):
+            implement_get_aliases=True, initial_avatar=None,
+            server_delays_avatar=False):
         self.q = q
         self.bus = bus
 
@@ -252,6 +253,7 @@ class SimulatedConnection(object):
         self.has_avatars = has_avatars
         self.avatars_persist = avatars_persist
         self.extra_interfaces = extra_interfaces[:]
+        self.avatar_delayed = server_delays_avatar
 
         self.interfaces = []
         self.interfaces.append(cs.CONN_IFACE_CONTACTS)
@@ -267,9 +269,11 @@ class SimulatedConnection(object):
         if self.extra_interfaces:
             self.interfaces.extend(self.extra_interfaces)
 
-        if self.avatars_persist:
+        if initial_avatar is not None:
+            self.avatar = initial_avatar
+        elif self.avatars_persist:
             self.avatar = dbus.Struct((dbus.ByteArray('my old avatar'),
-                'text/plain'), signature='ays')
+                    'text/plain'), signature='ays')
         else:
             self.avatar = None
 
@@ -415,6 +419,7 @@ class SimulatedConnection(object):
 
     def forget_avatar(self):
         self.avatar = (dbus.ByteArray(''), '')
+        self.avatar_delayed = False
 
     # not actually very relevant for MC so hard-code 0 for now
     def GetAliasFlags(self, e):
@@ -449,7 +454,25 @@ class SimulatedConnection(object):
 
         # the user has an avatar already, if they persist; nobody else does
         if self.self_handle in e.args[0]:
-            if self.avatar is not None:
+            if self.avatar is None:
+                # GetKnownAvatarTokens has the special case that "where
+                # the avatar does not persist between connections, a CM
+                # should omit the self handle from the returned map until
+                # an avatar is explicitly set or cleared". We'd have been
+                # better off with a more explicit design, but it's too
+                # late now...
+                assert not self.avatars_persist
+            else:
+                # "a CM must always have the tokens for the self handle
+                # if one is set (even if it is set to no avatar)"
+                # so behave as though we'd done a network round-trip to
+                # check what our token was, and found our configured
+                # token
+                if self.avatar_delayed:
+                    self.q.dbus_emit(self.object_path, cs.CONN_IFACE_AVATARS,
+                            'AvatarUpdated', self.self_handle,
+                            str(self.avatar[0]), signature='us')
+
                 # we just stringify the avatar as the token
                 # (also, empty avatar => no avatar => empty token)
                 ret[self.self_handle] = str(self.avatar[0])
@@ -458,6 +481,7 @@ class SimulatedConnection(object):
 
     def SetAvatar(self, e):
         self.avatar = dbus.Struct(e.args, signature='ays')
+        self.avatar_delayed = False
 
         # we just stringify the avatar as the token
         self.q.dbus_return(e.message, str(self.avatar[0]), signature='s')
@@ -646,9 +670,12 @@ class SimulatedConnection(object):
 
         if cs.CONN_IFACE_AVATARS in ifaces:
             if h == self.self_handle:
-                if self.avatar is not None:
-                    # we just stringify the avatar as the token
-                    # (also, empty avatar => no avatar => empty token)
+                if self.avatar is not None and not self.avatar_delayed:
+                    # We just stringify the avatar as the token
+                    # (also, empty avatar => no avatar => empty token).
+                    # This doesn't have the same special case that
+                    # GetKnownAvatarTokens does - if we don't know the
+                    # token yet, we don't wait.
                     ret[cs.ATTR_AVATAR_TOKEN] = str(self.avatar[0])
 
         if cs.CONN_IFACE_SIMPLE_PRESENCE in ifaces:

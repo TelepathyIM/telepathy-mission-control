@@ -86,7 +86,6 @@ TWISTED_SLOW_TESTS = \
 # Tests that need their own MC instance.
 TWISTED_SEPARATE_TESTS = \
 	account-manager/auto-connect.py \
-	account-manager/avatar-persist.py \
 	account-manager/avatar-refresh.py \
 	account-manager/device-idle.py \
 	account-manager/make-valid.py \
