@@ -591,10 +591,6 @@ on_connection_status_changed (TpConnection *tp_conn, GParamSpec *pspec,
                 priv->probation_drop_count = 0;
             }
 
-            mcd_connection_service_point_setup (connection,
-                                                !priv->service_points_watched);
-            priv->service_points_watched = TRUE;
-
             priv->connected = TRUE;
         }
         break;
@@ -1093,6 +1089,14 @@ on_connection_ready (GObject *source_object, GAsyncResult *result,
 
     DEBUG ("connection is ready");
     priv = MCD_CONNECTION_PRIV (connection);
+
+    if (tp_proxy_has_interface_by_id (tp_conn,
+        TP_IFACE_QUARK_CONNECTION_INTERFACE_SERVICE_POINT))
+    {
+        mcd_connection_service_point_setup (connection,
+                                            !priv->service_points_watched);
+        priv->service_points_watched = TRUE;
+    }
 
     priv->has_presence_if = tp_proxy_has_interface_by_id
         (tp_conn, TP_IFACE_QUARK_CONNECTION_INTERFACE_SIMPLE_PRESENCE);
