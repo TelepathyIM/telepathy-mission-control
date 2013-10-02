@@ -303,7 +303,7 @@ test_uss (void)
   GError *error = NULL;
   GValueArray *unescaped_va;
 
-  g_value_init (&unescaped, TP_STRUCT_TYPE_SIMPLE_PRESENCE);
+  g_value_init (&unescaped, TP_STRUCT_TYPE_PRESENCE);
 
   success = mcd_keyfile_unescape_value ("2;available;\\;;",
       &unescaped, &error);

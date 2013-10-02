@@ -173,7 +173,7 @@ def test(q, bus, unused, **kwargs):
 
     set_presence, e = q.expect_many(
             EventPattern('dbus-method-call', path=conn.object_path,
-                interface=cs.CONN_IFACE_SIMPLE_PRESENCE, method='SetPresence',
+                interface=cs.CONN_IFACE_PRESENCE, method='SetPresence',
                 handled=True),
             EventPattern('dbus-signal', signal='AccountPropertyChanged',
                 path=account_path, interface=cs.ACCOUNT,
@@ -224,7 +224,7 @@ def test(q, bus, unused, **kwargs):
     conn.StatusChanged(cs.CONN_STATUS_CONNECTED, cs.CSR_NONE_SPECIFIED)
 
     set_presence = q.expect('dbus-method-call', path=conn.object_path,
-            interface=cs.CONN_IFACE_SIMPLE_PRESENCE, method='SetPresence',
+            interface=cs.CONN_IFACE_PRESENCE, method='SetPresence',
             handled=True)
 
     e = q.expect('dbus-signal', signal='AccountPropertyChanged',

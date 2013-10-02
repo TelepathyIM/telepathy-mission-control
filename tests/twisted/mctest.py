@@ -265,7 +265,7 @@ class SimulatedConnection(object):
         if self.has_avatars:
             self.interfaces.append(cs.CONN_IFACE_AVATARS)
         if self.has_presence:
-            self.interfaces.append(cs.CONN_IFACE_SIMPLE_PRESENCE)
+            self.interfaces.append(cs.CONN_IFACE_PRESENCE)
         if self.extra_interfaces:
             self.interfaces.extend(self.extra_interfaces)
 
@@ -337,19 +337,19 @@ class SimulatedConnection(object):
 
         if has_presence:
             q.add_dbus_method_impl(self.SetPresence, path=self.object_path,
-                    interface=cs.CONN_IFACE_SIMPLE_PRESENCE,
+                    interface=cs.CONN_IFACE_PRESENCE,
                     method='SetPresence')
             q.add_dbus_method_impl(self.GetPresences, path=self.object_path,
-                    interface=cs.CONN_IFACE_SIMPLE_PRESENCE,
+                    interface=cs.CONN_IFACE_PRESENCE,
                     method='GetPresences')
-            q.add_dbus_method_impl(self.Get_SimplePresenceStatuses,
+            q.add_dbus_method_impl(self.Get_PresenceStatuses,
                     path=self.object_path, interface=cs.PROPERTIES_IFACE,
                     method='Get',
-                    args=[cs.CONN_IFACE_SIMPLE_PRESENCE, 'Statuses'])
-            q.add_dbus_method_impl(self.GetAll_SimplePresence,
+                    args=[cs.CONN_IFACE_PRESENCE, 'Statuses'])
+            q.add_dbus_method_impl(self.GetAll_Presence,
                     path=self.object_path, interface=cs.PROPERTIES_IFACE,
                     method='GetAll',
-                    args=[cs.CONN_IFACE_SIMPLE_PRESENCE])
+                    args=[cs.CONN_IFACE_PRESENCE])
 
         if has_aliasing:
             q.add_dbus_method_impl(self.GetAliasFlags,
@@ -516,7 +516,7 @@ class SimulatedConnection(object):
                 self.presence = presence
 
                 self.q.dbus_emit(self.object_path,
-                        cs.CONN_IFACE_SIMPLE_PRESENCE, 'PresencesChanged',
+                        cs.CONN_IFACE_PRESENCE, 'PresencesChanged',
                         { self.self_handle : presence },
                         signature='a{u(uss)}')
 
@@ -524,10 +524,10 @@ class SimulatedConnection(object):
         else:
             self.q.dbus_raise(cs.INVALID_ARGUMENT, 'Unknown status')
 
-    def Get_SimplePresenceStatuses(self, e):
+    def Get_PresenceStatuses(self, e):
         self.q.dbus_return(e.message, self.statuses, signature='v')
 
-    def GetAll_SimplePresence(self, e):
+    def GetAll_Presence(self, e):
         self.q.dbus_return(e.message,
                 {'Statuses': self.statuses}, signature='a{sv}')
 
@@ -597,7 +597,7 @@ class SimulatedConnection(object):
                     'available', ''), signature='uss')
 
             self.q.dbus_emit(self.object_path,
-                    cs.CONN_IFACE_SIMPLE_PRESENCE, 'PresencesChanged',
+                    cs.CONN_IFACE_PRESENCE, 'PresencesChanged',
                     { self.self_handle : self.presence },
                     signature='a{u(uss)}')
 
@@ -679,7 +679,7 @@ class SimulatedConnection(object):
                     # token yet, we don't wait.
                     ret[cs.ATTR_AVATAR_TOKEN] = str(self.avatar[0])
 
-        if cs.CONN_IFACE_SIMPLE_PRESENCE in ifaces:
+        if cs.CONN_IFACE_PRESENCE in ifaces:
             if h == self.self_handle:
                 ret[cs.ATTR_PRESENCE] = self.presence
             else:
@@ -695,7 +695,7 @@ class SimulatedConnection(object):
         return set(self.interfaces).intersection(set([
             cs.CONN_IFACE_ALIASING,
             cs.CONN_IFACE_AVATARS,
-            cs.CONN_IFACE_SIMPLE_PRESENCE,
+            cs.CONN_IFACE_PRESENCE,
             ]))
 
     def GetContactAttributes(self, e):

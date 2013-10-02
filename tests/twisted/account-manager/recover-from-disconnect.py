@@ -64,7 +64,7 @@ def test(q, bus, mc):
     conn.StatusChanged(cs.CONN_STATUS_CONNECTED, cs.CSR_NONE_SPECIFIED)
 
     q.expect('dbus-method-call',
-             interface=cs.CONN_IFACE_SIMPLE_PRESENCE,
+             interface=cs.CONN_IFACE_PRESENCE,
              method='SetPresence',
              args=list(presence[1:]),
              handled=True)
@@ -169,7 +169,7 @@ def test(q, bus, mc):
                         cs.CONN_STATUS_CONNECTED),
                 ),
             EventPattern('dbus-method-call',
-                interface=cs.CONN_IFACE_SIMPLE_PRESENCE,
+                interface=cs.CONN_IFACE_PRESENCE,
                 method='SetPresence',
                 args=list(presence[1:]),
                 handled=True),

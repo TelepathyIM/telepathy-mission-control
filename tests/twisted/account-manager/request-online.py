@@ -128,7 +128,7 @@ def test(q, bus, mc):
     assert properties.get('HasBeenOnline')
     assertEquals(requested_presence, properties.get('RequestedPresence'))
 
-    # Since this Connection doesn't support SimplePresence, but it's online,
+    # Since this Connection doesn't support Presence, but it's online,
     # the spec says that CurrentPresence should be Unset.
     assertEquals((cs.PRESENCE_UNSET, "", ""),
         properties.get('CurrentPresence'))

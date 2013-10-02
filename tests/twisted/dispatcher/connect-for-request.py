@@ -114,14 +114,14 @@ def test(q, bus, mc):
 
     _, cm_request_call = q.expect_many(
             EventPattern('dbus-method-call', path=conn.object_path,
-                interface=cs.CONN_IFACE_SIMPLE_PRESENCE, method='SetPresence',
+                interface=cs.CONN_IFACE_PRESENCE, method='SetPresence',
                 args=['busy', 'Testing automatic presence'], handled=True),
             EventPattern('dbus-method-call', path=conn.object_path,
                 interface=cs.CONN_IFACE_REQUESTS, method='CreateChannel',
                 args=[request], handled=False),
             )
 
-    q.dbus_emit(conn.object_path, cs.CONN_IFACE_SIMPLE_PRESENCE,
+    q.dbus_emit(conn.object_path, cs.CONN_IFACE_PRESENCE,
             'PresencesChanged',
             {conn.self_handle: (dbus.UInt32(cs.PRESENCE_BUSY), 'busy',
                 'Testing automatic presence')},

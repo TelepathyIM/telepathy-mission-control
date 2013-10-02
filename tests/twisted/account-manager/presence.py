@@ -84,11 +84,11 @@ def test(q, bus, mc):
                     predicate=(lambda e: log.append('Get(Interfaces)') or True)),
                 EventPattern('dbus-method-call',
                     interface=cs.PROPERTIES_IFACE, method='Get',
-                    args=[cs.CONN_IFACE_SIMPLE_PRESENCE, 'Statuses'],
+                    args=[cs.CONN_IFACE_PRESENCE, 'Statuses'],
                     handled=True,
                     predicate=(lambda e: log.append('Get(Statuses)[1]') or True)),
                 EventPattern('dbus-method-call',
-                    interface=cs.CONN_IFACE_SIMPLE_PRESENCE,
+                    interface=cs.CONN_IFACE_PRESENCE,
                     method='SetPresence',
                     args=list(presence[1:]),
                     handled=True,
@@ -97,11 +97,11 @@ def test(q, bus, mc):
             expect_after_connect=[
                 EventPattern('dbus-method-call',
                     interface=cs.PROPERTIES_IFACE, method='Get',
-                    args=[cs.CONN_IFACE_SIMPLE_PRESENCE, 'Statuses'],
+                    args=[cs.CONN_IFACE_PRESENCE, 'Statuses'],
                     handled=True,
                     predicate=(lambda e: log.append('Get(Statuses)[2]') or True)),
                 EventPattern('dbus-method-call',
-                    interface=cs.CONN_IFACE_SIMPLE_PRESENCE,
+                    interface=cs.CONN_IFACE_PRESENCE,
                     method='SetPresence',
                     args=list(presence[1:]),
                     handled=True,
@@ -129,7 +129,7 @@ def test(q, bus, mc):
 
     e, _, _ = q.expect_many(
         EventPattern('dbus-method-call',
-            interface=cs.CONN_IFACE_SIMPLE_PRESENCE, method='SetPresence',
+            interface=cs.CONN_IFACE_PRESENCE, method='SetPresence',
             args=list(presence[1:]),
             handled=True),
         EventPattern('dbus-signal', path=account.object_path,
@@ -157,7 +157,7 @@ def test(q, bus, mc):
             presence)
 
     e = q.expect('dbus-method-call',
-        interface=cs.CONN_IFACE_SIMPLE_PRESENCE, method='SetPresence',
+        interface=cs.CONN_IFACE_PRESENCE, method='SetPresence',
         args=list(presence[1:]),
         handled=True)
 

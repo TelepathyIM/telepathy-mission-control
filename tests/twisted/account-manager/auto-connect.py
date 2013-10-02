@@ -164,7 +164,7 @@ def test(q, bus, unused, **kwargs):
                 args=[{ conn.self_handle: 'JC' }],
                 handled=False),
             EventPattern('dbus-method-call', path=conn.object_path,
-                interface=cs.CONN_IFACE_SIMPLE_PRESENCE, method='SetPresence',
+                interface=cs.CONN_IFACE_PRESENCE, method='SetPresence',
                 handled=True),
             EventPattern('dbus-method-call',
                 interface=cs.CONN_IFACE_AVATARS, method='SetAvatar',
