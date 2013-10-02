@@ -145,14 +145,6 @@ check-local:
 			echo "$$file missing from $(DOC_MODULE)-docs.sgml"; \
 			err=1; \
 		fi; \
-	done; \
-	case $(ENABLE_DOC_CHECKS)/$$err in \
-		(yes/1) \
-			echo "Documentation check failed" >&2; \
-			exit $$err; \
-			;; \
-		(*) \
-			exit 0; \
-			;; \
-	esac
+	done
 endif
+# ... but don't fail on incomplete documentation, this is a stable branch
