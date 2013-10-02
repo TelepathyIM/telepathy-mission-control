@@ -1,7 +1,44 @@
-telepathy-mission-control 5.15.2 (UNRELEASED)
+telepathy-mission-control 5.16.0 (2013-10-02)
 =============================================
 
-…
+The “all these little strings” release.
+
+This is a new stable branch, recommended for use with GNOME 3.10.
+
+Fixes since 5.15.1:
+
+• If a connection manager that stores avatars on the server is slow to
+  discover whether we have a server-stored avatar, don't overwrite it
+  with an outdated local avatar or lack-of-avatar. This was a regression
+  in 5.15.0. (fd.o #69885, Simon)
+
+Here is a summary of significant changes since the previous stable branch,
+5.14.x:
+
+Dependencies:
+
+• GLib 2.32 is required
+• The regression tests require Python 2.6
+• ConnMan connectivity monitoring no longer requires special compilation
+  options or extra libraries at compile time
+• gnome-keyring support has been removed, use a ServerAuthentication
+  handler instead
+
+Enhancements:
+
+• When running under GNOME 3 or Unity, MC will attempt to enable
+  connections' power-saving features while the session is idle;
+  this is currently effective for Google Talk XMPP connections
+• MC now uses GNetworkMonitor to monitor connectivity;
+  NetworkManager integration, which supplements this, is still available
+• New set_attribute(), set_parameter(), owns() methods for
+  McpAccountStorage plugins
+• telepathy-spec 0.27.1: emit PropertiesChanged for URISchemes
+
+Fixes:
+
+• Don't try to reconnect on SoftwareUpgradeRequired or ConnectionRefused
+• McpAccountStorage::altered-one now works
 
 telepathy-mission-control 5.15.1 (2013-09-19)
 =============================================

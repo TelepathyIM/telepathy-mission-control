@@ -1,7 +1,7 @@
 dnl Set the version number to e.g. 5.x.y immediately before a release.
 dnl Set the version number to e.g. 5.x.y+ immediately after (this will
 dnl enable -Werror).
-AC_INIT([telepathy-mission-control], [5.15.1+])
+AC_INIT([telepathy-mission-control], [5.16.0])
 
 AC_CONFIG_MACRO_DIR([m4])
 AC_CONFIG_AUX_DIR([build-aux])
@@ -47,7 +47,7 @@ AC_SUBST([MCP_API_VERSION])
 # else if library source has changed since last release
 #     increment revision
 MCP_LT_CURRENT=5
-MCP_LT_REVISION=0
+MCP_LT_REVISION=1
 MCP_LT_AGE=5
 AC_SUBST([MCP_LT_CURRENT])
 AC_SUBST([MCP_LT_REVISION])
