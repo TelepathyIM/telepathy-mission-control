@@ -33,13 +33,6 @@ from mctest import exec_test, SimulatedConnection, SimulatedClient, \
 import constants as cs
 
 def test(q, bus, mc):
-    forbidden = [
-            EventPattern('dbus-method-call', handled=False,
-                interface=cs.CONN_IFACE_CAPS,
-                method='AdvertiseCapabilities'),
-            ]
-    q.forbid_events(forbidden)
-
     # Two clients want to handle channels: MediaCall is running, and AbiWord
     # is activatable.
 
@@ -106,8 +99,7 @@ def test(q, bus, mc):
         "password": "secrecy"}, signature='sv')
     cm_name_ref, account = create_fakecm_account(q, bus, mc, params)
     conn, before = enable_fakecm_account(q, bus, mc, account, params,
-            extra_interfaces=[cs.CONN_IFACE_CONTACT_CAPS,
-                cs.CONN_IFACE_CAPS],
+            extra_interfaces=[cs.CONN_IFACE_CONTACT_CAPS],
             expect_before_connect=[
                 EventPattern('dbus-method-call', handled=False,
                     interface=cs.CONN_IFACE_CONTACT_CAPS,
