@@ -38,8 +38,7 @@ Enhancements:
   (fd.o #56635, Simon)
 
 • Remove gnome-keyring integration in favour of recommending
-  ServerAuthentication Handlers, which have better UI and don't expose
-  passwords on D-Bus (fd.o #32578, Simon)
+  ServerAuthentication Handlers, which have better UI (fd.o #32578, Simon)
 
 • Internal cleanup related to the connectivity code (fd.o #68712, Simon)
 
