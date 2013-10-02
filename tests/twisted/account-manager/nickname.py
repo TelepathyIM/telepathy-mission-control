@@ -51,7 +51,11 @@ def test(q, bus, mc, nickname):
     # OK, let's go online
     expect_after_connect = [
             EventPattern('dbus-method-call',
-                interface=cs.CONN_IFACE_ALIASING, method='GetAliases',
+                interface=cs.CONN_IFACE_CONTACTS,
+                predicate=(lambda e: e.method in (
+                    'GetContactAttributes', 'GetContactByID'
+                    ) and
+                    cs.CONN_IFACE_ALIASING in e.args[1]),
                 handled=True),
             ]
     forbidden = []

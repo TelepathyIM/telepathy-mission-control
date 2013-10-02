@@ -102,11 +102,7 @@ def test(q, bus, unused, **kwargs):
 
     conn.StatusChanged(cs.CONN_STATUS_CONNECTED, cs.CONN_STATUS_REASON_NONE)
 
-    _, _, e = q.expect_many(
-            EventPattern('dbus-method-call',
-                interface=cs.CONN_IFACE_AVATARS, method='GetKnownAvatarTokens',
-                args=[[conn.self_handle]],
-                handled=True),
+    _, e = q.expect_many(
             EventPattern('dbus-method-call',
                 interface=cs.CONN_IFACE_AVATARS, method='SetAvatar',
                 args=['Deus Ex', 'image/jpeg'],

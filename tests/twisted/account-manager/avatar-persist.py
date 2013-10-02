@@ -110,12 +110,8 @@ def test(q, bus, unused, **kwargs):
 
     # We haven't changed the avatar since we last signed in, so we don't set
     # it - on the contrary, we pick up the remote avatar (which has changed
-    # since we were last here) to store it in the Account
-    _, request_avatars_call, e = q.expect_many(
-            EventPattern('dbus-method-call',
-                interface=cs.CONN_IFACE_AVATARS, method='GetKnownAvatarTokens',
-                args=[[conn.self_handle]],
-                handled=True),
+    # since we were last here) to store it in the Account.
+    request_avatars_call, e = q.expect_many(
             EventPattern('dbus-method-call',
                 interface=cs.CONN_IFACE_AVATARS, method='RequestAvatars',
                 args=[[conn.self_handle]],

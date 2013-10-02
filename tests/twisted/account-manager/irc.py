@@ -51,7 +51,11 @@ def test(q, bus, mc):
 
     expect_after_connect = [
             EventPattern('dbus-method-call',
-                interface=cs.CONN_IFACE_ALIASING, method='GetAliases',
+                interface=cs.CONN_IFACE_CONTACTS,
+                predicate=(lambda e: e.method in (
+                    'GetContactAttributes', 'GetContactByID'
+                    ) and
+                    cs.CONN_IFACE_ALIASING in e.args[1]),
                 handled=True),
             EventPattern('dbus-method-call',
                 interface=cs.CONN_IFACE_ALIASING, method='SetAliases',
@@ -83,14 +87,19 @@ def test(q, bus, mc):
     conn.change_self_alias('TheBatman')
 
     get_aliases, _ = q.expect_many(
-        EventPattern('dbus-method-call', interface=cs.CONN_IFACE_ALIASING,
-            method='GetAliases', handled=True),
+        EventPattern('dbus-method-call',
+            interface=cs.CONN_IFACE_CONTACTS,
+            predicate=(lambda e: e.method in (
+                'GetContactAttributes', 'GetContactByID'
+                ) and
+                cs.CONN_IFACE_ALIASING in e.args[1]),
+            handled=True),
         EventPattern('dbus-signal', path=account.object_path,
             signal='AccountPropertyChanged', interface=cs.ACCOUNT,
             predicate=(lambda e:
                 e.args[0].get('NormalizedName') == 'thebatman')),
         )
-    assert get_aliases.args[0] == [ conn.self_handle ]
+    assert get_aliases.args[0] in ([conn.self_handle], conn.self_id)
     q.expect('dbus-signal', path=account.object_path,
             signal='AccountPropertyChanged', interface=cs.ACCOUNT,
             args=[{'Nickname': 'TheBatman'}])
@@ -117,14 +126,19 @@ def test(q, bus, mc):
 
     # In response to the self-handle change, we check our nickname again
     get_aliases, _ = q.expect_many(
-        EventPattern('dbus-method-call', interface=cs.CONN_IFACE_ALIASING,
-            method='GetAliases', handled=True),
+        EventPattern('dbus-method-call',
+            interface=cs.CONN_IFACE_CONTACTS,
+            predicate=(lambda e: e.method in (
+                'GetContactAttributes', 'GetContactByID'
+                ) and
+                cs.CONN_IFACE_ALIASING in e.args[1]),
+            handled=True),
         EventPattern('dbus-signal', path=account.object_path,
             signal='AccountPropertyChanged', interface=cs.ACCOUNT,
             predicate=(lambda e:
                 e.args[0].get('NormalizedName') == 'brucewayne')),
         )
-    assert get_aliases.args[0] == [ conn.self_handle ]
+    assert get_aliases.args[0] in ([conn.self_handle], conn.self_id)
 
     forbidden = [EventPattern('dbus-signal', signal='AccountPropertyChanged',
         predicate=lambda e: 'Nickname' in e.args[0])]
