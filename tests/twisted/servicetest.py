@@ -575,8 +575,7 @@ def sync_dbus(bus, q, proxy):
     # dbus-glib and thence the application, which means that Ping()ing the
     # application doesn't ensure that it's processed all D-Bus messages prior
     # to our ping.
-    call_async(q, dbus.Interface(proxy, 'org.freedesktop.Telepathy.Tests'),
-        'DummySyncDBus')
+    call_async(q, dbus.Interface(proxy, cs.TESTS), 'DummySyncDBus')
     q.expect('dbus-error', method='DummySyncDBus')
 
 class ProxyWrapper:
