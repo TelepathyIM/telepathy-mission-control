@@ -27,7 +27,6 @@ TWISTED_BASIC_TESTS = \
 	account/addressing.py \
 	capabilities/contact-caps.py \
 	dispatcher/already-has-channel.py \
-	dispatcher/already-has-obsolete.py \
 	dispatcher/approver-fails.py \
 	dispatcher/bypass-approval.py \
 	dispatcher/bypass-observers.py \
