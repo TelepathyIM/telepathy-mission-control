@@ -608,9 +608,24 @@ class SimulatedChannel(object):
         self.q = conn.q
         self.bus = conn.bus
         self.object_path = conn.object_path + ('/_%x' % id(self))
-        self.immutable = immutable
+        self.immutable = immutable.copy()
+
+        if self.immutable[cs.TARGET_HANDLE_TYPE] != cs.HT_NONE:
+            if (cs.TARGET_ID in self.immutable) != (
+                    cs.TARGET_HANDLE in self.immutable):
+                if cs.TARGET_ID in self.immutable:
+                    self.immutable[cs.TARGET_HANDLE] = conn.ensure_handle(
+                            self.immutable[cs.TARGET_HANDLE_TYPE],
+                            self.immutable[cs.TARGET_ID])
+                else:
+                    self.immutable[cs.TARGET_ID] = conn.inspect_handles(
+                            [self.immutable[cs.TARGET_HANDLE]])[0]
+
+        if cs.REQUESTED not in self.immutable:
+            self.immutable[cs.REQUESTED] = False
+
         self.properties = dbus.Dictionary({}, signature='sv')
-        self.properties.update(immutable)
+        self.properties.update(self.immutable)
         self.properties.update(mutable)
 
         self.q.add_dbus_method_impl(self.GetAll,
