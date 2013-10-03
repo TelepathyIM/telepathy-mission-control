@@ -222,7 +222,7 @@ class SimulatedConnection(object):
 
     def __init__(self, q, bus, cmname, protocol, account_part, self_ident,
             self_alias=None,
-            implement_get_channels=True, has_requests=True,
+            implement_get_channels=True,
             has_presence=False, has_aliasing=False, has_avatars=False,
             avatars_persist=True, extra_interfaces=[], has_hidden=False,
             implement_get_aliases=True, initial_avatar=None,
@@ -247,7 +247,6 @@ class SimulatedConnection(object):
         self.self_alias = self_alias
         self.self_handle = self.ensure_handle(cs.HT_CONTACT, self_ident)
         self.channels = []
-        self.has_requests = has_requests
         self.has_presence = has_presence
         self.has_aliasing = has_aliasing
         self.has_avatars = has_avatars
@@ -257,9 +256,8 @@ class SimulatedConnection(object):
 
         self.interfaces = []
         self.interfaces.append(cs.CONN_IFACE_CONTACTS)
+        self.interfaces.append(cs.CONN_IFACE_REQUESTS)
 
-        if self.has_requests:
-            self.interfaces.append(cs.CONN_IFACE_REQUESTS)
         if self.has_aliasing:
             self.interfaces.append(cs.CONN_IFACE_ALIASING)
         if self.has_avatars:
@@ -281,35 +279,17 @@ class SimulatedConnection(object):
                 path=self.object_path, interface=cs.CONN, method='Connect')
         q.add_dbus_method_impl(self.Disconnect,
                 path=self.object_path, interface=cs.CONN, method='Disconnect')
-        q.add_dbus_method_impl(self.GetSelfHandle,
-                path=self.object_path,
-                interface=cs.CONN, method='GetSelfHandle')
-        q.add_dbus_method_impl(self.GetStatus,
-                path=self.object_path, interface=cs.CONN, method='GetStatus')
 
         q.add_dbus_method_impl(self.GetAll_Connection,
                 path=self.object_path,
                 interface=cs.PROPERTIES_IFACE, method='GetAll',
                 args=[cs.CONN])
 
-        q.add_dbus_method_impl(self.GetInterfaces,
-                path=self.object_path, interface=cs.CONN,
-                method='GetInterfaces')
         q.add_dbus_method_impl(self.Get_Interfaces,
                 path=self.object_path, interface=cs.PROPERTIES_IFACE,
                 method='Get', args=[cs.CONN, 'Interfaces'])
 
-        q.add_dbus_method_impl(self.RequestHandles,
-                path=self.object_path, interface=cs.CONN,
-                method='RequestHandles')
-        q.add_dbus_method_impl(self.InspectHandles,
-                path=self.object_path, interface=cs.CONN,
-                method='InspectHandles')
-        q.add_dbus_method_impl(self.HoldHandles,
-                path=self.object_path, interface=cs.CONN,
-                method='HoldHandles')
-
-        if implement_get_channels and has_requests:
+        if implement_get_channels:
             q.add_dbus_method_impl(self.GetAll_Requests,
                     path=self.object_path,
                     interface=cs.PROPERTIES_IFACE, method='GetAll',
@@ -330,18 +310,10 @@ class SimulatedConnection(object):
                 interface=cs.PROPERTIES_IFACE, method='GetAll',
                 args=[cs.CONN_IFACE_CONTACTS])
 
-        if not has_requests:
-            q.add_dbus_method_impl(self.ListChannels,
-                    path=self.object_path, interface=cs.CONN,
-                    method='ListChannels')
-
         if has_presence:
             q.add_dbus_method_impl(self.SetPresence, path=self.object_path,
                     interface=cs.CONN_IFACE_PRESENCE,
                     method='SetPresence')
-            q.add_dbus_method_impl(self.GetPresences, path=self.object_path,
-                    interface=cs.CONN_IFACE_PRESENCE,
-                    method='GetPresences')
             q.add_dbus_method_impl(self.Get_PresenceStatuses,
                     path=self.object_path, interface=cs.PROPERTIES_IFACE,
                     method='Get',
@@ -351,21 +323,7 @@ class SimulatedConnection(object):
                     method='GetAll',
                     args=[cs.CONN_IFACE_PRESENCE])
 
-        if has_aliasing:
-            q.add_dbus_method_impl(self.GetAliasFlags,
-                    path=self.object_path, interface=cs.CONN_IFACE_ALIASING,
-                    method='GetAliasFlags',
-                    args=[])
-
-            if implement_get_aliases:
-                q.add_dbus_method_impl(self.GetAliases,
-                        path=self.object_path,
-                        interface=cs.CONN_IFACE_ALIASING, method='GetAliases')
-
         if has_avatars:
-            q.add_dbus_method_impl(self.GetAvatarRequirements,
-                    path=self.object_path, interface=cs.CONN_IFACE_AVATARS,
-                    method='GetAvatarRequirements', args=[])
             q.add_dbus_method_impl(self.GetAll_Avatars,
                     path=self.object_path, interface=cs.PROPERTIES_IFACE,
                     method='GetAll', args=[cs.CONN_IFACE_AVATARS])
@@ -398,8 +356,8 @@ class SimulatedConnection(object):
     def change_self_ident(self, ident):
         self.self_ident = ident
         self.self_handle = self.ensure_handle(cs.HT_CONTACT, ident)
-        self.q.dbus_emit(self.object_path, cs.CONN, 'SelfHandleChanged',
-                self.self_handle, signature='u')
+        self.q.dbus_emit(self.object_path, cs.CONN, 'SelfContactChanged',
+                self.self_handle, ident, signature='us')
 
     def change_self_alias(self, alias):
         self.self_alias = alias
@@ -414,6 +372,7 @@ class SimulatedConnection(object):
         self.q.dbus_return(e.message, {
             'Interfaces': dbus.Array(self.interfaces, signature='s'),
             'SelfHandle': dbus.UInt32(self.self_handle),
+            'SelfID': self.self_ident,
             'Status': dbus.UInt32(self.status),
             'HasImmortalHandles': dbus.Boolean(True),
             }, signature='a{sv}')
@@ -421,22 +380,6 @@ class SimulatedConnection(object):
     def forget_avatar(self):
         self.avatar = (dbus.ByteArray(''), '')
         self.avatar_delayed = False
-
-    # not actually very relevant for MC so hard-code 0 for now
-    def GetAliasFlags(self, e):
-        self.q.dbus_return(e.message, 0, signature='u')
-
-    def GetAliases(self, e):
-        ret = dbus.Dictionary(signature='us')
-        if self.self_handle in e.args[0]:
-            ret[self.self_handle] = self.self_alias
-
-        self.q.dbus_return(e.message, ret, signature='a{us}')
-
-    # mostly for the UI's benefit; for now hard-code the requirements from XMPP
-    def GetAvatarRequirements(self, e):
-        self.q.dbus_return(e.message, ['image/jpeg'], 0, 0, 96, 96, 8192,
-                signature='asqqqqu')
 
     def GetAll_Avatars(self, e):
         self.q.dbus_return(e.message, {
@@ -490,19 +433,6 @@ class SimulatedConnection(object):
                 'AvatarRetrieved', self.self_handle, str(self.avatar[0]),
                 self.avatar[0], self.avatar[1], signature='usays')
 
-    def GetPresences(self, e):
-        ret = dbus.Dictionary(signature='u(uss)')
-        contacts = e.args[0]
-        for contact in contacts:
-            if contact == self.self_handle:
-                ret[contact] = self.presence
-            else:
-                # stub - MC doesn't care
-                ret[contact] = dbus.Struct(
-                        (cs.PRESENCE_UNKNOWN, 'unknown', ''),
-                        signature='uss')
-        self.q.dbus_return(e.message, ret, signature='a{u(uss)}')
-
     def SetPresence(self, e):
         if e.args[0] in self.statuses:
             # "dbus.UInt32" to work around
@@ -530,9 +460,6 @@ class SimulatedConnection(object):
     def GetAll_Presence(self, e):
         self.q.dbus_return(e.message,
                 {'Statuses': self.statuses}, signature='a{sv}')
-
-    def GetInterfaces(self, e):
-        self.q.dbus_return(e.message, self.interfaces, signature='as')
 
     def Get_Interfaces(self, e):
         self.q.dbus_return(e.message,
@@ -562,24 +489,6 @@ class SimulatedConnection(object):
 
         return ret
 
-    def InspectHandles(self, e):
-        htype, hs = e.args
-
-        try:
-            ret = self.inspect_handles(hs, htype)
-            self.q.dbus_return(e.message, ret, signature='as')
-        except e:
-            self.q.dbus_raise(e.message, INVALID_HANDLE, str(e.args[0]))
-
-    def RequestHandles(self, e):
-        htype, idents = e.args
-        self.q.dbus_return(e.message,
-                [self.ensure_handle(htype, i) for i in idents],
-                signature='au')
-
-    def GetStatus(self, e):
-        self.q.dbus_return(e.message, self.status, signature='u')
-
     def ConnectionError(self, error, details):
         self.q.dbus_emit(self.object_path, cs.CONN, 'ConnectionError',
                 error, details, signature='sa{sv}')
@@ -601,37 +510,14 @@ class SimulatedConnection(object):
                     { self.self_handle : self.presence },
                     signature='a{u(uss)}')
 
-    def ListChannels(self, e):
-        arr = dbus.Array(signature='(osuu)')
-
-        for c in self.channels:
-            arr.append(dbus.Struct(
-                (c.object_path,
-                 c.immutable[cs.CHANNEL + '.ChannelType'],
-                 c.immutable.get(cs.CHANNEL + '.TargetHandleType', 0),
-                 c.immutable.get(cs.CHANNEL + '.TargetHandle', 0)
-                ), signature='osuu'))
-
-        self.q.dbus_return(e.message, arr, signature='a(osuu)')
-
     def get_channel_details(self):
         return dbus.Array([(c.object_path, c.immutable)
             for c in self.channels], signature='(oa{sv})')
 
     def GetAll_Requests(self, e):
-        if self.has_requests:
-            self.q.dbus_return(e.message, {
-                'Channels': self.get_channel_details(),
-            }, signature='a{sv}')
-        else:
-            self.q.dbus_raise(e.message, cs.NOT_IMPLEMENTED, 'no Requests')
-
-    def GetSelfHandle(self, e):
-        self.q.dbus_return(e.message, self.self_handle, signature='u')
-
-    def HoldHandles(self, e):
-        # do nothing
-        self.q.dbus_return(e.message, signature='')
+        self.q.dbus_return(e.message, {
+            'Channels': self.get_channel_details(),
+        }, signature='a{sv}')
 
     def NewChannels(self, channels):
         for channel in channels:
@@ -639,21 +525,11 @@ class SimulatedConnection(object):
             channel.announced = True
             self.channels.append(channel)
 
-            self.q.dbus_emit(self.object_path, cs.CONN,
-                    'NewChannel',
-                    channel.object_path,
-                    channel.immutable[cs.CHANNEL + '.ChannelType'],
-                    channel.immutable.get(cs.CHANNEL + '.TargetHandleType', 0),
-                    channel.immutable.get(cs.CHANNEL + '.TargetHandle', 0),
-                    channel.immutable.get(cs.CHANNEL + '.Requested', False),
-                    signature='osuub')
-
-        if self.has_requests:
-            self.q.dbus_emit(self.object_path, cs.CONN_IFACE_REQUESTS,
-                    'NewChannels',
-                    [(channel.object_path, channel.immutable)
-                        for channel in channels],
-                    signature='a(oa{sv})')
+        self.q.dbus_emit(self.object_path, cs.CONN_IFACE_REQUESTS,
+                'NewChannels',
+                [(channel.object_path, channel.immutable)
+                    for channel in channels],
+                signature='a(oa{sv})')
 
     def get_contact_attributes(self, h, ifaces):
         id = self.inspect_handles([h])[0]
@@ -1099,7 +975,7 @@ def enable_fakecm_account(q, bus, mc, account, expected_params, **kwargs):
     return expect_fakecm_connection(q, bus, mc, account, expected_params, **kwargs)
 
 def expect_fakecm_connection(q, bus, mc, account, expected_params,
-        has_requests=True, has_presence=False, has_aliasing=False,
+        has_presence=False, has_aliasing=False,
         has_avatars=False, avatars_persist=True,
         extra_interfaces=[],
         expect_before_connect=(), expect_after_connect=(),
@@ -1118,26 +994,20 @@ def expect_fakecm_connection(q, bus, mc, account, expected_params,
 
     conn = SimulatedConnection(q, bus, 'fakecm', 'fakeprotocol',
                                account.object_path.split('/')[-1],
-            self_ident, has_requests=has_requests, has_presence=has_presence,
+            self_ident, has_presence=has_presence,
             has_aliasing=has_aliasing, has_avatars=has_avatars,
             avatars_persist=avatars_persist, extra_interfaces=extra_interfaces,
             has_hidden=has_hidden)
 
     q.dbus_return(e.message, conn.bus_name, conn.object_path, signature='so')
 
-    if has_requests:
-        expect_before_connect.append(
-                servicetest.EventPattern('dbus-method-call',
-                    interface=cs.PROPERTIES_IFACE, method='GetAll',
-                    args=[cs.CONN_IFACE_REQUESTS],
-                    path=conn.object_path, handled=True))
-
-    if expect_before_connect:
-        events = list(q.expect_many(*expect_before_connect))
-        if has_requests:
-            del events[-1]
-    else:
-        events = []
+    expect_before_connect.append(
+            servicetest.EventPattern('dbus-method-call',
+                interface=cs.PROPERTIES_IFACE, method='GetAll',
+                args=[cs.CONN_IFACE_REQUESTS],
+                path=conn.object_path, handled=True))
+    events = list(q.expect_many(*expect_before_connect))
+    del events[-1]
 
     q.expect('dbus-method-call', method='Connect',
             path=conn.object_path, handled=True)
