@@ -68,28 +68,19 @@ def test(q, bus, mc):
             interface=cs.tp_name_prefix + '.ConnectionManager',
             handled=False)
 
-    # Don't allow the Connection to become ready until we want it to, by
-    # avoiding a return from Get(Interfaces) or GetInterfaces.
+    # Don't allow the Connection to have its list of channels
+    # until we want it to, by avoiding a return from GetAll(Requests).
     conn = SimulatedConnection(q, bus, 'fakecm', 'fakeprotocol', '_',
-            'myself', implement_get_interfaces=False)
+            'myself', implement_get_channels=False)
 
     q.dbus_return(e.message, conn.bus_name, conn.object_path, signature='so')
 
-    # This is the pre-Connect one, from Mission Control.
-    e = q.expect('dbus-method-call', method='Get',
-            args=[cs.CONN, 'Interfaces'],
-            path=conn.object_path, handled=False)
-    q.dbus_raise(e.message, cs.DISCONNECTED, 'Not connected yet')
+    get_all_requests_call = q.expect('dbus-method-call',
+            method='GetAll', args=[cs.CONN_IFACE_REQUESTS])
 
     q.expect('dbus-method-call', method='Connect',
             path=conn.object_path, handled=True)
     conn.StatusChanged(cs.CONN_STATUS_CONNECTED, cs.CSR_NONE_SPECIFIED)
-
-    # This is from TpConnection. It's an implementation detail that it calls
-    # GetInterfaces at this point; in 'next' it will call GetAll.
-    get_interfaces_call = q.expect('dbus-method-call', method='GetInterfaces',
-            args=[],
-            path=conn.object_path, handled=False)
 
     # subscribe to the OperationList interface (MC assumes that until this
     # property has been retrieved once, nobody cares)
@@ -98,7 +89,7 @@ def test(q, bus, mc):
     cd_props = dbus.Interface(cd, cs.PROPERTIES_IFACE)
     assert cd_props.Get(cs.CD_IFACE_OP_LIST, 'DispatchOperations') == []
 
-    # Before returning from Get(Interfaces), make a Channel spring into
+    # Before returning from GetAll(Requests), make a Channel spring into
     # existence
 
     channel_properties = dbus.Dictionary(text_fixed_properties,
@@ -115,8 +106,8 @@ def test(q, bus, mc):
     chan = SimulatedChannel(conn, channel_properties)
     chan.announce()
 
-    # Now reply to Get(Interfaces) and say we have Requests
-    conn.Get_Interfaces(get_interfaces_call)
+    # Now reply to GetAll(Requests)
+    conn.GetAll_Requests(get_all_requests_call)
 
     # A channel dispatch operation is created for the channel we already had
 

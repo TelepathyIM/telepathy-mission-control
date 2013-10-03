@@ -222,7 +222,7 @@ class SimulatedConnection(object):
 
     def __init__(self, q, bus, cmname, protocol, account_part, self_ident,
             self_alias=None,
-            implement_get_interfaces=True, has_requests=True,
+            implement_get_channels=True, has_requests=True,
             has_presence=False, has_aliasing=False, has_avatars=False,
             avatars_persist=True, extra_interfaces=[], has_hidden=False,
             implement_get_aliases=True, initial_avatar=None,
@@ -292,13 +292,12 @@ class SimulatedConnection(object):
                 interface=cs.PROPERTIES_IFACE, method='GetAll',
                 args=[cs.CONN])
 
-        if implement_get_interfaces:
-            q.add_dbus_method_impl(self.GetInterfaces,
-                    path=self.object_path, interface=cs.CONN,
-                    method='GetInterfaces')
-            q.add_dbus_method_impl(self.Get_Interfaces,
-                    path=self.object_path, interface=cs.PROPERTIES_IFACE,
-                    method='Get', args=[cs.CONN, 'Interfaces'])
+        q.add_dbus_method_impl(self.GetInterfaces,
+                path=self.object_path, interface=cs.CONN,
+                method='GetInterfaces')
+        q.add_dbus_method_impl(self.Get_Interfaces,
+                path=self.object_path, interface=cs.PROPERTIES_IFACE,
+                method='Get', args=[cs.CONN, 'Interfaces'])
 
         q.add_dbus_method_impl(self.RequestHandles,
                 path=self.object_path, interface=cs.CONN,
@@ -309,10 +308,12 @@ class SimulatedConnection(object):
         q.add_dbus_method_impl(self.HoldHandles,
                 path=self.object_path, interface=cs.CONN,
                 method='HoldHandles')
-        q.add_dbus_method_impl(self.GetAll_Requests,
-                path=self.object_path,
-                interface=cs.PROPERTIES_IFACE, method='GetAll',
-                args=[cs.CONN_IFACE_REQUESTS])
+
+        if implement_get_channels and has_requests:
+            q.add_dbus_method_impl(self.GetAll_Requests,
+                    path=self.object_path,
+                    interface=cs.PROPERTIES_IFACE, method='GetAll',
+                    args=[cs.CONN_IFACE_REQUESTS])
 
         q.add_dbus_method_impl(self.GetContactAttributes,
                 path=self.object_path,
