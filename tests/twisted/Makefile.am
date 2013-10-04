@@ -27,7 +27,6 @@ TWISTED_BASIC_TESTS = \
 	account/addressing.py \
 	capabilities/contact-caps.py \
 	dispatcher/already-has-channel.py \
-	dispatcher/already-has-obsolete.py \
 	dispatcher/approver-fails.py \
 	dispatcher/bypass-approval.py \
 	dispatcher/bypass-observers.py \
@@ -86,7 +85,6 @@ TWISTED_SLOW_TESTS = \
 # Tests that need their own MC instance.
 TWISTED_SEPARATE_TESTS = \
 	account-manager/auto-connect.py \
-	account-manager/avatar-persist.py \
 	account-manager/avatar-refresh.py \
 	account-manager/device-idle.py \
 	account-manager/make-valid.py \
@@ -220,7 +218,7 @@ mc_debug_server_SOURCES = mc-debug-server.c
 mc_debug_server_LDADD = \
 	$(top_builddir)/src/libmcd-convenience.la
 
-INCLUDES = \
+AM_CPPFLAGS = \
 	-I$(top_srcdir) -I$(top_builddir) \
 	-I$(top_srcdir)/src -I$(top_builddir)/src \
 	$(DBUS_CFLAGS) \

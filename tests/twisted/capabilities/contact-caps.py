@@ -33,13 +33,6 @@ from mctest import exec_test, SimulatedConnection, SimulatedClient, \
 import constants as cs
 
 def test(q, bus, mc):
-    forbidden = [
-            EventPattern('dbus-method-call', handled=False,
-                interface=cs.CONN_IFACE_CAPS,
-                method='AdvertiseCapabilities'),
-            ]
-    q.forbid_events(forbidden)
-
     # Two clients want to handle channels: MediaCall is running, and AbiWord
     # is activatable.
 
@@ -60,9 +53,9 @@ def test(q, bus, mc):
         }, signature='sv')
     media_call = SimulatedClient(q, bus, 'MediaCall',
             observe=[], approve=[], handle=[media_fixed_properties],
-            cap_tokens=[cs.CHANNEL_IFACE_MEDIA_SIGNALLING + '/ice-udp',
-                cs.CHANNEL_IFACE_MEDIA_SIGNALLING + '/audio/speex',
-                cs.CHANNEL_IFACE_MEDIA_SIGNALLING + '/video/theora'],
+            cap_tokens=[cs.CHANNEL_TYPE_CALL + '/ice',
+                cs.CHANNEL_TYPE_CALL + '/audio/speex',
+                cs.CHANNEL_TYPE_CALL + '/video/theora'],
             bypass_approval=False)
 
     # wait for MC to download the properties
@@ -89,11 +82,11 @@ def test(q, bus, mc):
         assert len(filters[cs.CLIENT + '.AbiWord']) == 2
 
         assert len(tokens[cs.CLIENT + '.MediaCall']) == 3
-        assert cs.CHANNEL_IFACE_MEDIA_SIGNALLING + '/ice-udp' in \
+        assert cs.CHANNEL_TYPE_CALL + '/ice' in \
                 tokens[cs.CLIENT + '.MediaCall']
-        assert cs.CHANNEL_IFACE_MEDIA_SIGNALLING + '/audio/speex' in \
+        assert cs.CHANNEL_TYPE_CALL + '/audio/speex' in \
                 tokens[cs.CLIENT + '.MediaCall']
-        assert cs.CHANNEL_IFACE_MEDIA_SIGNALLING + '/video/theora' in \
+        assert cs.CHANNEL_TYPE_CALL + '/video/theora' in \
                 tokens[cs.CLIENT + '.MediaCall']
 
         assert len(tokens[cs.CLIENT + '.AbiWord']) == 2
@@ -106,8 +99,7 @@ def test(q, bus, mc):
         "password": "secrecy"}, signature='sv')
     cm_name_ref, account = create_fakecm_account(q, bus, mc, params)
     conn, before = enable_fakecm_account(q, bus, mc, account, params,
-            extra_interfaces=[cs.CONN_IFACE_CONTACT_CAPS,
-                cs.CONN_IFACE_CAPS],
+            extra_interfaces=[cs.CONN_IFACE_CONTACT_CAPS],
             expect_before_connect=[
                 EventPattern('dbus-method-call', handled=False,
                     interface=cs.CONN_IFACE_CONTACT_CAPS,

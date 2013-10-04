@@ -1,4 +1,4 @@
-INCLUDES = \
+AM_CPPFLAGS = \
 	   $(TELEPATHY_CFLAGS) \
 	   $(DBUS_CFLAGS) \
 	   $(GLIB_CFLAGS) \
@@ -97,7 +97,7 @@ libmcd_convenience_la_LIBADD = \
 
 if ENABLE_LIBACCOUNTS_SSO
 libmcd_convenience_la_LIBADD += $(LIBACCOUNTS_SSO_LIBS)
-INCLUDES += $(LIBACCOUNTS_SSO_CFLAGS)
+AM_CPPFLAGS += $(LIBACCOUNTS_SSO_CFLAGS)
 endif
 
 if ENABLE_AEGIS
@@ -215,7 +215,7 @@ Android.mk: Makefile.am $(nodist_libmcd_convenience_la_SOURCES)
 	 -:TAGS eng debug \
 	 -:REL_TOP $(top_srcdir) -:ABS_TOP $(abs_top_srcdir) \
 	 -:SOURCES $(libmcd_convenience_la_SOURCES) $(nodist_libmcd_convenience_la_SOURCES) \
-	 -:CFLAGS $(DEFAULT_INCLUDES) $(INCLUDES) $(DEFS) $(CFLAGS) $(AM_CFLAGS) \
+	 -:CFLAGS $(DEFAULT_INCLUDES) $(DEFS) $(CFLAGS) $(AM_CFLAGS) \
 	 -:CPPFLAGS $(CPPFLAGS) $(AM_CPPFLAGS) \
 	 -:LDFLAGS $(libmcd_convenience_la_LIBADD) \
 	> $@
@@ -225,12 +225,12 @@ Android.mk: Makefile.am $(nodist_libmcd_convenience_la_SOURCES)
 tools_dir = $(top_srcdir)/tools
 
 _gen/mcd.xml: mcd.xml $(wildcard $(top_srcdir)/xml/*.xml)
-	$(AM_V_at)$(mkdir_p) _gen
+	$(AM_V_at)$(MKDIR_P) _gen
 	$(AM_V_GEN)$(XSLTPROC) $(XSLTPROCFLAGS) --xinclude $(tools_dir)/identity.xsl \
 		$< > $@
 
 _gen/%.xml: $(top_srcdir)/xml/%.xml $(wildcard $(top_srcdir)/xml/*.xml)
-	$(AM_V_at)$(mkdir_p) _gen
+	$(AM_V_at)$(MKDIR_P) _gen
 	$(AM_V_GEN)$(XSLTPROC) $(XSLTPROCFLAGS) --xinclude $(tools_dir)/identity.xsl \
 		$< > $@
 
@@ -287,12 +287,12 @@ _gen/gtypes.h _gen/gtypes-body.h: _gen/mcd.xml \
 # like account, account-manager, ...)
 
 _gen/%.xml: $(top_srcdir)/xml/%.xml $(wildcard $(top_srcdir)/xml/*.xml) Makefile.am
-	$(AM_V_at)$(mkdir_p) _gen
+	$(AM_V_at)$(MKDIR_P) _gen
 	$(AM_V_GEN)$(XSLTPROC) $(XSLTPROCFLAGS) --xinclude $(tools_dir)/identity.xsl \
 		$< > $@
 
 _gen/%.xml: %.xml $(wildcard $(top_srcdir)/xml/*.xml) Makefile.am
-	$(AM_V_at)$(mkdir_p) _gen
+	$(AM_V_at)$(MKDIR_P) _gen
 	$(AM_V_GEN)$(XSLTPROC) $(XSLTPROCFLAGS) --xinclude $(tools_dir)/identity.xsl \
 		$< > $@
 

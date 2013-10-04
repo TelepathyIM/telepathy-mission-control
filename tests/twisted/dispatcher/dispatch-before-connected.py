@@ -29,13 +29,6 @@ from mctest import exec_test, SimulatedConnection, SimulatedClient, \
         expect_client_setup
 import constants as cs
 
-CHANNEL_TYPE_SERVER_VERIFICATION = \
-    'org.freedesktop.Telepathy.Channel.Type.ServerVerification.DRAFT'
-CHANNEL_IFACE_VERIFICATION = \
-    'org.freedesktop.Telepathy.Channel.Interface.Verification.DRAFT '
-CHANNEL_IFACE_IDENT_EXCHANGE = \
-    'org.freedesktop.Telepathy.Channel.Interface.IdentityExchange.DRAFT'
-
 def test(q, bus, mc):
     params = dbus.Dictionary({"account": "someone@example.com",
         "password": "secrecy"}, signature='sv')
@@ -49,7 +42,7 @@ def test(q, bus, mc):
 
     verification_filter = dbus.Dictionary({
         cs.CHANNEL + '.TargetHandleType': 0,
-        cs.CHANNEL + '.ChannelType': CHANNEL_TYPE_SERVER_VERIFICATION,
+        cs.CHANNEL + '.ChannelType': cs.CHANNEL_TYPE_SERVER_TLS_CONNECTION,
         }, signature='sv')
 
     verifier_bus = dbus.bus.BusConnection()
@@ -87,10 +80,7 @@ def test(q, bus, mc):
     channel_properties[cs.CHANNEL + '.InitiatorID'] = ''
     channel_properties[cs.CHANNEL + '.InitiatorHandle'] = 0
     channel_properties[cs.CHANNEL + '.Requested'] = False
-    channel_properties[cs.CHANNEL + '.Interfaces'] = dbus.Array([
-            CHANNEL_IFACE_IDENT_EXCHANGE,
-            CHANNEL_IFACE_VERIFICATION,
-            cs.CHANNEL], signature='s')
+    channel_properties[cs.CHANNEL + '.Interfaces'] = dbus.Array([], signature='s')
 
     chan = SimulatedChannel(conn, channel_properties)
     chan.announce()

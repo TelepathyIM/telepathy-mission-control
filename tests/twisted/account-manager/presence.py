@@ -78,10 +78,10 @@ def test(q, bus, mc):
             requested_presence=presence,
             expect_before_connect=[
                 EventPattern('dbus-method-call',
-                    interface=cs.CONN, method='GetInterfaces',
-                    args=[],
+                    interface=cs.PROPERTIES_IFACE, method='Get',
+                    args=[cs.CONN, 'Interfaces'],
                     handled=True,
-                    predicate=(lambda e: log.append('GetInterfaces') or True)),
+                    predicate=(lambda e: log.append('Get(Interfaces)') or True)),
                 EventPattern('dbus-method-call',
                     interface=cs.PROPERTIES_IFACE, method='Get',
                     args=[cs.CONN_IFACE_SIMPLE_PRESENCE, 'Statuses'],
@@ -112,13 +112,13 @@ def test(q, bus, mc):
                         e.args[0].get('CurrentPresence') == presence),
                 ])
 
-    # The events before Connect must happen in this order. GetInterfaces() may
+    # The events before Connect must happen in this order. Get(Interfaces) may
     # be called once or 2 times
     if len(log) == 5:
-        assert log == ['GetInterfaces', 'Get(Statuses)[1]', 'SetPresence[1]',
+        assert log == ['Get(Interfaces)', 'Get(Statuses)[1]', 'SetPresence[1]',
                 'Get(Statuses)[2]', 'SetPresence[2]'], log
     else:
-        assert log == ['GetInterfaces', 'GetInterfaces', 'Get(Statuses)[1]', 'SetPresence[1]',
+        assert log == ['Get(Interfaces)', 'Get(Interfaces)', 'Get(Statuses)[1]', 'SetPresence[1]',
                 'Get(Statuses)[2]', 'SetPresence[2]'], log
 
     # Change requested presence after going online

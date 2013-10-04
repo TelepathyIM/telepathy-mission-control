@@ -90,31 +90,16 @@ service_points_fetched_cb (TpProxy *proxy,
     parse_services_list (connection, g_value_get_boxed (value));
 }
 
-static void
-service_point_interface_check (TpConnection *tp_conn,
-    const gchar **interfaces,
-    const GError *error,
-    gpointer data,
-    GObject *connection)
+void
+mcd_connection_service_point_setup (McdConnection *connection,
+    gboolean watch)
 {
-  const gchar *interface;
-  gboolean found = FALSE;
-  gboolean watch = GPOINTER_TO_UINT (data);
-  guint i = 0;
+  TpConnection *tp_conn = mcd_connection_get_tp_connection (connection);
 
-  if (interfaces == NULL)
-    return;
-
-  for (interface = interfaces[0];
-       !found && !tp_str_empty (interface);
-       interface = interfaces[++i])
-    {
-      if (!tp_strdiff (interface, TP_IFACE_CONNECTION_INTERFACE_SERVICE_POINT))
-        found = TRUE;
-    }
-
-  if (!found)
-    return;
+  g_return_if_fail (MCD_IS_CONNECTION (connection));
+  g_return_if_fail (TP_IS_PROXY (tp_conn));
+  g_return_if_fail (tp_proxy_is_prepared (tp_conn,
+        TP_CONNECTION_FEATURE_CONNECTED));
 
   /* so we know if/when the service points change (eg the SIM might not be
    * accessible yet, in which case the call below won't return any entries)
@@ -122,25 +107,12 @@ service_point_interface_check (TpConnection *tp_conn,
    */
   if (watch)
     tp_cli_connection_interface_service_point_connect_to_service_points_changed
-      (tp_conn, service_points_changed_cb, NULL, NULL, connection, NULL);
+      (tp_conn, service_points_changed_cb, NULL, NULL,
+       (GObject *) connection, NULL);
 
   /* fetch the current list to initialise our state */
   tp_cli_dbus_properties_call_get (tp_conn, -1,
       TP_IFACE_CONNECTION_INTERFACE_SERVICE_POINT,
       "KnownServicePoints", service_points_fetched_cb,
-      NULL, NULL, connection);
-}
-
-void
-mcd_connection_service_point_setup (McdConnection *connection, gboolean watch)
-{
-  TpConnection *tp_conn = mcd_connection_get_tp_connection (connection);
-
-  if (G_UNLIKELY (!tp_conn))
-    return;
-
-  /* see if the connection supports the service point interface */
-  tp_cli_connection_call_get_interfaces (tp_conn, -1,
-      service_point_interface_check,
-      GUINT_TO_POINTER (watch), NULL, G_OBJECT (connection));
+      NULL, NULL, (GObject *) connection);
 }

@@ -1,4 +1,4 @@
-INCLUDES = \
+AM_CPPFLAGS = \
 	$(TELEPATHY_CFLAGS) \
 	$(DBUS_CFLAGS) \
 	$(GLIB_CFLAGS) \
@@ -69,7 +69,7 @@ Android.mk: Makefile.am $(BUILT_SOURCES)
 	 -:REL_TOP $(top_srcdir) -:ABS_TOP $(abs_top_srcdir) \
 	 -:SOURCES $(BUILT_SOURCES) $(libmission_control_plugins_la_SOURCES) \
 	 -:CFLAGS $(DEFAULT_INCLUDES) $(DEFS) $(CFLAGS) $(AM_CFLAGS) \
-	 -:CPPFLAGS $(CPPFLAGS) $(AM_CPPFLAGS) $(INCLUDES) \
+	 -:CPPFLAGS $(CPPFLAGS) $(AM_CPPFLAGS) \
 	 -:LDFLAGS $(libmission_control_plugins_la_LIBADD) \
 	> $@
 

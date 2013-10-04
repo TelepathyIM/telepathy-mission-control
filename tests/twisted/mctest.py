@@ -222,10 +222,11 @@ class SimulatedConnection(object):
 
     def __init__(self, q, bus, cmname, protocol, account_part, self_ident,
             self_alias=None,
-            implement_get_interfaces=True, has_requests=True,
+            implement_get_channels=True, has_requests=True,
             has_presence=False, has_aliasing=False, has_avatars=False,
             avatars_persist=True, extra_interfaces=[], has_hidden=False,
-            implement_get_aliases=True):
+            implement_get_aliases=True, initial_avatar=None,
+            server_delays_avatar=False):
         self.q = q
         self.bus = bus
 
@@ -252,8 +253,10 @@ class SimulatedConnection(object):
         self.has_avatars = has_avatars
         self.avatars_persist = avatars_persist
         self.extra_interfaces = extra_interfaces[:]
+        self.avatar_delayed = server_delays_avatar
 
         self.interfaces = []
+        self.interfaces.append(cs.CONN_IFACE_CONTACTS)
 
         if self.has_requests:
             self.interfaces.append(cs.CONN_IFACE_REQUESTS)
@@ -266,9 +269,11 @@ class SimulatedConnection(object):
         if self.extra_interfaces:
             self.interfaces.extend(self.extra_interfaces)
 
-        if self.avatars_persist:
+        if initial_avatar is not None:
+            self.avatar = initial_avatar
+        elif self.avatars_persist:
             self.avatar = dbus.Struct((dbus.ByteArray('my old avatar'),
-                'text/plain'), signature='ays')
+                    'text/plain'), signature='ays')
         else:
             self.avatar = None
 
@@ -287,10 +292,12 @@ class SimulatedConnection(object):
                 interface=cs.PROPERTIES_IFACE, method='GetAll',
                 args=[cs.CONN])
 
-        if implement_get_interfaces:
-            q.add_dbus_method_impl(self.GetInterfaces,
-                    path=self.object_path, interface=cs.CONN,
-                    method='GetInterfaces')
+        q.add_dbus_method_impl(self.GetInterfaces,
+                path=self.object_path, interface=cs.CONN,
+                method='GetInterfaces')
+        q.add_dbus_method_impl(self.Get_Interfaces,
+                path=self.object_path, interface=cs.PROPERTIES_IFACE,
+                method='Get', args=[cs.CONN, 'Interfaces'])
 
         q.add_dbus_method_impl(self.RequestHandles,
                 path=self.object_path, interface=cs.CONN,
@@ -301,14 +308,23 @@ class SimulatedConnection(object):
         q.add_dbus_method_impl(self.HoldHandles,
                 path=self.object_path, interface=cs.CONN,
                 method='HoldHandles')
-        q.add_dbus_method_impl(self.GetAll_Requests,
-                path=self.object_path,
-                interface=cs.PROPERTIES_IFACE, method='GetAll',
-                args=[cs.CONN_IFACE_REQUESTS])
+
+        if implement_get_channels and has_requests:
+            q.add_dbus_method_impl(self.GetAll_Requests,
+                    path=self.object_path,
+                    interface=cs.PROPERTIES_IFACE, method='GetAll',
+                    args=[cs.CONN_IFACE_REQUESTS])
 
         q.add_dbus_method_impl(self.GetContactAttributes,
                 path=self.object_path,
                 interface=cs.CONN_IFACE_CONTACTS, method='GetContactAttributes')
+        q.add_dbus_method_impl(self.GetContactByID,
+                path=self.object_path,
+                interface=cs.CONN_IFACE_CONTACTS, method='GetContactByID')
+        q.add_dbus_method_impl(self.Get_ContactAttributeInterfaces,
+                path=self.object_path,
+                interface=cs.PROPERTIES_IFACE, method='Get',
+                args=[cs.CONN_IFACE_CONTACTS, 'ContactAttributeInterfaces'])
         q.add_dbus_method_impl(self.GetAll_Contacts,
                 path=self.object_path,
                 interface=cs.PROPERTIES_IFACE, method='GetAll',
@@ -374,8 +390,10 @@ class SimulatedConnection(object):
         if has_hidden:
             self.statuses['hidden'] = (cs.PRESENCE_HIDDEN, True, True)
 
-        self.presence = dbus.Struct((cs.PRESENCE_OFFLINE, 'offline', ''),
-                signature='uss')
+        # "dbus.UInt32" to work around
+        # https://bugs.freedesktop.org/show_bug.cgi?id=69967
+        self.presence = dbus.Struct((dbus.UInt32(cs.PRESENCE_OFFLINE),
+            'offline', ''), signature='uss')
 
     def change_self_ident(self, ident):
         self.self_ident = ident
@@ -402,6 +420,7 @@ class SimulatedConnection(object):
 
     def forget_avatar(self):
         self.avatar = (dbus.ByteArray(''), '')
+        self.avatar_delayed = False
 
     # not actually very relevant for MC so hard-code 0 for now
     def GetAliasFlags(self, e):
@@ -436,7 +455,25 @@ class SimulatedConnection(object):
 
         # the user has an avatar already, if they persist; nobody else does
         if self.self_handle in e.args[0]:
-            if self.avatar is not None:
+            if self.avatar is None:
+                # GetKnownAvatarTokens has the special case that "where
+                # the avatar does not persist between connections, a CM
+                # should omit the self handle from the returned map until
+                # an avatar is explicitly set or cleared". We'd have been
+                # better off with a more explicit design, but it's too
+                # late now...
+                assert not self.avatars_persist
+            else:
+                # "a CM must always have the tokens for the self handle
+                # if one is set (even if it is set to no avatar)"
+                # so behave as though we'd done a network round-trip to
+                # check what our token was, and found our configured
+                # token
+                if self.avatar_delayed:
+                    self.q.dbus_emit(self.object_path, cs.CONN_IFACE_AVATARS,
+                            'AvatarUpdated', self.self_handle,
+                            str(self.avatar[0]), signature='us')
+
                 # we just stringify the avatar as the token
                 # (also, empty avatar => no avatar => empty token)
                 ret[self.self_handle] = str(self.avatar[0])
@@ -445,6 +482,7 @@ class SimulatedConnection(object):
 
     def SetAvatar(self, e):
         self.avatar = dbus.Struct(e.args, signature='ays')
+        self.avatar_delayed = False
 
         # we just stringify the avatar as the token
         self.q.dbus_return(e.message, str(self.avatar[0]), signature='s')
@@ -467,7 +505,9 @@ class SimulatedConnection(object):
 
     def SetPresence(self, e):
         if e.args[0] in self.statuses:
-            presence = dbus.Struct((self.statuses[e.args[0]][0],
+            # "dbus.UInt32" to work around
+            # https://bugs.freedesktop.org/show_bug.cgi?id=69967
+            presence = dbus.Struct((dbus.UInt32(self.statuses[e.args[0]][0]),
                     e.args[0], e.args[1]), signature='uss')
 
             old_presence = self.presence
@@ -475,11 +515,10 @@ class SimulatedConnection(object):
             if presence != old_presence:
                 self.presence = presence
 
-                if self.status == cs.CONN_STATUS_CONNECTED:
-                    self.q.dbus_emit(self.object_path,
-                            cs.CONN_IFACE_SIMPLE_PRESENCE, 'PresencesChanged',
-                            { self.self_handle : presence },
-                            signature='a{u(uss)}')
+                self.q.dbus_emit(self.object_path,
+                        cs.CONN_IFACE_SIMPLE_PRESENCE, 'PresencesChanged',
+                        { self.self_handle : presence },
+                        signature='a{u(uss)}')
 
             self.q.dbus_return(e.message, signature='')
         else:
@@ -494,6 +533,11 @@ class SimulatedConnection(object):
 
     def GetInterfaces(self, e):
         self.q.dbus_return(e.message, self.interfaces, signature='as')
+
+    def Get_Interfaces(self, e):
+        self.q.dbus_return(e.message,
+                dbus.Array(self.interfaces, signature='s'),
+                signature='v')
 
     def Connect(self, e):
         self.StatusChanged(cs.CONN_STATUS_CONNECTING,
@@ -547,7 +591,9 @@ class SimulatedConnection(object):
                 status, reason, signature='uu')
         if self.status == cs.CONN_STATUS_CONNECTED and self.has_presence:
             if self.presence[0] == cs.PRESENCE_OFFLINE:
-                self.presence = dbus.Struct((cs.PRESENCE_AVAILABLE,
+                # "dbus.UInt32" to work around
+                # https://bugs.freedesktop.org/show_bug.cgi?id=69967
+                self.presence = dbus.Struct((dbus.UInt32(cs.PRESENCE_AVAILABLE),
                     'available', ''), signature='uss')
 
             self.q.dbus_emit(self.object_path,
@@ -609,23 +655,75 @@ class SimulatedConnection(object):
                         for channel in channels],
                     signature='a(oa{sv})')
 
+    def get_contact_attributes(self, h, ifaces):
+        id = self.inspect_handles([h])[0]
+        ifaces = set(ifaces).intersection(
+                self.get_contact_attribute_interfaces())
+
+        ret = dbus.Dictionary({}, signature='sv')
+        ret[cs.ATTR_CONTACT_ID] = id
+
+        if cs.CONN_IFACE_ALIASING in ifaces:
+            if h == self.self_handle:
+                ret[cs.ATTR_ALIAS] = self.self_alias
+            else:
+                ret[cs.ATTR_ALIAS] = id
+
+        if cs.CONN_IFACE_AVATARS in ifaces:
+            if h == self.self_handle:
+                if self.avatar is not None and not self.avatar_delayed:
+                    # We just stringify the avatar as the token
+                    # (also, empty avatar => no avatar => empty token).
+                    # This doesn't have the same special case that
+                    # GetKnownAvatarTokens does - if we don't know the
+                    # token yet, we don't wait.
+                    ret[cs.ATTR_AVATAR_TOKEN] = str(self.avatar[0])
+
+        if cs.CONN_IFACE_SIMPLE_PRESENCE in ifaces:
+            if h == self.self_handle:
+                ret[cs.ATTR_PRESENCE] = self.presence
+            else:
+                # stub - MC doesn't care
+                # "dbus.UInt32" to work around
+                # https://bugs.freedesktop.org/show_bug.cgi?id=69967
+                ret[cs.ATTR_PRESENCE] = (dbus.UInt32(cs.PRESENCE_UNKNOWN),
+                        'unknown', '')
+
+        return ret
+
+    def get_contact_attribute_interfaces(self):
+        return set(self.interfaces).intersection(set([
+            cs.CONN_IFACE_ALIASING,
+            cs.CONN_IFACE_AVATARS,
+            cs.CONN_IFACE_SIMPLE_PRESENCE,
+            ]))
+
     def GetContactAttributes(self, e):
-        ret = {}
+        ret = dbus.Dictionary({}, signature='ua{sv}')
 
         try:
             for h in e.args[0]:
-                id = self.inspect_handles(h)[0]
-                ret[dbus.UInt32(h)] = dbus.Dictionary({telepathy.CONN_IFACE + '/contact-id': id},
-                                                      signature='sv')
+                ret[dbus.UInt32(h)] = self.get_contact_attributes(h, e.args[1])
 
-            q.dbus_return(e.message, ret, signature='a{ua{sv}}')
+            self.q.dbus_return(e.message, ret, signature='a{ua{sv}}')
         except e:
             self.q.dbus_raise(e.message, INVALID_HANDLE, str(e.args[0]))
 
+    def GetContactByID(self, e):
+        h = self.ensure_handle(e.args[0])
+        self.q.dbus_return(e.message, h,
+                self.get_contact_attributes(h, e.args[1]), signature='ua{sv}')
+
     def GetAll_Contacts(self, e):
         self.q.dbus_return(e.message, {
-            'ContactAttributeInterfaces': []
+            'ContactAttributeInterfaces':
+                self.get_contact_attribute_interfaces(),
             }, signature='a{sv}')
+
+    def Get_ContactAttributeInterfaces(self, e):
+        self.q.dbus_return(e.message,
+            dbus.Array(self.get_contact_attribute_interfaces(), signature='s'),
+            signature='v')
 
 class SimulatedChannel(object):
     def __init__(self, conn, immutable, mutable={},
