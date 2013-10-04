@@ -8,15 +8,3 @@ AM_CPPFLAGS = \
 	-DLIBVERSION="@MCP_ABI_VERSION@"
 
 noinst_LTLIBRARIES =
-
-if ENABLE_AEGIS
-
-noinst_LTLIBRARIES += libmcp-aegis.la
-libmcp_aegis_la_SOURCES = mcp-dbus-aegis-acl.c
-libmcp_aegis_la_LIBADD = \
-	$(top_builddir)/mission-control-plugins/libmission-control-plugins.la \
-	$(TELEPATHY_LIBS) \
-	$(DBUS_LIBS) \
-	$(AEGIS_LIBS)
-
-endif
