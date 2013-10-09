@@ -647,7 +647,7 @@ def wrap_connection(conn):
 def wrap_channel(chan, type_, extra=None):
     interfaces = {
         type_: tp_name_prefix + '.Channel.Type.' + type_,
-        'Channe': cs.CHANNEL,
+        'Channel': cs.CHANNEL,
         'Group': cs.CHANNEL_IFACE_GROUP,
         }
 
