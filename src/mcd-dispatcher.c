@@ -350,6 +350,7 @@ _mcd_dispatcher_set_property (GObject * obj, guint prop_id,
 
 static const char * const interfaces[] = {
     TP_IFACE_CHANNEL_DISPATCHER_INTERFACE_OPERATION_LIST,
+    TP_IFACE_CHANNEL_DISPATCHER_INTERFACE_MESSAGES1,
     NULL
 };
 
