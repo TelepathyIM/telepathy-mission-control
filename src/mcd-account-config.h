@@ -46,7 +46,6 @@
 #define MC_ACCOUNTS_KEY_ICON "Icon"
 #define MC_ACCOUNTS_KEY_NICKNAME "Nickname"
 #define MC_ACCOUNTS_KEY_SERVICE "Service"
-/* ... also "condition-*" reserved by mcd-account-conditions.c */
 
 /* unsigned 32-bit integer, 'u' */
 /* obsoleted by MC_ACCOUNTS_KEY_AUTOMATIC_PRESENCE */
@@ -78,5 +77,6 @@
 #define MC_OLD_ACCOUNTS_KEY_PRESETS "presets"
 #define MC_OLD_ACCOUNTS_KEY_PROFILE "profile"
 #define MC_OLD_ACCOUNTS_KEY_SECONDARY_VCARD_FIELDS "secondary_vcard_fields"
+/* ... also "condition-*" formerly reserved by Nokia Conditions interface */
 
 #endif /* __MCD_ACCOUNT_CONFIG_H__ */

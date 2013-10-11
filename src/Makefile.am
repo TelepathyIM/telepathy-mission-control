@@ -13,7 +13,6 @@ AM_CFLAGS = $(ERROR_CFLAGS)
 
 mc_headers = \
 	mcd-account.h \
-	mcd-account-conditions.h \
 	mcd-account-manager.h \
 	mcd-account-manager-default.h \
 	mcd-debug.h \
@@ -46,7 +45,6 @@ mc_gen_headers = \
 	_gen/enums.h \
 	_gen/gtypes.h \
 	_gen/interfaces.h \
-	_gen/svc-Account_Interface_Conditions.h \
 	_gen/svc-Account_Interface_External_Password_Storage.h \
 	_gen/svc-Account_Interface_Hidden.h \
 	_gen/svc-Account_Manager_Interface_Hidden.h \
@@ -60,7 +58,6 @@ nodist_libmcd_convenience_la_SOURCES = \
 	_gen/signals-marshal.c \
 	_gen/signals-marshal.h \
 	_gen/signals-marshal.list \
-	_gen/svc-Account_Interface_Conditions.c \
 	_gen/svc-Account_Interface_External_Password_Storage.c \
 	_gen/svc-Account_Interface_Hidden.c \
 	_gen/svc-Account_Manager_Interface_Hidden.c \
@@ -80,7 +77,6 @@ CLEANFILES = \
 	_gen/svc-dispatcher-gtk-doc.h \
 	_gen/svc-Account_Interface_Hidden-gtk-doc.h \
 	_gen/svc-Account_Interface_External_Password_Storage-gtk-doc.h \
-	_gen/svc-Account_Interface_Conditions-gtk-doc.h \
 	_gen/svc-Account_Manager_Interface_Hidden-gtk-doc.h \
 	_gen/gtypes-gtk-doc.h \
 	$(NULL)
@@ -109,7 +105,6 @@ noinst_LTLIBRARIES = libmcd-convenience.la
 libmcd_convenience_la_SOURCES = \
 	mcd-account.c \
 	mcd-account-addressing.h \
-	mcd-account-conditions.c \
 	mcd-account-config.h \
 	mcd-account-connection.c \
 	mcd-account-requests.c \

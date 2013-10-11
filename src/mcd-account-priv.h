@@ -36,7 +36,6 @@
 #include <telepathy-glib/proxy-subclass.h>
 
 /* auto-generated stubs */
-#include "_gen/svc-Account_Interface_Conditions.h"
 #include "_gen/svc-Account_Interface_External_Password_Storage.h"
 #include "_gen/svc-Account_Interface_Hidden.h"
 
@@ -149,11 +148,6 @@ typedef void (*McdAccountDupParametersCb) (McdAccount *account,
 
 G_GNUC_INTERNAL G_GNUC_WARN_UNUSED_RESULT
 GHashTable *_mcd_account_dup_parameters (McdAccount *account);
-
-extern const McdDBusProp account_conditions_properties[];
-
-void account_conditions_iface_init (McSvcAccountInterfaceConditionsClass *iface,
-				    gpointer iface_data);
 
 G_GNUC_INTERNAL gboolean _mcd_account_check_request_real (McdAccount *account,
                                                           GHashTable *request,

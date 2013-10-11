@@ -83,7 +83,6 @@ def test(q, bus, mc):
 
     interfaces = properties.get('Interfaces')
     assert cs.ACCOUNT_IFACE_AVATAR in interfaces, interfaces
-    assert cs.ACCOUNT_IFACE_NOKIA_CONDITIONS in interfaces, interfaces
 
     # sanity check
     for k in properties:
@@ -174,32 +173,6 @@ def test(q, bus, mc):
         )
     assert account_props.Get(cs.ACCOUNT, 'Nickname') == 'Joe Bloggs'
 
-    call_async(q, account_props, 'Set', cs.ACCOUNT_IFACE_NOKIA_CONDITIONS,
-            'Condition',
-            dbus.Dictionary({':foo': 'bar'}, signature='ss'))
-    # there's no change notification for the Condition
-    q.expect_many(
-        EventPattern('dbus-return', method='Set'),
-        EventPattern('dbus-signal',
-            interface=cs.TEST_DBUS_ACCOUNT_PLUGIN_IFACE,
-            signal='DeferringSetAttribute',
-            args=[account_path, 'condition-:foo', 'bar']),
-        EventPattern('dbus-signal',
-            interface=cs.TEST_DBUS_ACCOUNT_PLUGIN_IFACE,
-            signal='CommittingOne',
-            args=[account_path]),
-        EventPattern('dbus-method-call',
-            interface=cs.TEST_DBUS_ACCOUNT_SERVICE_IFACE,
-            method='UpdateAttributes',
-            args=[account_path[len(cs.ACCOUNT_PATH_PREFIX):],
-                {'condition-:foo': 'bar'},
-                {'condition-:foo': 0}, # flags
-                []],
-            ),
-        )
-    assert account_props.Get(cs.ACCOUNT_IFACE_NOKIA_CONDITIONS,
-            'Condition') == {':foo': 'bar'}
-
     assertEquals(dbus.Array(signature='o'),
             account_props.Get(cs.ACCOUNT, 'Supersedes'))
     call_async(q, account_props, 'Set', cs.ACCOUNT, 'Supersedes',
@@ -265,16 +238,6 @@ def test(q, bus, mc):
     for p in ('Avatar',):
         try:
             account_props.Set(cs.ACCOUNT_IFACE_AVATAR, p, badly_typed)
-        except dbus.DBusException, e:
-            assert e.get_dbus_name() == cs.INVALID_ARGUMENT, \
-                    (p, e.get_dbus_name())
-        else:
-            raise AssertionError('Setting %s with wrong type should fail' % p)
-
-    for p in ('Condition',):
-        try:
-            account_props.Set(cs.ACCOUNT_IFACE_NOKIA_CONDITIONS, p,
-                    badly_typed)
         except dbus.DBusException, e:
             assert e.get_dbus_name() == cs.INVALID_ARGUMENT, \
                     (p, e.get_dbus_name())

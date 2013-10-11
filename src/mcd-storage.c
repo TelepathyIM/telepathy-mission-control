@@ -347,10 +347,6 @@ mcd_storage_get_attribute_type (const gchar *attribute)
         return known_attributes[i].type;
     }
 
-  /* special case for mcd-account-conditions.c */
-  if (g_str_has_prefix (attribute, "condition-"))
-    return "s";
-
   return NULL;
 }
 

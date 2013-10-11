@@ -34,7 +34,6 @@
 #include <telepathy-glib/telepathy-glib-dbus.h>
 
 #include "mcd-account-priv.h"
-#include "mcd-account-conditions.h"
 #include "mcd-account-manager-priv.h"
 #include "mcd-account-addressing.h"
 #include "mcd-connection-priv.h"
@@ -81,9 +80,6 @@ static const McdInterfaceData account_interfaces[] = {
     MCD_IMPLEMENT_IFACE (tp_svc_account_interface_avatar_get_type,
 			 account_avatar,
 			 TP_IFACE_ACCOUNT_INTERFACE_AVATAR),
-    MCD_IMPLEMENT_IFACE (mc_svc_account_interface_conditions_get_type,
-			 account_conditions,
-			 MC_IFACE_ACCOUNT_INTERFACE_CONDITIONS),
     MCD_IMPLEMENT_IFACE (tp_svc_account_interface_storage_get_type,
                          account_storage,
                          TP_IFACE_ACCOUNT_INTERFACE_STORAGE),
