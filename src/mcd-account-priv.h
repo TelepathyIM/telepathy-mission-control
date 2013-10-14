@@ -37,7 +37,6 @@
 
 /* auto-generated stubs */
 #include "_gen/svc-Account_Interface_External_Password_Storage.h"
-#include "_gen/svc-Account_Interface_Hidden.h"
 
 #include "_gen/cli-Connection_Manager_Interface_Account_Storage.h"
 
@@ -165,8 +164,6 @@ G_GNUC_INTERNAL gboolean _mcd_account_set_enabled (McdAccount *account,
 
 G_GNUC_INTERNAL gboolean _mcd_account_presence_type_is_settable (
         TpConnectionPresenceType type);
-
-gboolean _mcd_account_is_hidden (McdAccount *account);
 
 G_GNUC_INTERNAL gboolean _mcd_account_needs_dispatch (McdAccount *account);
 

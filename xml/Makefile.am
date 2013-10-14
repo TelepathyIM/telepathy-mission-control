@@ -5,9 +5,7 @@ DROP_NAMESPACE = sed -e 's@xmlns:tp="http://telepathy\.freedesktop\.org/wiki/Dbu
 DROP_TPTYPE = sed -e 's@tp:type="[^"]*"@@g'
 
 SPECS = \
-	Account_Manager_Interface_Hidden.xml \
 	Account_Interface_External_Password_Storage.xml \
-	Account_Interface_Hidden.xml \
 	Connection_Manager_Interface_Account_Storage.xml \
 	Channel_Dispatcher_Interface_Messages_DRAFT.xml
 

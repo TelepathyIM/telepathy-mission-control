@@ -591,11 +591,9 @@ CLIENT_IFACE_REQUESTS = CLIENT + '.Interface.Requests'
 ACCOUNT = PREFIX + '.Account'
 ACCOUNT_IFACE_AVATAR = ACCOUNT + '.Interface.Avatar'
 ACCOUNT_IFACE_ADDRESSING = ACCOUNT + '.Interface.Addressing'
-ACCOUNT_IFACE_HIDDEN = ACCOUNT + '.Interface.Hidden.DRAFT1'
 ACCOUNT_PATH_PREFIX = PATH_PREFIX + '/Account/'
 
 AM = PREFIX + '.AccountManager'
-AM_IFACE_HIDDEN = AM + '.Interface.Hidden.DRAFT1'
 AM_PATH = PATH_PREFIX + '/AccountManager'
 
 CR = PREFIX + '.ChannelRequest'

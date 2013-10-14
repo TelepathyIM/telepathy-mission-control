@@ -31,13 +31,6 @@ if ENABLE_LIBACCOUNTS_SSO
 mc_headers += \
 	mcd-account-manager-sso.h \
 	$(NULL)
-
-if ENABLE_LIBACCOUNTS_GLIB_HIDDEN
-mc_headers += \
-	mcd-storage-ag-hidden.h \
-	$(NULL)
-endif
-
 endif
 
 mc_gen_headers = \
@@ -46,8 +39,6 @@ mc_gen_headers = \
 	_gen/gtypes.h \
 	_gen/interfaces.h \
 	_gen/svc-Account_Interface_External_Password_Storage.h \
-	_gen/svc-Account_Interface_Hidden.h \
-	_gen/svc-Account_Manager_Interface_Hidden.h \
 	_gen/svc-dispatcher.h
 
 nodist_libmcd_convenience_la_SOURCES = \
@@ -59,8 +50,6 @@ nodist_libmcd_convenience_la_SOURCES = \
 	_gen/signals-marshal.h \
 	_gen/signals-marshal.list \
 	_gen/svc-Account_Interface_External_Password_Storage.c \
-	_gen/svc-Account_Interface_Hidden.c \
-	_gen/svc-Account_Manager_Interface_Hidden.c \
 	_gen/svc-dispatcher.c \
 	mcd-enum-types.c \
 	mcd-enum-types.h \
@@ -75,9 +64,7 @@ CLEANFILES = \
 	$(BUILT_SOURCES) \
 	_gen/cli-Connection_Manager_Interface_Account_Storage-gtk-doc.h \
 	_gen/svc-dispatcher-gtk-doc.h \
-	_gen/svc-Account_Interface_Hidden-gtk-doc.h \
 	_gen/svc-Account_Interface_External_Password_Storage-gtk-doc.h \
-	_gen/svc-Account_Manager_Interface_Hidden-gtk-doc.h \
 	_gen/gtypes-gtk-doc.h \
 	$(NULL)
 
@@ -165,13 +152,6 @@ if ENABLE_LIBACCOUNTS_SSO
 libmcd_convenience_la_SOURCES += \
 	mcd-account-manager-sso.c \
 	$(NULL)
-
-if ENABLE_LIBACCOUNTS_GLIB_HIDDEN
-libmcd_convenience_la_SOURCES += \
-	mcd-storage-ag-hidden.c \
-	$(NULL)
-endif
-
 endif
 
 mcd-enum-types.h: stamp-mcd-enum-types.h

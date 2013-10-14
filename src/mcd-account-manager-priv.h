@@ -28,9 +28,6 @@
 
 #include "mcd-dbusprop.h"
 
-/* auto-generated stubs */
-#include "_gen/svc-Account_Manager_Interface_Hidden.h"
-
 G_BEGIN_DECLS
 
 G_GNUC_INTERNAL void _mcd_account_manager_setup

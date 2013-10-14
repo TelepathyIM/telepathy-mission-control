@@ -43,9 +43,6 @@
 
 #if ENABLE_LIBACCOUNTS_SSO
 #include "mcd-account-manager-sso.h"
-# ifdef ACCOUNTS_GLIB_HIDDEN_SERVICE_TYPE
-# include "mcd-storage-ag-hidden.h"
-# endif
 #endif
 
 #define MAX_KEY_LENGTH (DBUS_MAXIMUM_NAME_LENGTH + 6)
@@ -315,7 +312,6 @@ static struct {
       { "b", MC_ACCOUNTS_KEY_CONNECT_AUTOMATICALLY },
       { "b", MC_ACCOUNTS_KEY_ENABLED },
       { "b", MC_ACCOUNTS_KEY_HAS_BEEN_ONLINE },
-      { "b", MC_ACCOUNTS_KEY_HIDDEN },
 
     /* Strings */
       { "s", MC_ACCOUNTS_KEY_AUTO_PRESENCE_MESSAGE },
@@ -645,9 +641,6 @@ add_libaccounts_plugins_if_enabled (void)
 {
 #if ENABLE_LIBACCOUNTS_SSO
   add_storage_plugin (MCP_ACCOUNT_STORAGE (mcd_account_manager_sso_new ()));
-# ifdef ACCOUNTS_GLIB_HIDDEN_SERVICE_TYPE
-  add_storage_plugin (MCP_ACCOUNT_STORAGE (mcd_storage_ag_hidden_new ()));
-# endif
 #endif
 }
 

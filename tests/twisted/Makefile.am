@@ -74,7 +74,6 @@ TWISTED_BASIC_TESTS = \
 # account-storage/*.py need their own instances.
 TWISTED_SPECIAL_BUILD_TESTS = \
 	account-manager/connectivity.py \
-	account-manager/hidden.py \
 	account-storage/default-keyring-storage.py \
 	account-storage/diverted-storage.py
 

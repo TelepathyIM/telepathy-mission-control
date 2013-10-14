@@ -56,7 +56,6 @@
 #define MC_ACCOUNTS_KEY_CONNECT_AUTOMATICALLY "ConnectAutomatically"
 #define MC_ACCOUNTS_KEY_ENABLED "Enabled"
 #define MC_ACCOUNTS_KEY_HAS_BEEN_ONLINE "HasBeenOnline"
-#define MC_ACCOUNTS_KEY_HIDDEN "Hidden"
 
 /* string array, 'as' */
 #define MC_ACCOUNTS_KEY_URI_SCHEMES \
@@ -73,6 +72,7 @@
 #define MC_OLD_ACCOUNTS_KEY_DATA_DIR "data_dir"
 #define MC_OLD_ACCOUNTS_KEY_DELETED "deleted"
 #define MC_OLD_ACCOUNTS_KEY_GROUPS "groups"
+#define MC_OLD_ACCOUNTS_KEY_HIDDEN "Hidden"
 #define MC_OLD_ACCOUNTS_KEY_ICON_NAME "icon_name"
 #define MC_OLD_ACCOUNTS_KEY_PRESETS "presets"
 #define MC_OLD_ACCOUNTS_KEY_PROFILE "profile"

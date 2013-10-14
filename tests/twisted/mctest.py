@@ -1031,16 +1031,8 @@ def create_fakecm_account(q, bus, mc, params, properties={},
     servicetest.call_async(q, account_manager, 'CreateAccount',
         'fakecm', 'fakeprotocol', 'fakeaccount', params, properties)
 
-    # Check whether the account being created is to be hidden; if so, then
-    # expect a different signal. It annoys me that this has to be in here, but,
-    # eh.
-    if properties.get(cs.ACCOUNT_IFACE_HIDDEN + '.Hidden', False):
-        validity_changed_pattern = servicetest.EventPattern('dbus-signal',
-            path=cs.AM_PATH, signal='HiddenAccountValidityChanged',
-            interface=cs.AM_IFACE_HIDDEN)
-    else:
-        validity_changed_pattern = servicetest.EventPattern('dbus-signal',
-            path=cs.AM_PATH, signal='AccountValidityChanged', interface=cs.AM)
+    validity_changed_pattern = servicetest.EventPattern('dbus-signal',
+        path=cs.AM_PATH, signal='AccountValidityChanged', interface=cs.AM)
 
     # The spec has no order guarantee here.
     # FIXME: MC ought to also introspect the CM and find out that the params

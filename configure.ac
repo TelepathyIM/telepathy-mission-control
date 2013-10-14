@@ -207,19 +207,6 @@ dnl the automake conditional
 AM_CONDITIONAL(ENABLE_LIBACCOUNTS_SSO, [test x$libaccounts_sso_enabled = xyes])
 dnl /libaccounts-glib SSO
 
-AC_ARG_WITH([accounts-glib-hidden-service-type],
-    [AS_HELP_STRING([--with-accounts-glib-hidden-service-type],
-      [mark accounts with the provided service type as hidden @<:@default=no@:>@])],
-    [],
-    [with_accounts_glib_hidden_service_type=no])
-AS_IF([ test "x$with_accounts_glib_hidden_service_type" != xno ],
-    [AC_DEFINE_UNQUOTED(ACCOUNTS_GLIB_HIDDEN_SERVICE_TYPE,
-        ["$with_accounts_glib_hidden_service_type"],
-        [Defined to the non-IM service type for hidden accounts, if any])])
-
-AM_CONDITIONAL(ENABLE_LIBACCOUNTS_GLIB_HIDDEN,
-    [test x$with_accounts_glib_hidden_service_type != xno])
-
 PKG_CHECK_MODULES(DBUS, [dbus-1 >= 0.95, dbus-glib-1 >= 0.82])
 AC_SUBST(DBUS_CFLAGS)
 AC_SUBST(DBUS_LIBS)
@@ -380,6 +367,5 @@ Configure summary:
         Suspend tracking with UPower.:  ${have_upower}
         Aegis........................:  ${aegis_enabled}
         libaccounts-glib backend.....:  ${libaccounts_sso_enabled}
-        Hidden accounts-glib accounts:  ${with_accounts_glib_hidden_service_type}
         Nokia Mode Control Entity....:  ${HAVE_MCE}
 "
