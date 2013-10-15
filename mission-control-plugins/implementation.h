@@ -128,6 +128,17 @@ struct _McpAccountManagerIface {
       const gchar *parameter,
       GVariant *value,
       McpParameterFlags flags);
+
+  void (* identify_account_async) (McpAccountManager *mcpa,
+      const gchar *manager,
+      const gchar *protocol,
+      GVariant *parameters,
+      GCancellable *cancellable,
+      GAsyncReadyCallback callback,
+      gpointer user_data);
+  gchar * (* identify_account_finish) (McpAccountManager *mcpa,
+      GAsyncResult *res,
+      GError **error);
 };
 
 G_END_DECLS

@@ -611,6 +611,82 @@ unique_name (const McpAccountManager *ma,
   return NULL;
 }
 
+static void
+identify_account_cb (TpProxy *proxy,
+    const gchar *identification,
+    const GError *error,
+    gpointer task,
+    GObject *weak_object G_GNUC_UNUSED)
+{
+  if (error == NULL)
+    {
+      g_task_return_pointer (task, g_strdup (identification), g_free);
+    }
+  else if (g_error_matches (error, TP_ERROR, TP_ERROR_NOT_IMPLEMENTED) ||
+      g_error_matches (error, DBUS_GERROR, DBUS_GERROR_SERVICE_UNKNOWN))
+    {
+      g_task_return_pointer (task, g_strdup (g_task_get_task_data (task)),
+          g_free);
+    }
+  else
+    {
+      g_task_return_error (task, g_error_copy (error));
+    }
+}
+
+static gchar *
+identify_account_finish (McpAccountManager *mcpa,
+    GAsyncResult *result,
+    GError **error)
+{
+  g_return_val_if_fail (g_task_is_valid (result, mcpa), NULL);
+
+  return g_task_propagate_pointer (G_TASK (result), error);
+}
+
+static void
+identify_account_async (McpAccountManager *mcpa,
+    const gchar *manager,
+    const gchar *protocol_name,
+    GVariant *parameters,
+    GCancellable *cancellable,
+    GAsyncReadyCallback callback,
+    gpointer user_data)
+{
+  McdStorage *self = MCD_STORAGE (mcpa);
+  GError *error = NULL;
+  TpProtocol *protocol;
+  GTask *task;
+  GValue value = G_VALUE_INIT;
+  const gchar *base;
+
+  task = g_task_new (self, cancellable, callback, user_data);
+
+  /* in case IdentifyAccount fails and we need to make something up */
+  if (!g_variant_lookup (parameters, "account", "&s", &base))
+    base = "account";
+
+  g_task_set_task_data (task, g_strdup (base), g_free);
+
+  protocol = tp_protocol_new (self->dbusd, manager, protocol_name,
+      NULL, &error);
+
+  if (protocol == NULL)
+    {
+      g_task_return_error (task, error);
+      g_object_unref (task);
+      return;
+    }
+
+  dbus_g_value_parse_g_variant (parameters, &value);
+
+  tp_cli_protocol_call_identify_account (protocol, -1,
+      g_value_get_boxed (&value), identify_account_cb, task, g_object_unref,
+      NULL);
+  g_object_unref (protocol);
+  g_value_unset (&value);
+}
+
 /* sort in descending order of priority (ie higher prio => earlier in list) */
 static gint
 account_storage_cmp (gconstpointer a, gconstpointer b)
@@ -2062,6 +2138,8 @@ plugin_iface_init (McpAccountManagerIface *iface,
   iface->is_secret = is_secret;
   iface->make_secret = make_secret;
   iface->unique_name = unique_name;
+  iface->identify_account_async = identify_account_async;
+  iface->identify_account_finish = identify_account_finish;
   iface->list_keys = list_keys;
   iface->escape_value_for_keyfile = mcpa_escape_value_for_keyfile;
   iface->escape_variant_for_keyfile = mcpa_escape_variant_for_keyfile;

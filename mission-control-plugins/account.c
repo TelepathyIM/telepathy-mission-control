@@ -290,6 +290,7 @@ mcp_account_manager_parameter_make_secret (const McpAccountManager *mcpa,
  * Changed in 5.17: instead of a map from string to GValue, the last
  * argument is the result of calling IdentifyAccount on the parameters,
  * which normalizes the account's name in a protocol-dependent way.
+ * Use mcp_account_manager_identify_account_async() to do that.
  *
  * Returns: the newly allocated account name, which should be freed
  * once the caller is done with it.
@@ -306,6 +307,47 @@ mcp_account_manager_get_unique_name (McpAccountManager *mcpa,
   g_return_val_if_fail (iface->unique_name != NULL, NULL);
 
   return iface->unique_name (mcpa, manager, protocol, identification);
+}
+
+void
+mcp_account_manager_identify_account_async (McpAccountManager *mcpa,
+    const gchar *manager,
+    const gchar *protocol,
+    GVariant *parameters,
+    GCancellable *cancellable,
+    GAsyncReadyCallback callback,
+    gpointer user_data)
+{
+  McpAccountManagerIface *iface = MCP_ACCOUNT_MANAGER_GET_IFACE (mcpa);
+
+  g_return_if_fail (iface != NULL);
+  g_return_if_fail (iface->identify_account_async != NULL);
+  g_return_if_fail (iface->identify_account_finish != NULL);
+
+  g_return_if_fail (manager != NULL);
+  g_return_if_fail (protocol != NULL);
+  g_return_if_fail (parameters != NULL);
+  g_return_if_fail (g_variant_is_of_type (parameters, G_VARIANT_TYPE_VARDICT));
+
+  iface->identify_account_async (mcpa, manager, protocol, parameters,
+      cancellable, callback, user_data);
+}
+
+/**
+ * Returns: (transfer full): a newly allocated string, free with g_free()
+ */
+gchar *
+mcp_account_manager_identify_account_finish (McpAccountManager *mcpa,
+    GAsyncResult *res,
+    GError **error)
+{
+  McpAccountManagerIface *iface = MCP_ACCOUNT_MANAGER_GET_IFACE (mcpa);
+
+  g_return_val_if_fail (iface != NULL, NULL);
+  g_return_val_if_fail (iface->identify_account_async != NULL, NULL);
+  g_return_val_if_fail (iface->identify_account_finish != NULL, NULL);
+
+  return iface->identify_account_finish (mcpa, res, error);
 }
 
 /**

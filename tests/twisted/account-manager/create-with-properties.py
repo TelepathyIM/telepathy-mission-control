@@ -50,7 +50,7 @@ def test(q, bus, mc):
     assert (cs.ACCOUNT + '.Supersedes') in supported
     assertContains(cs.ACCOUNT + '.Service', supported)
 
-    params = dbus.Dictionary({"account": "anarki@example.com",
+    params = dbus.Dictionary({"account": "aNaRkI@eXaMpLe.CoM",
         "password": "secrecy"}, signature='sv')
 
     simulated_cm = SimulatedConnectionManager(q, bus)
@@ -94,6 +94,9 @@ def test(q, bus, mc):
             )
     account_path = ret.value[0]
     assert am_signal.args == [account_path, True], am_signal.args
+    # We called IdentifyAccount, which normalized the silly account name.
+    # The _xx hex-escaping and the trailing digit are implementation details.
+    assert account_path.endswith('/anarki_40example_2ecom0'), account_path
 
     assert account_path is not None
 
