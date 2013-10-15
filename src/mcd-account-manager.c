@@ -653,6 +653,9 @@ mcd_create_account_data_free (McdCreateAccountData *cad)
     if (G_UNLIKELY (cad->error))
         g_error_free (cad->error);
 
+    if (cad->destroy != NULL)
+        cad->destroy (cad->user_data);
+
     g_free (cad->cm_name);
     g_free (cad->protocol_name);
     g_free (cad->display_name);
