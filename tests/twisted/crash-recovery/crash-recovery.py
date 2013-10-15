@@ -27,7 +27,7 @@ import dbus.service
 
 from servicetest import EventPattern, call_async
 from mctest import exec_test, SimulatedConnection, SimulatedClient, \
-        create_fakecm_account, enable_fakecm_account, SimulatedChannel, \
+        SimulatedChannel, \
         expect_client_setup, MC
 import constants as cs
 

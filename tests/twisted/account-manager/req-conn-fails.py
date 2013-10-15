@@ -31,7 +31,7 @@ def test(q, bus, mc):
         {"account": "someguy@example.com",
          "password": "secrecy",
         }, signature='sv')
-    (cm_name_ref, account) = create_fakecm_account(q, bus, mc, params)
+    (simulated_cm, account) = create_fakecm_account(q, bus, mc, params)
 
     account.Properties.Set(cs.ACCOUNT, 'Enabled', True)
 

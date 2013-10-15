@@ -28,11 +28,9 @@ import dbus.service
 
 from servicetest import (EventPattern, tp_name_prefix, tp_path_prefix,
         call_async, assertEquals, sync_dbus)
-from mctest import exec_test, SimulatedConnection, create_fakecm_account, MC
+from mctest import (exec_test, SimulatedConnection,
+        SimulatedConnectionManager, MC)
 import constants as cs
-
-cm_name_ref = dbus.service.BusName(
-        cs.tp_name_prefix + '.ConnectionManager.fakecm', bus=dbus.SessionBus())
 
 class Account(object):
     def __init__(self, fake_accounts_service, accounts_dir,
@@ -357,6 +355,8 @@ def preseed(q, bus, fake_accounts_service):
     return accounts
 
 def test(q, bus, unused, **kwargs):
+    simulated_cm = SimulatedConnectionManager(q, bus)
+
     fake_accounts_service = kwargs['fake_accounts_service']
     accounts = preseed(q, bus, fake_accounts_service)
 

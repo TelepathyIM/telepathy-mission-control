@@ -1005,11 +1005,155 @@ class SimulatedClient(object):
         self.q.dbus_return(e.message, self.recover, signature='v',
                 bus=self.bus)
 
+class SimulatedConnectionManager(object):
+    def __init__(self, q, bus, cm_name='fakecm',
+            protocol_names=['fakeprotocol'],
+            has_account_storage=False):
+        self.q = q
+        self.bus = bus
+        self.cm_name = cm_name
+        self.bus_name = '.'.join([cs.CM, cm_name])
+        self._bus_name_ref = dbus.service.BusName(self.bus_name, self.bus)
+        self.object_path = '/' + self.bus_name.replace('.', '/')
+        self.has_account_storage = has_account_storage
+        self.protocol_names = list(protocol_names)
+
+        q.add_dbus_method_impl(self.GetAll_CM,
+                path=self.object_path,
+                interface=cs.PROPERTIES_IFACE, method='GetAll',
+                args=[cs.CM])
+
+        for protocol_name in protocol_names:
+            assert '-' not in protocol_name
+            q.add_dbus_method_impl(self.IdentifyAccount,
+                    path=self.object_path + '/' + protocol_name,
+                    interface=cs.PROTOCOL, method='IdentifyAccount')
+            q.add_dbus_method_impl(self.NormalizeContact,
+                    path=self.object_path + '/' + protocol_name,
+                    interface=cs.PROTOCOL, method='NormalizeContact')
+
+    def release_name(self):
+        del self._bus_name_ref
+
+    def reacquire_name(self):
+        self._bus_name_ref = dbus.service.BusName(self.bus_name, self.bus)
+
+    def get_protocols(self):
+        ret = dbus.Dictionary(signature='sa{sv}')
+
+        for p in self.protocol_names:
+            # stub: assume all the protocols look "reasonably normal"
+            ret[p] = {
+                    cs.PROTOCOL + '.Interfaces': dbus.Array(signature='s'),
+                    cs.PROTOCOL + '.ConnectionInterfaces':
+                        dbus.Array(signature='s'),
+                    cs.PROTOCOL + '.RequestableChannelClasses':
+                        dbus.Array(signature='(a{sv}as)'),
+                    cs.PROTOCOL + '.VCardField': 'x-' + self.cm_name,
+                    cs.PROTOCOL + '.EnglishName': self.cm_name,
+                    cs.PROTOCOL + '.Icon': 'im-' + self.cm_name,
+                    cs.PROTOCOL + '.AuthenticationTypes':
+                        dbus.Array(signature='s'),
+                    cs.PROTOCOL + '.Parameters': dbus.Array([
+                        ('account', cs.PARAM_REQUIRED, 's', ''),
+                        ('password', cs.PARAM_SECRET, 's', ''),
+                        ], signature='(susv)'),
+                    }
+
+            if self.cm_name == 'fakecm' and p == 'fakeprotocol':
+                ret[p][cs.PROTOCOL + '.Parameters'] = dbus.Array([
+                    ('account', cs.PARAM_REQUIRED|cs.PARAM_REGISTER,
+                        's', ''),
+                    ('password',
+                        cs.PARAM_SECRET|cs.PARAM_REQUIRED|cs.PARAM_REGISTER,
+                        's', ''),
+                    ('nickname', cs.PARAM_REGISTER, 's', ''),
+                    ('register', cs.PARAM_HAS_DEFAULT, 'b', False),
+                    ('com.example.Badgerable.Badgered',
+                        cs.PARAM_HAS_DEFAULT|cs.PARAM_DBUS_PROPERTY,
+                        'b', False),
+                    ('secret-mushroom', cs.PARAM_SECRET, 's', ''),
+                    ('snakes', 0, 'u', dbus.UInt32(0)),
+                    ('contrived-example', cs.PARAM_HAS_DEFAULT, 'u',
+                        dbus.UInt32(5)),
+                    ], signature='(susv)')
+
+            if self.cm_name == 'onewitheverything' and p == 'serializable':
+                ret[p][cs.PROTOCOL + '.Parameters'] = dbus.Array([
+                    ('s', cs.PARAM_REQUIRED, 's', ''),
+                    ('o', 0, 'o', dbus.ObjectPath('/')),
+                    ('b', 0, 'b', False),
+                    ('q', 0, 'q', dbus.UInt16(0)),
+                    ('u', 0, 'u', dbus.UInt32(0)),
+                    ('t', 0, 't', dbus.UInt64(0)),
+                    ('n', 0, 'n', dbus.Int16(0)),
+                    ('i', 0, 'i', dbus.Int32(0)),
+                    ('x', 0, 'x', dbus.Int64(0)),
+                    ('d', 0, 'd', 0.0),
+                    ('as', 0, 'as', dbus.Array(signature=s)),
+                    ('y', 0, 'y', dbus.Byte(0)),
+                    ], signature='(susv)')
+
+            if self.cm_name == 'onewitheverything' and p == 'defaults':
+                ret[p][cs.PROTOCOL + '.Parameters'] = dbus.Array([
+                    ('s', cs.PARAM_HAS_DEFAULT, 's', 'foo'),
+                    ('o', cs.PARAM_HAS_DEFAULT, 'o', dbus.ObjectPath('/foo')),
+                    ('b', cs.PARAM_HAS_DEFAULT, 'b', True),
+                    ('q', cs.PARAM_HAS_DEFAULT, 'q', dbus.UInt16(1)),
+                    ('u', cs.PARAM_HAS_DEFAULT, 'u', dbus.UInt32(1)),
+                    ('t', cs.PARAM_HAS_DEFAULT, 't', dbus.UInt64(1)),
+                    ('n', cs.PARAM_HAS_DEFAULT, 'n', dbus.Int16(-1)),
+                    ('i', cs.PARAM_HAS_DEFAULT, 'i', dbus.Int32(-1)),
+                    ('x', cs.PARAM_HAS_DEFAULT, 'x', dbus.Int64(-1)),
+                    ('d', cs.PARAM_HAS_DEFAULT, 'd', 1.5),
+                    ('as', cs.PARAM_HAS_DEFAULT, 'as',
+                        dbus.Array(['foo', 'bar', 'baz'], signature=s)),
+                    ('y', cs.PARAM_HAS_DEFAULT, 'y', dbus.Byte(1)),
+                    ], signature='(susv)')
+
+            if self.cm_name == 'onewitheverything' and p == 'flags':
+                ret[p][cs.PROTOCOL + '.Parameters'] = dbus.Array([
+                    ('account', cs.PARAM_REQUIRED|cs.PARAM_REGISTER, 's', ''),
+                    ('name', cs.PARAM_REGISTER, 's', ''),
+                    ('key',
+                        cs.PARAM_REGISTER|cs.PARAM_REQUIRED|cs.PARAM_SECRET,
+                        's', ''),
+                    ('com.example.Badgerable.Badgers', cs.PARAM_DBUS_PROPERTY,
+                        's', ''),
+                    ], signature='(susv)')
+
+        return ret
+
+    def get_interfaces(self):
+        ret = dbus.Array([], signature='s')
+
+        if self.has_account_storage:
+            ret.append(cs.CM_IFACE_ACCOUNT_STORAGE)
+
+        return ret
+
+    def GetAll_CM(self, e):
+        self.q.dbus_return(e.message, {
+            'Protocols': self.get_protocols(),
+            'Interfaces': self.get_interfaces(),
+            }, signature='a{sv}', bus=self.bus)
+
+    def IdentifyAccount(self, e):
+        if 'account' in e.args[0]:
+            ret = e.args[0]['account'].lower()
+        else:
+            ret = 'account'
+        self.q.dbus_return(e.message, ret, signature='s')
+
+    def NormalizeContact(self, e):
+        self.q.dbus_return(e.message, e.args[0].lower(), signature='s')
+
 def take_fakecm_name(bus):
     return dbus.service.BusName(cs.CM + '.fakecm', bus=bus)
 
 def create_fakecm_account(q, bus, mc, params, properties={},
-                          cm_bus=None):
+                          cm_bus=None, simulated_cm=None,
+                          cm_name='fakecm', protocol_name='fakeprotocol'):
     """Create a fake connection manager and an account that uses it.
 
     Optional keyword arguments:
@@ -1024,12 +1168,14 @@ def create_fakecm_account(q, bus, mc, params, properties={},
     if cm_bus is None:
         cm_bus = bus
 
-    cm_name_ref = take_fakecm_name(cm_bus)
+    if simulated_cm is None:
+        simulated_cm = SimulatedConnectionManager(q, bus,
+                cm_name=cm_name, protocol_names=[protocol_name])
 
     account_manager = AccountManager(bus)
 
     servicetest.call_async(q, account_manager, 'CreateAccount',
-        'fakecm', 'fakeprotocol', 'fakeaccount', params, properties)
+        cm_name, protocol_name, 'fakeaccount', params, properties)
 
     validity_changed_pattern = servicetest.EventPattern('dbus-signal',
         path=cs.AM_PATH, signal='AccountValidityChanged', interface=cs.AM)
@@ -1056,7 +1202,7 @@ def create_fakecm_account(q, bus, mc, params, properties={},
         interface, prop = key.rsplit('.', 1)
         servicetest.assertEquals(value, account.Properties.Get(interface, prop))
 
-    return (cm_name_ref, account)
+    return (simulated_cm, account)
 
 def get_fakecm_account(bus, mc, account_path):
     account = Account(bus, account_path)
@@ -1096,19 +1242,25 @@ def expect_fakecm_connection(q, bus, mc, account, expected_params,
         extra_interfaces=[],
         expect_before_connect=(), expect_after_connect=(),
         has_hidden=False,
-        self_ident='myself'):
+        self_ident='myself',
+        cm_name='fakecm',
+        protocol_name='fakeprotocol'):
     # make (safely) mutable copies
     expect_before_connect = list(expect_before_connect)
     expect_after_connect = list(expect_after_connect)
 
+    # for simplicity we assume the sort of name that is invariant between
+    # Telepathy 0 and Telepathy 1
+    assert '-' not in protocol_name
+
     e = q.expect('dbus-method-call', method='RequestConnection',
-            args=['fakeprotocol', expected_params],
-            destination=cs.tp_name_prefix + '.ConnectionManager.fakecm',
-            path=cs.tp_path_prefix + '/ConnectionManager/fakecm',
-            interface=cs.tp_name_prefix + '.ConnectionManager',
+            args=[protocol_name, expected_params],
+            destination=cs.CM + '.' + cm_name,
+            path='/' + cs.CM.replace('.', '/') + '/' + cm_name,
+            interface=cs.CM,
             handled=False)
 
-    conn = SimulatedConnection(q, bus, 'fakecm', 'fakeprotocol',
+    conn = SimulatedConnection(q, bus, cm_name, protocol_name,
                                account.object_path.split('/')[-1],
             self_ident, has_requests=has_requests, has_presence=has_presence,
             has_aliasing=has_aliasing, has_avatars=has_avatars,

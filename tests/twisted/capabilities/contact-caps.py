@@ -97,7 +97,7 @@ def test(q, bus, mc):
 
     params = dbus.Dictionary({"account": "someguy@example.com",
         "password": "secrecy"}, signature='sv')
-    cm_name_ref, account = create_fakecm_account(q, bus, mc, params)
+    simulated_cm, account = create_fakecm_account(q, bus, mc, params)
     conn, before = enable_fakecm_account(q, bus, mc, account, params,
             extra_interfaces=[cs.CONN_IFACE_CONTACT_CAPS],
             expect_before_connect=[

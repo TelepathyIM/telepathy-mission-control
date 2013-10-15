@@ -74,7 +74,7 @@ def test(q, bus, mc):
 
     params = dbus.Dictionary({"account": "dontdivert@example.com",
         "password": "secrecy"}, signature='sv')
-    (cm_name_ref, account) = create_fakecm_account(q, bus, mc, params)
+    (simulated_cm, account) = create_fakecm_account(q, bus, mc, params)
 
     account_path = account.__dbus_object_path__
 

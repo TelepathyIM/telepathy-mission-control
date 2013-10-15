@@ -29,7 +29,7 @@ def test(q, bus, mc):
     params = dbus.Dictionary({"account": "someguy@example.com",
         "password": "secrecy",
         "register": True}, signature='sv')
-    (cm_name_ref, account) = create_fakecm_account(q, bus, mc, params)
+    (simulated_cm, account) = create_fakecm_account(q, bus, mc, params)
 
     call_async(q, account.Properties, 'Set', cs.ACCOUNT, 'Enabled', False)
     q.expect('dbus-return', method='Set')

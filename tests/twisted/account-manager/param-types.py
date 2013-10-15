@@ -22,13 +22,13 @@ import dbus.service
 
 from servicetest import EventPattern, tp_name_prefix, tp_path_prefix, \
         call_async
-from mctest import exec_test, create_fakecm_account, get_account_manager
+from mctest import (exec_test, create_fakecm_account, get_account_manager,
+        SimulatedConnectionManager)
 import constants as cs
 
 def test(q, bus, mc):
-    cm_name_ref = dbus.service.BusName(
-            cs.tp_name_prefix + '.ConnectionManager.onewitheverything',
-            bus=bus)
+    simulated_cm = SimulatedConnectionManager(q, bus,
+            cm_name='onewitheverything', protocol_names=['serializable'])
 
     # Get the AccountManager interface
     account_manager = get_account_manager(bus)
