@@ -799,6 +799,7 @@ _mcd_account_manager_create_account (McdAccountManager *account_manager,
     gchar *unique_name = NULL;
     const gchar *provider;
     GError *e = NULL;
+    const gchar *id;
 
     DEBUG ("called");
     if (G_UNLIKELY (manager == NULL || manager[0] == 0 ||
@@ -815,8 +816,13 @@ _mcd_account_manager_create_account (McdAccountManager *account_manager,
     provider = tp_asv_get_string (properties,
                                   TP_PROP_ACCOUNT_INTERFACE_STORAGE_STORAGE_PROVIDER);
 
+    id = tp_asv_get_string (params, "account");
+
+    if (id == NULL)
+        id = "account";
+
     unique_name = mcd_storage_create_account (storage, provider,
-                                              manager, protocol, params,
+                                              manager, protocol, id,
                                               &e);
 
     if (unique_name == NULL)

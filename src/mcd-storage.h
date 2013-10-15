@@ -95,7 +95,7 @@ gchar *mcd_storage_create_account (McdStorage *storage,
     const gchar *provider,
     const gchar *manager,
     const gchar *protocol,
-    GHashTable *params,
+    const gchar *identification,
     GError **error);
 
 void mcd_storage_delete_account (McdStorage *storage, const gchar *account);

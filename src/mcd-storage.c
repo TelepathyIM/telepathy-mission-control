@@ -578,23 +578,17 @@ static gchar *
 unique_name (const McpAccountManager *ma,
     const gchar *manager,
     const gchar *protocol,
-    const GHashTable *params)
+    const gchar *identification)
 {
   McdStorage *self = MCD_STORAGE (ma);
-  const gchar *base = NULL;
   gchar *esc_manager, *esc_protocol, *esc_base;
   guint i;
   gsize base_len = strlen (TP_ACCOUNT_OBJECT_PATH_BASE);
   DBusGConnection *connection = tp_proxy_get_dbus_connection (self->dbusd);
 
-  base = tp_asv_get_string (params, "account");
-
-  if (base == NULL)
-    base = "account";
-
   esc_manager = tp_escape_as_identifier (manager);
   esc_protocol = g_strdelimit (g_strdup (protocol), "-", '_');
-  esc_base = tp_escape_as_identifier (base);
+  esc_base = tp_escape_as_identifier (identification);
 
   for (i = 0; i < G_MAXUINT; i++)
     {
@@ -1832,7 +1826,7 @@ mcd_keyfile_set_value (GKeyFile *keyfile,
  * @provider: the desired storage provider, or %NULL
  * @manager: the name of the manager
  * @protocol: the name of the protocol
- * @params: A gchar * / GValue * hash table of account parameters
+ * @identification: the result of IdentifyAccount
  * @error: a #GError to fill when returning %NULL
  *
  * Create a new account in storage. This should not store any
@@ -1847,7 +1841,7 @@ mcd_storage_create_account (McdStorage *self,
     const gchar *provider,
     const gchar *manager,
     const gchar *protocol,
-    GHashTable *params,
+    const gchar *identification,
     GError **error)
 {
   GList *store;
@@ -1867,7 +1861,7 @@ mcd_storage_create_account (McdStorage *self,
           if (!tp_strdiff (mcp_account_storage_provider (plugin), provider))
             {
               return mcp_account_storage_create (plugin, ma, manager,
-                  protocol, params, error);
+                  protocol, identification, error);
             }
         }
 
@@ -1918,8 +1912,8 @@ mcd_storage_create_account (McdStorage *self,
       McpAccountStorage *plugin = store->data;
       gchar *ret;
 
-      ret = mcp_account_storage_create (plugin, ma, manager, protocol, params,
-          error);
+      ret = mcp_account_storage_create (plugin, ma, manager, protocol,
+          identification, error);
 
       if (ret != NULL)
         return ret;

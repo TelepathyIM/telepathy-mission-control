@@ -97,7 +97,7 @@ struct _McpAccountManagerIface {
   gchar * (* unique_name) (const McpAccountManager *ma,
       const gchar *manager,
       const gchar *protocol,
-      const GHashTable *params);
+      const gchar *identification);
 
   GStrv (* list_keys) (const McpAccountManager *ma,
       const gchar *acct);

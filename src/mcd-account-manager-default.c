@@ -161,7 +161,7 @@ _create (const McpAccountStorage *self,
     const McpAccountManager *am,
     const gchar *manager,
     const gchar *protocol,
-    GHashTable *params,
+    const gchar *identification,
     GError **error)
 {
   gchar *unique_name;
@@ -169,7 +169,8 @@ _create (const McpAccountStorage *self,
   /* See comment in plugin-account.c::_storage_create_account() before changing
    * this implementation, it's more subtle than it looks */
   unique_name = mcp_account_manager_get_unique_name (MCP_ACCOUNT_MANAGER (am),
-                                                     manager, protocol, params);
+                                                     manager, protocol,
+                                                     identification);
   g_return_val_if_fail (unique_name != NULL, NULL);
 
   return unique_name;

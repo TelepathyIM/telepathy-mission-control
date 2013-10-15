@@ -75,7 +75,7 @@ typedef gchar * (*McpAccountStorageCreate) (
     const McpAccountManager *am,
     const gchar *manager,
     const gchar *protocol,
-    GHashTable *params,
+    const gchar *identification,
     GError **error);
 typedef gboolean (*McpAccountStorageDeleteFunc) (
     const McpAccountStorage *storage,
@@ -163,7 +163,7 @@ gchar * mcp_account_storage_create (const McpAccountStorage *storage,
     const McpAccountManager *am,
     const gchar *manager,
     const gchar *protocol,
-    GHashTable *params,
+    const gchar *identification,
     GError **error);
 
 gboolean mcp_account_storage_delete (const McpAccountStorage *storage,

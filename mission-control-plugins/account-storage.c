@@ -586,13 +586,14 @@ mcp_account_storage_set_parameter (McpAccountStorage *storage,
  * @am: an object which can be used to call back into the account manager
  * @manager: the name of the manager
  * @protocol: the name of the protocol
- * @params: A gchar * / GValue * hash table of account parameters
+ * @identification: a normalized form of the account name, or "account"
+ *  if nothing is suitable (e.g. for telepathy-salut)
  * @error: a GError to fill
  *
  * Inform the plugin that a new account is being created. @manager, @protocol
- * and @params are given to help determining the account's unique name, but does
- * not need to be stored on the account yet, mcp_account_storage_set() and
- * mcp_account_storage_commit() will be called later.
+ * and @identification are given to help determining the account's unique name,
+ * but does not need to be stored on the account yet, mcp_account_storage_set()
+ * and mcp_account_storage_commit() will be called later.
  *
  * It is recommended to use mcp_account_manager_get_unique_name() to create the
  * unique name, but it's not mandatory. One could base the unique name on an
@@ -611,7 +612,7 @@ mcp_account_storage_create (const McpAccountStorage *storage,
     const McpAccountManager *am,
     const gchar *manager,
     const gchar *protocol,
-    GHashTable *params,
+    const gchar *identification,
     GError **error)
 {
   McpAccountStorageIface *iface = MCP_ACCOUNT_STORAGE_GET_IFACE (storage);
@@ -625,7 +626,7 @@ mcp_account_storage_create (const McpAccountStorage *storage,
       return NULL;
     }
 
-  return iface->create (storage, am, manager, protocol, params, error);
+  return iface->create (storage, am, manager, protocol, identification, error);
 }
 
 /**
