@@ -71,7 +71,6 @@
 #include "mcd-dispatcher.h"
 #include "mcd-account-manager.h"
 #include "mcd-account-manager-priv.h"
-#include "mcd-account-conditions.h"
 #include "mcd-account-priv.h"
 #include "plugin-loader.h"
 

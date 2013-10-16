@@ -43,7 +43,6 @@ def test(q, bus, mc):
     assert (cs.ACCOUNT + '.Nickname') in supported
     assert (cs.ACCOUNT + '.ConnectAutomatically') in supported
     assert (cs.ACCOUNT_IFACE_AVATAR + '.Avatar') in supported
-    assert (cs.ACCOUNT_IFACE_NOKIA_CONDITIONS + '.Condition') in supported
 
     assert (cs.ACCOUNT + '.RequestedPresence') in supported
     assert (cs.ACCOUNT + '.Supersedes') in supported
@@ -68,8 +67,6 @@ def test(q, bus, mc):
         cs.ACCOUNT + '.ConnectAutomatically': True,
         cs.ACCOUNT_IFACE_AVATAR + '.Avatar': (dbus.ByteArray('foo'),
             'image/jpeg'),
-        cs.ACCOUNT_IFACE_NOKIA_CONDITIONS + '.Condition':
-            dbus.Dictionary({ 'has-quad-damage': ':y' }, signature='ss'),
         cs.ACCOUNT + '.Supersedes': dbus.Array([
             cs.ACCOUNT_PATH_PREFIX + 'q1/q1/Ranger',
             cs.ACCOUNT_PATH_PREFIX + 'q2/q2/Grunt',
@@ -131,11 +128,6 @@ def test(q, bus, mc):
     properties = account_props.GetAll(cs.ACCOUNT_IFACE_AVATAR)
     assert properties.get('Avatar') == ([ord('f'), ord('o'), ord('o')],
             'image/jpeg')
-
-    properties = account_props.GetAll(cs.ACCOUNT_IFACE_NOKIA_CONDITIONS)
-    assert properties.get('Condition') == {
-            'has-quad-damage': ':y',
-            }
 
     # tests for errors when creating an account
 

@@ -34,7 +34,6 @@
 #include <telepathy-glib/telepathy-glib-dbus.h>
 
 #include "mcd-account-priv.h"
-#include "mcd-account-conditions.h"
 #include "mcd-account-manager-priv.h"
 #include "mcd-account-addressing.h"
 #include "mcd-connection-priv.h"
@@ -63,9 +62,6 @@ static void account_avatar_iface_init (TpSvcAccountInterfaceAvatarClass *iface,
 static void account_storage_iface_init (
     TpSvcAccountInterfaceStorageClass *iface,
     gpointer iface_data);
-static void account_hidden_iface_init (
-    McSvcAccountInterfaceHiddenClass *iface,
-    gpointer iface_data);
 static void account_external_password_storage_iface_init (
     McSvcAccountInterfaceExternalPasswordStorageClass *iface,
     gpointer iface_data);
@@ -73,7 +69,6 @@ static void account_external_password_storage_iface_init (
 static const McdDBusProp account_properties[];
 static const McdDBusProp account_avatar_properties[];
 static const McdDBusProp account_storage_properties[];
-static const McdDBusProp account_hidden_properties[];
 static const McdDBusProp account_external_password_storage_properties[];
 
 static const McdInterfaceData account_interfaces[] = {
@@ -81,18 +76,12 @@ static const McdInterfaceData account_interfaces[] = {
     MCD_IMPLEMENT_IFACE (tp_svc_account_interface_avatar_get_type,
 			 account_avatar,
 			 TP_IFACE_ACCOUNT_INTERFACE_AVATAR),
-    MCD_IMPLEMENT_IFACE (mc_svc_account_interface_conditions_get_type,
-			 account_conditions,
-			 MC_IFACE_ACCOUNT_INTERFACE_CONDITIONS),
     MCD_IMPLEMENT_IFACE (tp_svc_account_interface_storage_get_type,
                          account_storage,
                          TP_IFACE_ACCOUNT_INTERFACE_STORAGE),
     MCD_IMPLEMENT_IFACE (tp_svc_account_interface_addressing_get_type,
         account_addressing,
         TP_IFACE_ACCOUNT_INTERFACE_ADDRESSING),
-    MCD_IMPLEMENT_IFACE (mc_svc_account_interface_hidden_get_type,
-                         account_hidden,
-                         MC_IFACE_ACCOUNT_INTERFACE_HIDDEN1),
     MCD_IMPLEMENT_OPTIONAL_IFACE (
         mc_svc_account_interface_external_password_storage_get_type,
         account_external_password_storage,
@@ -175,7 +164,6 @@ struct _McdAccountPrivate
     gboolean waiting_for_initial_avatar;
     gboolean waiting_for_connectivity;
 
-    gboolean hidden;
     /* In addition to affecting dispatching, this flag also makes this
      * account bypass connectivity checks. */
     gboolean always_dispatch;
@@ -196,7 +184,6 @@ enum
     PROP_STORAGE,
     PROP_NAME,
     PROP_ALWAYS_ON,
-    PROP_HIDDEN,
 };
 
 enum
@@ -2219,66 +2206,6 @@ account_storage_iface_init (TpSvcAccountInterfaceStorageClass *iface,
 }
 
 static void
-get_hidden (TpSvcDBusProperties *self,
-    const gchar *name, GValue *value)
-{
-  g_value_init (value, G_TYPE_BOOLEAN);
-  g_object_get_property (G_OBJECT (self), "hidden", value);
-}
-
-static gboolean
-set_hidden (TpSvcDBusProperties *self,
-    const gchar *name,
-    const GValue *value,
-    McdDBusPropSetFlags flags,
-    GError **error)
-{
-  McdAccount *account = MCD_ACCOUNT (self);
-  McdAccountPrivate *priv = account->priv;
-  const gchar *account_name = mcd_account_get_unique_name (account);
-
-  if (!G_VALUE_HOLDS_BOOLEAN (value))
-    {
-      g_set_error (error, TP_ERROR, TP_ERROR_INVALID_ARGUMENT,
-          "Hidden must be set to a boolean, not a %s",
-          G_VALUE_TYPE_NAME (value));
-      return FALSE;
-    }
-
-  /* Technically this property is immutable after the account's been created,
-   * but currently it's not easy for this code to tell whether or not this is
-   * a create-time property. It would probably be better if the create-time
-   * properties were passed into us as a construct-time GObject property. But
-   * that's a job for another month.
-   *
-   * So for now we check whether the value has changed, and violate the spec
-   * by making this property mutable (at least with the keyfile backend).
-   */
-  if (mcd_storage_set_attribute (priv->storage, account_name,
-          MC_ACCOUNTS_KEY_HIDDEN, value))
-    {
-      mcd_storage_commit (priv->storage, account_name);
-      mcd_account_changed_property (account, MC_ACCOUNTS_KEY_HIDDEN, value);
-      g_object_set_property (G_OBJECT (self), "hidden", value);
-    }
-
-  return TRUE;
-}
-
-static const McdDBusProp account_hidden_properties[] = {
-    { "Hidden", set_hidden, get_hidden },
-    { 0 },
-};
-
-static void
-account_hidden_iface_init (
-    McSvcAccountInterfaceHiddenClass *iface,
-    gpointer iface_data)
-{
-  /* wow, it's pretty crap that I need this. */
-}
-
-static void
 get_password_saved (TpSvcDBusProperties *self,
     const gchar *name,
     GValue *value)
@@ -3320,8 +3247,6 @@ mcd_account_setup (McdAccount *account)
 
     priv->has_been_online =
       mcd_storage_get_boolean (storage, name, MC_ACCOUNTS_KEY_HAS_BEEN_ONLINE);
-    priv->hidden =
-      mcd_storage_get_boolean (storage, name, MC_ACCOUNTS_KEY_HIDDEN);
 
     /* special case flag (for ring accounts, so far) */
     priv->always_dispatch =
@@ -3481,9 +3406,6 @@ set_property (GObject *obj, guint prop_id,
         }
 
         break;
-    case PROP_HIDDEN:
-        priv->hidden = g_value_get_boolean (val);
-        break;
     default:
 	G_OBJECT_WARN_INVALID_PROPERTY_ID (obj, prop_id, pspec);
 	break;
@@ -3509,9 +3431,6 @@ get_property (GObject *obj, guint prop_id,
     case PROP_NAME:
 	g_value_set_string (val, priv->unique_name);
 	break;
-    case PROP_HIDDEN:
-        g_value_set_boolean (val, priv->hidden);
-        break;
     default:
 	G_OBJECT_WARN_INVALID_PROPERTY_ID (obj, prop_id, pspec);
 	break;
@@ -3745,11 +3664,6 @@ mcd_account_class_init (McdAccountClass * klass)
                               G_PARAM_WRITABLE | G_PARAM_CONSTRUCT_ONLY |
                               G_PARAM_STATIC_STRINGS));
 
-    g_object_class_install_property
-        (object_class, PROP_HIDDEN,
-         g_param_spec_boolean ("hidden", "Hidden?", "Is this account hidden?",
-                               FALSE,
-                               G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
     /* Signals */
     _mcd_account_signals[USABILITY_CHANGED] =
         g_signal_new ("usability-changed",
@@ -3872,14 +3786,6 @@ mcd_account_is_enabled (McdAccount *account)
 {
     McdAccountPrivate *priv = MCD_ACCOUNT_PRIV (account);
     return priv->enabled;
-}
-
-gboolean
-_mcd_account_is_hidden (McdAccount *account)
-{
-    g_return_val_if_fail (MCD_IS_ACCOUNT (account), FALSE);
-
-    return account->priv->hidden;
 }
 
 const gchar *

@@ -556,12 +556,9 @@ CLIENT_IFACE_REQUESTS = CLIENT + '.Interface.Requests'
 ACCOUNT = PREFIX + '.Account'
 ACCOUNT_IFACE_AVATAR = ACCOUNT + '.Interface.Avatar1'
 ACCOUNT_IFACE_ADDRESSING = ACCOUNT + '.Interface.Addressing1'
-ACCOUNT_IFACE_HIDDEN = ACCOUNT + '.Interface.Hidden1'
-ACCOUNT_IFACE_NOKIA_CONDITIONS = 'com.nokia.Account.Interface.Conditions'
 ACCOUNT_PATH_PREFIX = PATH_PREFIX + '/Account/'
 
 AM = PREFIX + '.AccountManager'
-AM_IFACE_HIDDEN = AM + '.Interface.Hidden1'
 AM_PATH = PATH_PREFIX + '/AccountManager'
 
 CR = PREFIX + '.ChannelRequest'
