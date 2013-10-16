@@ -87,7 +87,7 @@ G_DEFINE_TYPE_WITH_CODE (McdDispatcher, mcd_dispatcher, G_TYPE_OBJECT,
     G_IMPLEMENT_INTERFACE (MC_TYPE_SVC_CHANNEL_DISPATCHER_INTERFACE_MESSAGES_DRAFT,
                            messages_iface_init);
     G_IMPLEMENT_INTERFACE (
-        TP_TYPE_SVC_CHANNEL_DISPATCHER_INTERFACE_OPERATION_LIST,
+        TP_TYPE_SVC_CHANNEL_DISPATCHER_INTERFACE_OPERATION_LIST1,
         NULL);
     G_IMPLEMENT_INTERFACE (TP_TYPE_SVC_DBUS_PROPERTIES,
                            tp_dbus_properties_mixin_iface_init))
@@ -231,7 +231,7 @@ on_operation_finished (McdDispatchOperation *operation,
     if (self->priv->operation_list_active &&
         _mcd_dispatch_operation_needs_approval (operation))
     {
-        tp_svc_channel_dispatcher_interface_operation_list_emit_dispatch_operation_finished (
+        tp_svc_channel_dispatcher_interface_operation_list1_emit_dispatch_operation_finished (
             self, _mcd_dispatch_operation_get_path (operation));
     }
 
@@ -282,7 +282,7 @@ _mcd_dispatcher_enter_state_machine (McdDispatcher *dispatcher,
     {
         if (priv->operation_list_active)
         {
-            tp_svc_channel_dispatcher_interface_operation_list_emit_new_dispatch_operation (
+            tp_svc_channel_dispatcher_interface_operation_list1_emit_new_dispatch_operation (
                 dispatcher,
                 _mcd_dispatch_operation_get_path (operation),
                 _mcd_dispatch_operation_get_properties (operation));
@@ -356,7 +356,7 @@ _mcd_dispatcher_set_property (GObject * obj, guint prop_id,
 }
 
 static const char * const interfaces[] = {
-    TP_IFACE_CHANNEL_DISPATCHER_INTERFACE_OPERATION_LIST,
+    TP_IFACE_CHANNEL_DISPATCHER_INTERFACE_OPERATION_LIST1,
     NULL
 };
 
@@ -841,7 +841,7 @@ mcd_dispatcher_class_init (McdDispatcherClass * klass)
           NULL,
           cd_props,
         },
-        { TP_IFACE_CHANNEL_DISPATCHER_INTERFACE_OPERATION_LIST,
+        { TP_IFACE_CHANNEL_DISPATCHER_INTERFACE_OPERATION_LIST1,
           tp_dbus_properties_mixin_getter_gobject_properties,
           NULL,
           op_list_props,

@@ -57,10 +57,10 @@ static void account_iface_init (TpSvcAccountClass *iface,
 			       	gpointer iface_data);
 static void properties_iface_init (TpSvcDBusPropertiesClass *iface,
 				   gpointer iface_data);
-static void account_avatar_iface_init (TpSvcAccountInterfaceAvatarClass *iface,
+static void account_avatar_iface_init (TpSvcAccountInterfaceAvatar1Class *iface,
 				       gpointer iface_data);
 static void account_storage_iface_init (
-    TpSvcAccountInterfaceStorageClass *iface,
+    TpSvcAccountInterfaceStorage1Class *iface,
     gpointer iface_data);
 static void account_external_password_storage_iface_init (
     McSvcAccountInterfaceExternalPasswordStorageClass *iface,
@@ -73,15 +73,15 @@ static const McdDBusProp account_external_password_storage_properties[];
 
 static const McdInterfaceData account_interfaces[] = {
     MCD_IMPLEMENT_IFACE (tp_svc_account_get_type, account, TP_IFACE_ACCOUNT),
-    MCD_IMPLEMENT_IFACE (tp_svc_account_interface_avatar_get_type,
+    MCD_IMPLEMENT_IFACE (tp_svc_account_interface_avatar1_get_type,
 			 account_avatar,
-			 TP_IFACE_ACCOUNT_INTERFACE_AVATAR),
-    MCD_IMPLEMENT_IFACE (tp_svc_account_interface_storage_get_type,
+			 TP_IFACE_ACCOUNT_INTERFACE_AVATAR1),
+    MCD_IMPLEMENT_IFACE (tp_svc_account_interface_storage1_get_type,
                          account_storage,
-                         TP_IFACE_ACCOUNT_INTERFACE_STORAGE),
-    MCD_IMPLEMENT_IFACE (tp_svc_account_interface_addressing_get_type,
+                         TP_IFACE_ACCOUNT_INTERFACE_STORAGE1),
+    MCD_IMPLEMENT_IFACE (tp_svc_account_interface_addressing1_get_type,
         account_addressing,
-        TP_IFACE_ACCOUNT_INTERFACE_ADDRESSING),
+        TP_IFACE_ACCOUNT_INTERFACE_ADDRESSING1),
     MCD_IMPLEMENT_OPTIONAL_IFACE (
         mc_svc_account_interface_external_password_storage_get_type,
         account_external_password_storage,
@@ -1311,14 +1311,14 @@ mcd_account_send_nickname_to_connection (McdAccount *self,
   DEBUG ("%s: '%s'", self->priv->unique_name, nickname);
 
   if (tp_proxy_has_interface_by_id (self->priv->tp_connection,
-          TP_IFACE_QUARK_CONNECTION_INTERFACE_ALIASING))
+          TP_IFACE_QUARK_CONNECTION_INTERFACE_ALIASING1))
     {
       GHashTable *aliases = g_hash_table_new (NULL, NULL);
 
       g_hash_table_insert (aliases,
           GUINT_TO_POINTER (tp_contact_get_handle (self->priv->self_contact)),
           (gchar *) nickname);
-      tp_cli_connection_interface_aliasing_call_set_aliases (
+      tp_cli_connection_interface_aliasing1_call_set_aliases (
           self->priv->tp_connection, -1, aliases,
           mcd_account_set_self_alias_cb, NULL, NULL, NULL);
       g_hash_table_unref (aliases);
@@ -1527,19 +1527,19 @@ mcd_account_send_avatar_to_connection (McdAccount *self,
   DEBUG ("%s: %u bytes", self->priv->unique_name, avatar->len);
 
   if (tp_proxy_has_interface_by_id (self->priv->tp_connection,
-          TP_IFACE_QUARK_CONNECTION_INTERFACE_AVATARS))
+          TP_IFACE_QUARK_CONNECTION_INTERFACE_AVATARS1))
     {
       self->priv->setting_avatar = TRUE;
 
       if (avatar->len > 0 && avatar->len < G_MAXUINT)
         {
-          tp_cli_connection_interface_avatars_call_set_avatar (
+          tp_cli_connection_interface_avatars1_call_set_avatar (
             self->priv->tp_connection, -1, avatar, mime_type,
             avatars_set_avatar_cb, NULL, NULL, (GObject *) self);
         }
       else
         {
-          tp_cli_connection_interface_avatars_call_clear_avatar (
+          tp_cli_connection_interface_avatars1_call_clear_avatar (
               self->priv->tp_connection, -1, avatars_clear_avatar_cb,
               NULL, NULL, (GObject *) self);
         }
@@ -1580,7 +1580,7 @@ set_avatar (TpSvcDBusProperties *self, const gchar *name, const GValue *value,
         return FALSE;
     }
 
-    tp_svc_account_interface_avatar_emit_avatar_changed (account);
+    tp_svc_account_interface_avatar1_emit_avatar_changed (account);
     return TRUE;
 }
 
@@ -2194,13 +2194,13 @@ static const McdDBusProp account_storage_properties[] = {
 };
 
 static void
-account_avatar_iface_init (TpSvcAccountInterfaceAvatarClass *iface,
+account_avatar_iface_init (TpSvcAccountInterfaceAvatar1Class *iface,
 			   gpointer iface_data)
 {
 }
 
 static void
-account_storage_iface_init (TpSvcAccountInterfaceStorageClass *iface,
+account_storage_iface_init (TpSvcAccountInterfaceStorage1Class *iface,
                              gpointer iface_data)
 {
 }
@@ -4158,7 +4158,7 @@ _mcd_account_set_avatar (McdAccount *account, const GArray *avatar,
                                 token);
 
         if (!prev_token || strcmp (prev_token, token) != 0)
-            tp_svc_account_interface_avatar_emit_avatar_changed (account);
+            tp_svc_account_interface_avatar1_emit_avatar_changed (account);
 
         g_free (prev_token);
     }
@@ -4899,13 +4899,13 @@ mcd_account_self_contact_upgraded_cb (GObject *source_object,
            * case for CMs that don't always download an up-to-date
            * avatar token before signalling CONNECTED. */
           if (tp_proxy_has_interface_by_id (conn,
-              TP_IFACE_QUARK_CONNECTION_INTERFACE_AVATARS))
+              TP_IFACE_QUARK_CONNECTION_INTERFACE_AVATARS1))
             {
               guint self_handle = tp_contact_get_handle (self_contact);
               GArray *arr = g_array_new (FALSE, FALSE, sizeof (guint));
 
               g_array_append_val (arr, self_handle);
-              tp_cli_connection_interface_avatars_call_get_known_avatar_tokens (
+              tp_cli_connection_interface_avatars1_call_get_known_avatar_tokens (
                   conn, -1, arr, account_conn_get_known_avatar_tokens_cb,
                   g_object_ref (self_contact), g_object_unref,
                   (GObject *) self);

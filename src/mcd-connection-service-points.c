@@ -106,13 +106,13 @@ mcd_connection_service_point_setup (McdConnection *connection,
    * check the flag though as we only want to do this once per connection:
    */
   if (watch)
-    tp_cli_connection_interface_service_point_connect_to_service_points_changed
+    tp_cli_connection_interface_service_point1_connect_to_service_points_changed
       (tp_conn, service_points_changed_cb, NULL, NULL,
        (GObject *) connection, NULL);
 
   /* fetch the current list to initialise our state */
   tp_cli_dbus_properties_call_get (tp_conn, -1,
-      TP_IFACE_CONNECTION_INTERFACE_SERVICE_POINT,
+      TP_IFACE_CONNECTION_INTERFACE_SERVICE_POINT1,
       "KnownServicePoints", service_points_fetched_cb,
       NULL, NULL, (GObject *) connection);
 }

@@ -174,13 +174,11 @@ _mcd_channel_undispatchable (McdChannel *channel)
 
     /* Call Destroy() if possible, or Close() */
     if (tp_proxy_has_interface_by_id (priv->tp_chan,
-        TP_IFACE_QUARK_CHANNEL_INTERFACE_DESTROYABLE))
+        TP_IFACE_QUARK_CHANNEL_INTERFACE_DESTROYABLE1))
     {
         DEBUG ("calling Destroy()");
-        tp_cli_channel_interface_destroyable_call_destroy (priv->tp_chan,
-                                                           -1, NULL,
-                                                           NULL, NULL,
-                                                           NULL);
+        tp_cli_channel_interface_destroyable1_call_destroy (priv->tp_chan,
+            -1, NULL, NULL, NULL, NULL);
     }
     else
     {

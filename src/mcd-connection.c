@@ -324,7 +324,7 @@ _mcd_connection_set_presence (McdConnection * connection,
             _mcd_account_set_changing_presence (priv->account, FALSE);
         }
 
-        tp_cli_connection_interface_presence_call_set_presence
+        tp_cli_connection_interface_presence1_call_set_presence
             (priv->tp_conn, -1, adj_status, message, presence_set_status_cb,
              priv, NULL, (GObject *)connection);
     }
@@ -415,7 +415,7 @@ _mcd_connection_setup_presence (McdConnection *connection)
     McdConnectionPrivate *priv =  connection->priv;
 
     tp_cli_dbus_properties_call_get
-        (priv->tp_conn, -1, TP_IFACE_CONNECTION_INTERFACE_PRESENCE,
+        (priv->tp_conn, -1, TP_IFACE_CONNECTION_INTERFACE_PRESENCE1,
          "Statuses", presence_get_statuses_cb, priv, NULL,
          (GObject *)connection);
 }
@@ -507,7 +507,7 @@ _mcd_connection_setup_power_saving (McdConnection *connection)
   DEBUG ("is %sactive", mcd_slacker_is_inactive (priv->slacker) ? "in" : "");
 
   if (mcd_slacker_is_inactive (priv->slacker))
-    tp_cli_connection_interface_power_saving_call_set_power_saving (priv->tp_conn, -1,
+    tp_cli_connection_interface_power_saving1_call_set_power_saving (priv->tp_conn, -1,
         TRUE, NULL, NULL, NULL, NULL);
 }
 
@@ -1091,7 +1091,7 @@ on_connection_ready (GObject *source_object, GAsyncResult *result,
     priv = MCD_CONNECTION_PRIV (connection);
 
     if (tp_proxy_has_interface_by_id (tp_conn,
-        TP_IFACE_QUARK_CONNECTION_INTERFACE_SERVICE_POINT))
+        TP_IFACE_QUARK_CONNECTION_INTERFACE_SERVICE_POINT1))
     {
         mcd_connection_service_point_setup (connection,
                                             !priv->service_points_watched);
@@ -1099,11 +1099,11 @@ on_connection_ready (GObject *source_object, GAsyncResult *result,
     }
 
     priv->has_presence_if = tp_proxy_has_interface_by_id
-        (tp_conn, TP_IFACE_QUARK_CONNECTION_INTERFACE_PRESENCE);
+        (tp_conn, TP_IFACE_QUARK_CONNECTION_INTERFACE_PRESENCE1);
     priv->has_contact_capabilities_if = tp_proxy_has_interface_by_id (tp_conn,
-        TP_IFACE_QUARK_CONNECTION_INTERFACE_CONTACT_CAPABILITIES);
+        TP_IFACE_QUARK_CONNECTION_INTERFACE_CONTACT_CAPABILITIES1);
     priv->has_power_saving_if = tp_proxy_has_interface_by_id (tp_conn,
-        TP_IFACE_QUARK_CONNECTION_INTERFACE_POWER_SAVING);
+        TP_IFACE_QUARK_CONNECTION_INTERFACE_POWER_SAVING1);
 
     if (priv->has_presence_if)
 	_mcd_connection_setup_presence (connection);
@@ -1156,7 +1156,7 @@ _mcd_connection_update_client_caps (McdConnection *self,
     }
 
     DEBUG ("Sending client caps to connection");
-    tp_cli_connection_interface_contact_capabilities_call_update_capabilities
+    tp_cli_connection_interface_contact_capabilities1_call_update_capabilities
       (self->priv->tp_conn, -1, client_caps, NULL, NULL, NULL, NULL);
 }
 
@@ -1258,7 +1258,7 @@ mcd_connection_early_get_interfaces_cb (TpProxy *proxy,
 
             /* if the interface is not recognised, q will just be 0 */
 
-            if (q == TP_IFACE_QUARK_CONNECTION_INTERFACE_PRESENCE)
+            if (q == TP_IFACE_QUARK_CONNECTION_INTERFACE_PRESENCE1)
             {
                 /* nail on the interface (TpConnection will eventually know
                  * how to do this for itself) */
@@ -1268,11 +1268,11 @@ mcd_connection_early_get_interfaces_cb (TpProxy *proxy,
                 self->priv->tasks_before_connect++;
 
                 tp_cli_dbus_properties_call_get (tp_conn, -1,
-                    TP_IFACE_CONNECTION_INTERFACE_PRESENCE, "Statuses",
+                    TP_IFACE_CONNECTION_INTERFACE_PRESENCE1, "Statuses",
                     mcd_connection_early_get_statuses_cb, NULL, NULL,
                     (GObject *) self);
             }
-            else if (q == TP_IFACE_QUARK_CONNECTION_INTERFACE_CONTACT_CAPABILITIES)
+            else if (q == TP_IFACE_QUARK_CONNECTION_INTERFACE_CONTACT_CAPABILITIES1)
             {
                 GPtrArray *client_caps;
 
@@ -1575,7 +1575,7 @@ on_inactivity_changed (McdSlacker *slacker,
       priv->has_power_saving_if ? "has" : "doesn't");
 
   if (priv->has_power_saving_if)
-    tp_cli_connection_interface_power_saving_call_set_power_saving (priv->tp_conn, -1,
+    tp_cli_connection_interface_power_saving1_call_set_power_saving (priv->tp_conn, -1,
         inactive, NULL, NULL, NULL, NULL);
 }
 

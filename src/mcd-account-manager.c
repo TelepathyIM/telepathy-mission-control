@@ -818,7 +818,7 @@ _mcd_account_manager_create_account (McdAccountManager *account_manager,
     }
 
     provider = tp_asv_get_string (properties,
-                                  TP_PROP_ACCOUNT_INTERFACE_STORAGE_STORAGE_PROVIDER);
+        TP_PROP_ACCOUNT_INTERFACE_STORAGE1_STORAGE_PROVIDER);
 
     unique_name = mcd_storage_create_account (storage, provider,
                                               manager, protocol, params,
@@ -978,8 +978,8 @@ get_supported_account_properties (TpSvcDBusProperties *svc,
         TP_IFACE_ACCOUNT ".RequestedPresence",
         TP_IFACE_ACCOUNT ".Supersedes",
         TP_PROP_ACCOUNT_SERVICE,
-        TP_IFACE_ACCOUNT_INTERFACE_AVATAR ".Avatar",
-        TP_PROP_ACCOUNT_INTERFACE_STORAGE_STORAGE_PROVIDER,
+        TP_PROP_ACCOUNT_INTERFACE_AVATAR1_AVATAR,
+        TP_PROP_ACCOUNT_INTERFACE_STORAGE1_STORAGE_PROVIDER,
         NULL
     };
 

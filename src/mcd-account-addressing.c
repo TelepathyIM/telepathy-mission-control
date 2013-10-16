@@ -33,7 +33,7 @@
 #include "_gen/interfaces.h"
 
 static void
-addressing_set_uri_scheme_association (TpSvcAccountInterfaceAddressing *iface,
+addressing_set_uri_scheme_association (TpSvcAccountInterfaceAddressing1 *iface,
     const gchar *uri_scheme,
     gboolean association,
     DBusGMethodInvocation *context)
@@ -86,14 +86,14 @@ addressing_set_uri_scheme_association (TpSvcAccountInterfaceAddressing *iface,
           NULL);
 
       tp_svc_dbus_properties_emit_properties_changed (self,
-          TP_IFACE_ACCOUNT_INTERFACE_ADDRESSING, changed, NULL);
+          TP_IFACE_ACCOUNT_INTERFACE_ADDRESSING1, changed, NULL);
 
       g_hash_table_unref (changed);
       g_ptr_array_unref (new_schemes);
     }
 
   g_value_unset (&value);
-  tp_svc_account_interface_addressing_return_from_set_uri_scheme_association (
+  tp_svc_account_interface_addressing1_return_from_set_uri_scheme_association (
       context);
 }
 
@@ -121,10 +121,10 @@ const McdDBusProp account_addressing_properties[] = {
 };
 
 void
-account_addressing_iface_init (TpSvcAccountInterfaceAddressingClass *iface,
+account_addressing_iface_init (TpSvcAccountInterfaceAddressing1Class *iface,
     gpointer data)
 {
-  #define IMPLEMENT(x) tp_svc_account_interface_addressing_implement_##x (\
+  #define IMPLEMENT(x) tp_svc_account_interface_addressing1_implement_##x (\
     iface, addressing_##x)
     IMPLEMENT(set_uri_scheme_association);
 #undef IMPLEMENT

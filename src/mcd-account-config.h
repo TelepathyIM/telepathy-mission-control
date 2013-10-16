@@ -59,7 +59,7 @@
 
 /* string array, 'as' */
 #define MC_ACCOUNTS_KEY_URI_SCHEMES \
-    TP_IFACE_ACCOUNT_INTERFACE_ADDRESSING ".URISchemes"
+    TP_PROP_ACCOUNT_INTERFACE_ADDRESSING1_URI_SCHEMES
 
 /* object path array, 'ao' */
 #define MC_ACCOUNTS_KEY_SUPERSEDES "Supersedes"
