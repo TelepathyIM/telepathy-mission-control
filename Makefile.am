@@ -20,7 +20,7 @@ SUBDIRS = \
     doc
 
 pkgconfigdir = $(libdir)/pkgconfig
-pkgconfig_DATA = mission-control-plugins.pc
+pkgconfig_DATA = mission-control-plugins-6.pc
 
 DISTCHECK_CONFIGURE_FLAGS = \
 	--enable-gtk-doc \

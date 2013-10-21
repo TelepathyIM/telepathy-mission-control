@@ -330,8 +330,8 @@ doc/Makefile \
 doc/reference/Makefile \
 doc/reference/mission-control-plugins/Makefile \
 m4/Makefile \
-mission-control-plugins.pc \
-mission-control-plugins-uninstalled.pc \
+mission-control-plugins-6.pc \
+mission-control-plugins-6-uninstalled.pc \
 mission-control-plugins/Makefile \
 plugins/Makefile \
 server/Makefile \
