@@ -118,11 +118,10 @@ def test(q, bus, mc):
         'Icon'))
     assertEquals("'Joe Bloggs'", account_store('get', 'variant-file',
         'Nickname'))
-    # For now, everything is a keyfile-escaped string
-    assertEquals("'true'", account_store('get', 'variant-file',
+    assertEquals('true', account_store('get', 'variant-file',
         'ConnectAutomatically'))
-    assertEquals("'4;xa;never online;'", account_store('get', 'variant-file',
-        'AutomaticPresence'))
+    assertEquals("(uint32 4, 'xa', 'never online')",
+            account_store('get', 'variant-file', 'AutomaticPresence'))
     assertEquals("keyfile-escaped 'dontdivert@example.com'",
             account_store('get', 'variant-file', 'param-account'))
     assertEquals("keyfile-escaped 'secrecy'",
@@ -166,13 +165,11 @@ def test(q, bus, mc):
 
     # This is deliberately a lower-priority location
     open(low_prio_variant_file_name, 'w').write(
-    # For now, everything is a keyfile-escaped string, so AutomaticPresence
-    # is weird
 """{
 'manager': <'fakecm'>,
 'protocol': <'fakeprotocol'>,
 'DisplayName': <'New and improved account'>,
-'AutomaticPresence': <'2;available;;'>,
+'AutomaticPresence': <(uint32 2, 'available', '')>,
 'KeyFileParameters': <{
     'account': 'dontdivert@example.com',
     'password': 'password_in_variant_file'
@@ -186,7 +183,7 @@ def test(q, bus, mc):
 'manager': <'fakecm'>,
 'protocol': <'fakeprotocol'>,
 'DisplayName': <'Visible'>,
-'AutomaticPresence': <'2;available;;'>,
+'AutomaticPresence': <(uint32 2, 'available', '')>,
 'KeyFileParameters': <{'account': 'dontdivert@example.com',
     'password': 'password_in_variant_file'}>
 }
@@ -198,7 +195,7 @@ def test(q, bus, mc):
 'protocol': <'fakeprotocol'>,
 'DisplayName': <'Hidden'>,
 'Nickname': <'Hidden'>,
-'AutomaticPresence': <'2;available;;'>,
+'AutomaticPresence': <(uint32 2, 'available', '')>,
 'KeyFileParameters': <{'account': 'dontdivert@example.com',
     'password': 'password_in_variant_file'}>
 }
@@ -211,7 +208,7 @@ def test(q, bus, mc):
             'w').write("""{
 'manager': <'fakecm'>,
 'protocol': <'fakeprotocol'>,
-'AutomaticPresence': <'2;available;;'>,
+'AutomaticPresence': <(uint32 2, 'available', '')>,
 'KeyFileParameters': <{'account': 'dontdivert@example.com',
     'password': 'password_in_variant_file'}>
 }

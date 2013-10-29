@@ -30,6 +30,7 @@
 
 #include "mcd-account-manager-default.h"
 #include "mcd-debug.h"
+#include "mcd-storage.h"
 #include "mcd-misc.h"
 
 #define PLUGIN_NAME "default"
@@ -37,7 +38,7 @@
 #define PLUGIN_DESCRIPTION "Default account storage backend"
 
 typedef struct {
-    /* owned string, attribute => owned string, value
+    /* owned string, attribute => owned GVariant, value
      * attributes to be stored in the variant-file */
     GHashTable *attributes;
     /* owned string, parameter (without "param-") => owned string, value
@@ -67,7 +68,7 @@ ensure_stored_account (McdAccountManagerDefault *self,
     {
       sa = g_slice_new0 (McdDefaultStoredAccount);
       sa->attributes = g_hash_table_new_full (g_str_hash, g_str_equal,
-          g_free, g_free);
+          g_free, (GDestroyNotify) g_variant_unref);
       sa->untyped_parameters = g_hash_table_new_full (g_str_hash, g_str_equal,
           g_free, g_free);
       g_hash_table_insert (self->accounts, g_strdup (account), sa);
@@ -183,13 +184,13 @@ set_parameter (const McpAccountStorage *self,
   return TRUE;
 }
 
-/* As above, the string is escaped for a keyfile. */
 static gboolean
-set_attribute (const McpAccountStorage *self,
-    const McpAccountManager *am,
+set_attribute (McpAccountStorage *self,
+    McpAccountManager *am,
     const gchar *account,
     const gchar *attribute,
-    const gchar *val)
+    GVariant *val,
+    McpAttributeFlags flags)
 {
   McdAccountManagerDefault *amd = MCD_ACCOUNT_MANAGER_DEFAULT (self);
   McdDefaultStoredAccount *sa = ensure_stored_account (amd, account);
@@ -197,7 +198,8 @@ set_attribute (const McpAccountStorage *self,
   amd->save = TRUE;
 
   if (val != NULL)
-    g_hash_table_insert (sa->attributes, g_strdup (attribute), g_strdup (val));
+    g_hash_table_insert (sa->attributes, g_strdup (attribute),
+        g_variant_ref (val));
   else
     g_hash_table_remove (sa->attributes, attribute);
 
@@ -217,7 +219,8 @@ _set (const McpAccountStorage *self,
     }
   else
     {
-      return set_attribute (self, am, account, key, val);
+      /* we implement set_attribute(), so MC shouldn't call this */
+      g_assert_not_reached ();
     }
 }
 
@@ -267,7 +270,7 @@ _get (const McpAccountStorage *self,
 
   if (key != NULL)
     {
-      gchar *v = NULL;
+      GVariant *v = NULL;
 
       if (g_str_has_prefix (key, "param-"))
         {
@@ -279,7 +282,8 @@ _get (const McpAccountStorage *self,
       if (v == NULL)
         return FALSE;
 
-      mcp_account_manager_set_value (am, account, key, v);
+      mcp_account_manager_set_attribute (am, account, key, v,
+          MCP_ATTRIBUTE_FLAG_NONE);
     }
   else
     {
@@ -291,7 +295,8 @@ _get (const McpAccountStorage *self,
       while (g_hash_table_iter_next (&iter, &k, &v))
         {
           if (v != NULL)
-            mcp_account_manager_set_value (am, account, k, v);
+            mcp_account_manager_set_attribute (am, account, k,
+                v, MCP_ATTRIBUTE_FLAG_NONE);
         }
 
       g_hash_table_iter_init (&iter, sa->untyped_parameters);
@@ -459,11 +464,7 @@ am_default_commit_one (McdAccountManagerDefault *self,
 
   while (g_hash_table_iter_next (&inner, &k, &v))
     {
-      /* FIXME: for now, we put the keyfile-escaped value in a string,
-       * and store that. This needs fixing to use typed attributes
-       * before this code gets released. */
-      g_variant_builder_add (&attrs_builder, "{sv}",
-          k, g_variant_new_string (v));
+      g_variant_builder_add (&attrs_builder, "{sv}", k, v);
     }
 
   g_variant_builder_init (&params_builder, G_VARIANT_TYPE ("a{ss}"));
@@ -602,18 +603,45 @@ am_default_load_keyfile (McdAccountManagerDefault *self,
       for (j = 0; j < m; j++)
         {
           gchar *key = keys[j];
-          gchar *raw = g_key_file_get_value (keyfile, account, key, NULL);
 
           if (g_str_has_prefix (key, "param-"))
             {
+              gchar *raw = g_key_file_get_value (keyfile, account, key, NULL);
+
               /* steals ownership of raw */
               g_hash_table_insert (sa->untyped_parameters, g_strdup (key + 6),
                   raw);
             }
           else
             {
-              /* steals ownership of raw */
-              g_hash_table_insert (sa->attributes, g_strdup (key), raw);
+              const gchar *type = mcd_storage_get_attribute_type (key);
+              GVariant *variant = NULL;
+
+              if (type == NULL)
+                {
+                  /* go to the error code path */
+                  g_set_error (&error, TP_ERROR, TP_ERROR_INVALID_ARGUMENT,
+                      "unknown attribute");
+                }
+              else
+                {
+                  variant = mcd_keyfile_get_variant (keyfile,
+                      account, key, G_VARIANT_TYPE (type), &error);
+                }
+
+              if (variant == NULL)
+                {
+                  WARNING ("Unable to migrate %s.%s from keyfile: %s",
+                      account, key, error->message);
+                  g_clear_error (&error);
+                  /* Don't delete the old file, which might be recoverable. */
+                  all_ok = FALSE;
+                }
+              else
+                {
+                  g_hash_table_insert (sa->attributes, g_strdup (key),
+                      g_variant_ref_sink (variant));
+                }
             }
         }
 
@@ -711,21 +739,8 @@ am_default_load_variant_file (McdAccountManagerDefault *self,
       else
         {
           /* an ordinary attribute */
-          /* FIXME: this is temporary and should not be released:
-           * it assumes that all attributes are keyfile-escaped
-           * strings */
-          if (g_variant_is_of_type (v, G_VARIANT_TYPE_STRING))
-            {
-              g_hash_table_insert (sa->attributes,
-                  g_strdup (k), g_variant_dup_string (v, NULL));
-            }
-          else
-            {
-              gchar *repr = g_variant_print (v, TRUE);
-
-              WARNING ("Not a string: %s", repr);
-              g_free (repr);
-            }
+          g_hash_table_insert (sa->attributes,
+              g_strdup (k), g_variant_ref (v));
         }
     }
 
@@ -936,6 +951,7 @@ account_storage_iface_init (McpAccountStorageIface *iface,
 
   iface->get = _get;
   iface->set = _set;
+  iface->set_attribute = set_attribute;
   iface->create = _create;
   iface->delete = _delete;
   iface->commit_one = _commit;
