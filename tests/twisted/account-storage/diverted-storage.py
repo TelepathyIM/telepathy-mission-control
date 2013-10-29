@@ -88,10 +88,6 @@ def test(q, bus, mc):
     assert kf[group]['Icon'] == 'im-jabber', kf
     assert kf[group]['Nickname'] == 'Joe Bloggs', kf
 
-    # default keyfile should be empty
-    ekf = keyfile_read(empty_key_file_name)
-    assert ekf == { None: {} }, ekf
-
     # Reactivate MC
     account_manager, properties, interfaces = resuscitate_mc(q, bus, mc)
     account = get_fakecm_account(bus, mc, account_path)

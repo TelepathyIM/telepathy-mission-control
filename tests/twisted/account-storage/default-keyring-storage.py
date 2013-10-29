@@ -61,8 +61,11 @@ def account_store(op, backend, key=None, value=None,
 def test(q, bus, mc):
     ctl_dir = os.environ['MC_ACCOUNT_DIR']
     old_key_file_name = os.path.join(ctl_dir, 'accounts.cfg')
-    new_key_file_name = os.path.join(os.environ['XDG_DATA_HOME'],
+    newer_key_file_name = os.path.join(os.environ['XDG_DATA_HOME'],
             'telepathy', 'mission-control', 'accounts.cfg')
+    new_variant_file_name = os.path.join(os.environ['XDG_DATA_HOME'],
+            'telepathy', 'mission-control',
+            'fakecm-fakeprotocol-dontdivert_40example_2ecom0.account')
     group = 'fakecm/fakeprotocol/dontdivert_40example_2ecom0'
 
     account_manager, properties, interfaces = connect_to_mc(q, bus, mc)
@@ -95,25 +98,35 @@ def test(q, bus, mc):
     account_props.Set(cs.ACCOUNT, 'DisplayName', 'Work account')
     account_props.Set(cs.ACCOUNT, 'Icon', 'im-jabber')
     account_props.Set(cs.ACCOUNT, 'Nickname', 'Joe Bloggs')
+    account_props.Set(cs.ACCOUNT, 'ConnectAutomatically', True)
+    account_props.Set(cs.ACCOUNT, 'AutomaticPresence',
+            (dbus.UInt32(cs.PRESENCE_EXTENDED_AWAY), 'xa',
+                'never online'))
 
     tell_mc_to_die(q, bus)
 
     # .. let's check the keyfile
     assert not os.path.exists(old_key_file_name)
-    kf = keyfile_read(new_key_file_name)
-    assert group in kf, kf
-    assert kf[group]['manager'] == 'fakecm'
-    assert kf[group]['protocol'] == 'fakeprotocol'
-    assert kf[group]['param-account'] == params['account'], kf
-    assert kf[group]['DisplayName'] == 'Work account', kf
-    assert kf[group]['Icon'] == 'im-jabber', kf
-    assert kf[group]['Nickname'] == 'Joe Bloggs', kf
-
-    pwd = account_store('get', 'keyfile', 'param-password')
-    assert pwd == params['password'], pwd
-
-    # We no longer use gnome-keyring, so the password is stored as clear-text.
-    assert kf[group]['param-password'] == params['password'], kf
+    assert not os.path.exists(newer_key_file_name)
+    assert 'Joe Bloggs' in open(new_variant_file_name).read()
+    assertEquals("'fakecm'", account_store('get', 'variant-file', 'manager'))
+    assertEquals("'fakeprotocol'", account_store('get', 'variant-file',
+        'protocol'))
+    assertEquals("'Work account'", account_store('get', 'variant-file',
+        'DisplayName'))
+    assertEquals("'im-jabber'", account_store('get', 'variant-file',
+        'Icon'))
+    assertEquals("'Joe Bloggs'", account_store('get', 'variant-file',
+        'Nickname'))
+    # For now, everything is a keyfile-escaped string
+    assertEquals("'true'", account_store('get', 'variant-file',
+        'ConnectAutomatically'))
+    assertEquals("'4;xa;never online;'", account_store('get', 'variant-file',
+        'AutomaticPresence'))
+    assertEquals("keyfile-escaped 'dontdivert@example.com'",
+            account_store('get', 'variant-file', 'param-account'))
+    assertEquals("keyfile-escaped 'secrecy'",
+            account_store('get', 'variant-file', 'param-password'))
 
     # Reactivate MC
     account_manager, properties, interfaces = resuscitate_mc(q, bus, mc)
@@ -139,29 +152,33 @@ def test(q, bus, mc):
 
     # Check the account is correctly deleted
     assert not os.path.exists(old_key_file_name)
-    kf = keyfile_read(new_key_file_name)
-    assert group not in kf, kf
+    assert not os.path.exists(newer_key_file_name)
+    assert not os.path.exists(new_variant_file_name)
 
     # Tell MC to die, again
     tell_mc_to_die(q, bus)
 
-    low_prio_key_file_name = os.path.join(
+    low_prio_variant_file_name = os.path.join(
             os.environ['XDG_DATA_DIRS'].split(':')[0],
-            'telepathy', 'mission-control', 'accounts.cfg')
-    os.makedirs(os.path.dirname(low_prio_key_file_name), 0700)
+            'telepathy', 'mission-control',
+            'fakecm-fakeprotocol-dontdivert_40example_2ecom0.account')
+    os.makedirs(os.path.dirname(low_prio_variant_file_name), 0700)
 
     # This is deliberately a lower-priority location
-    os.remove(new_key_file_name)
-    open(low_prio_key_file_name, 'w').write(
-r"""# Telepathy accounts
-[%s]
-manager=fakecm
-protocol=fakeprotocol
-param-account=dontdivert@example.com
-param-password=password_in_keyfile
-DisplayName=New and improved account
-AutomaticPresence=2;available;;
-""" % group)
+    open(low_prio_variant_file_name, 'w').write(
+    # For now, everything is a keyfile-escaped string, so AutomaticPresence
+    # is weird
+"""{
+'manager': <'fakecm'>,
+'protocol': <'fakeprotocol'>,
+'DisplayName': <'New and improved account'>,
+'AutomaticPresence': <'2;available;;'>,
+'KeyFileParameters': <{
+    'account': 'dontdivert@example.com',
+    'password': 'password_in_variant_file'
+    }>
+}
+""")
 
     account_manager, properties, interfaces = resuscitate_mc(q, bus, mc)
     account = get_fakecm_account(bus, mc, account_path)
@@ -169,8 +186,8 @@ AutomaticPresence=2;available;;
 
     # Files in lower-priority XDG locations aren't copied until something
     # actually changes, and they aren't deleted.
-    assert not os.path.exists(new_key_file_name)
-    assert os.path.exists(low_prio_key_file_name)
+    assert not os.path.exists(new_variant_file_name)
+    assert os.path.exists(low_prio_variant_file_name)
 
     # Delete the password (only), like Empathy 3.0-3.4 do when migrating
     account_iface.UpdateParameters({}, ['password'])
@@ -188,16 +205,16 @@ AutomaticPresence=2;available;;
     # Check the account has copied (not moved! XDG_DATA_DIRS are,
     # conceptually, read-only) from the old to the new name
     assert not os.path.exists(old_key_file_name)
-    assert os.path.exists(low_prio_key_file_name)
-    kf = keyfile_read(new_key_file_name)
-    assert 'param-password' not in kf[group]
-    pwd = account_store('get', 'keyfile', 'param-password')
+    assert not os.path.exists(newer_key_file_name)
+    assert os.path.exists(low_prio_variant_file_name)
+    assert os.path.exists(new_variant_file_name)
+    pwd = account_store('get', 'variant-file', 'param-password')
     assertEquals(None, pwd)
 
     # Write out an account configuration in the old keyfile, to test
-    # migration
-    os.remove(new_key_file_name)
-    os.remove(low_prio_key_file_name)
+    # migration from there
+    os.remove(new_variant_file_name)
+    os.remove(low_prio_variant_file_name)
     open(old_key_file_name, 'w').write(
 r"""# Telepathy accounts
 [%s]
@@ -212,13 +229,12 @@ AutomaticPresence=2;available;;
     account = get_fakecm_account(bus, mc, account_path)
     account_iface = dbus.Interface(account, cs.ACCOUNT)
 
-    # This time it *does* get moved (really copied+deleted) automatically
-    # during MC startup
+    # This time it *does* get deleted automatically during MC startup,
+    # after copying its contents to the new name/format
     assert not os.path.exists(old_key_file_name)
-    assert not os.path.exists(low_prio_key_file_name)
-    kf = keyfile_read(new_key_file_name)
-    assert 'param-password' not in kf[group]
-    assertEquals('Ye olde account', kf[group]['DisplayName'])
+    assert not os.path.exists(low_prio_variant_file_name)
+    assertEquals("'Ye olde account'",
+            account_store('get', 'variant-file', 'DisplayName'))
 
 if __name__ == '__main__':
     ctl_dir = os.environ['MC_ACCOUNT_DIR']

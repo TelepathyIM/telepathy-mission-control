@@ -50,7 +50,7 @@ G_BEGIN_DECLS
 typedef struct {
   GObject parent;
   GHashTable *accounts;
-  gchar *filename;
+  gchar *directory;
   gboolean save;
   gboolean loaded;
 } _McdAccountManagerDefault;
