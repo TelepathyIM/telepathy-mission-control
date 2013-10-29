@@ -37,6 +37,54 @@
 #define PLUGIN_DESCRIPTION "GKeyFile (default) account storage backend"
 #define INITIAL_CONFIG "# Telepathy accounts\n"
 
+typedef struct {
+    /* owned string, attribute => owned string, value
+     * attributes to be stored in the keyfile */
+    GHashTable *attributes;
+    /* owned string, parameter (without "param-") => owned string, value
+     * parameters to be stored in the keyfile */
+    GHashTable *untyped_parameters;
+    /* TRUE if the entire account is pending deletion */
+    gboolean pending_deletion;
+} McdDefaultStoredAccount;
+
+static McdDefaultStoredAccount *
+lookup_stored_account (McdAccountManagerDefault *self,
+    const gchar *account)
+{
+  return g_hash_table_lookup (self->accounts, account);
+}
+
+static McdDefaultStoredAccount *
+ensure_stored_account (McdAccountManagerDefault *self,
+    const gchar *account)
+{
+  McdDefaultStoredAccount *sa = lookup_stored_account (self, account);
+
+  if (sa == NULL)
+    {
+      sa = g_slice_new0 (McdDefaultStoredAccount);
+      sa->attributes = g_hash_table_new_full (g_str_hash, g_str_equal,
+          g_free, g_free);
+      sa->untyped_parameters = g_hash_table_new_full (g_str_hash, g_str_equal,
+          g_free, g_free);
+      g_hash_table_insert (self->accounts, g_strdup (account), sa);
+    }
+
+  sa->pending_deletion = FALSE;
+  return sa;
+}
+
+static void
+stored_account_free (gpointer p)
+{
+  McdDefaultStoredAccount *sa = p;
+
+  g_hash_table_unref (sa->attributes);
+  g_hash_table_unref (sa->untyped_parameters);
+  g_slice_free (McdDefaultStoredAccount, sa);
+}
+
 static void account_storage_iface_init (McpAccountStorageIface *,
     gpointer);
 
@@ -76,10 +124,8 @@ mcd_account_manager_default_init (McdAccountManagerDefault *self)
 {
   DEBUG ("mcd_account_manager_default_init");
   self->filename = account_filename_in (g_get_user_data_dir ());
-  self->keyfile = g_key_file_new ();
-  self->removed = g_key_file_new ();
-  self->removed_accounts =
-    g_hash_table_new_full (g_str_hash, g_str_equal, g_free, NULL);
+  self->accounts = g_hash_table_new_full (g_str_hash, g_str_equal, g_free,
+      stored_account_free);
   self->save = FALSE;
   self->loaded = FALSE;
 }
@@ -93,20 +139,95 @@ mcd_account_manager_default_class_init (McdAccountManagerDefaultClass *cls)
 /* We happen to know that the string MC gave us is "sufficiently escaped" to
  * put it in the keyfile as-is. */
 static gboolean
+set_parameter (const McpAccountStorage *self,
+    const McpAccountManager *am,
+    const gchar *account,
+    const gchar *prefixed,
+    const gchar *parameter,
+    const gchar *val)
+{
+  McdAccountManagerDefault *amd = MCD_ACCOUNT_MANAGER_DEFAULT (self);
+  McdDefaultStoredAccount *sa;
+
+  sa = ensure_stored_account (amd, account);
+  amd->save = TRUE;
+
+  if (val != NULL)
+    g_hash_table_insert (sa->untyped_parameters, g_strdup (parameter),
+        g_strdup (val));
+  else
+    g_hash_table_remove (sa->untyped_parameters, parameter);
+
+  return TRUE;
+}
+
+/* As above, the string is escaped for a keyfile. */
+static gboolean
+set_attribute (const McpAccountStorage *self,
+    const McpAccountManager *am,
+    const gchar *account,
+    const gchar *attribute,
+    const gchar *val)
+{
+  McdAccountManagerDefault *amd = MCD_ACCOUNT_MANAGER_DEFAULT (self);
+  McdDefaultStoredAccount *sa = ensure_stored_account (amd, account);
+
+  amd->save = TRUE;
+
+  if (val != NULL)
+    g_hash_table_insert (sa->attributes, g_strdup (attribute), g_strdup (val));
+  else
+    g_hash_table_remove (sa->attributes, attribute);
+
+  return TRUE;
+}
+
+static gboolean
 _set (const McpAccountStorage *self,
     const McpAccountManager *am,
     const gchar *account,
     const gchar *key,
     const gchar *val)
 {
-  McdAccountManagerDefault *amd = MCD_ACCOUNT_MANAGER_DEFAULT (self);
-
-  amd->save = TRUE;
-
-  if (val != NULL)
-    g_key_file_set_value (amd->keyfile, account, key, val);
+  if (g_str_has_prefix (key, "param-"))
+    {
+      return set_parameter (self, am, account, key, key + 6, val);
+    }
   else
-    g_key_file_remove_key (amd->keyfile, account, key, NULL);
+    {
+      return set_attribute (self, am, account, key, val);
+    }
+}
+
+static gboolean
+get_parameter (const McpAccountStorage *self,
+    const McpAccountManager *am,
+    const gchar *account,
+    const gchar *prefixed,
+    const gchar *parameter)
+{
+  McdAccountManagerDefault *amd = MCD_ACCOUNT_MANAGER_DEFAULT (self);
+  McdDefaultStoredAccount *sa = lookup_stored_account (amd, account);
+
+  if (parameter != NULL)
+    {
+      gchar *v = NULL;
+
+      if (sa == NULL)
+        return FALSE;
+
+      v = g_hash_table_lookup (sa->untyped_parameters, parameter);
+
+      if (v == NULL)
+        return FALSE;
+
+      mcp_account_manager_set_value (am, account, prefixed, v);
+      g_free (v);
+    }
+  else
+    {
+      g_assert_not_reached ();
+    }
 
   return TRUE;
 }
@@ -118,12 +239,21 @@ _get (const McpAccountStorage *self,
     const gchar *key)
 {
   McdAccountManagerDefault *amd = MCD_ACCOUNT_MANAGER_DEFAULT (self);
+  McdDefaultStoredAccount *sa = lookup_stored_account (amd, account);
+
+  if (sa == NULL)
+    return FALSE;
 
   if (key != NULL)
     {
       gchar *v = NULL;
 
-      v = g_key_file_get_value (amd->keyfile, account, key, NULL);
+      if (g_str_has_prefix (key, "param-"))
+        {
+          return get_parameter (self, am, account, key, key + 6);
+        }
+
+      v = g_hash_table_lookup (sa->attributes, key);
 
       if (v == NULL)
         return FALSE;
@@ -133,24 +263,30 @@ _get (const McpAccountStorage *self,
     }
   else
     {
-      gsize i;
-      gsize n;
-      GStrv keys = g_key_file_get_keys (amd->keyfile, account, &n, NULL);
+      GHashTableIter iter;
+      gpointer k, v;
 
-      if (keys == NULL)
-        n = 0;
+      g_hash_table_iter_init (&iter, sa->attributes);
 
-      for (i = 0; i < n; i++)
+      while (g_hash_table_iter_next (&iter, &k, &v))
         {
-          gchar *v = g_key_file_get_value (amd->keyfile, account, keys[i], NULL);
-
           if (v != NULL)
-            mcp_account_manager_set_value (am, account, keys[i], v);
-
-          g_free (v);
+            mcp_account_manager_set_value (am, account, k, v);
         }
 
-      g_strfreev (keys);
+      g_hash_table_iter_init (&iter, sa->untyped_parameters);
+
+      while (g_hash_table_iter_next (&iter, &k, &v))
+        {
+          if (v != NULL)
+            {
+              gchar *prefixed = g_strdup_printf ("param-%s",
+                  (const gchar *) k);
+
+              mcp_account_manager_set_value (am, account, prefixed, v);
+              g_free (prefixed);
+            }
+        }
     }
 
   return TRUE;
@@ -183,32 +319,44 @@ _delete (const McpAccountStorage *self,
       const gchar *key)
 {
   McdAccountManagerDefault *amd = MCD_ACCOUNT_MANAGER_DEFAULT (self);
+  McdDefaultStoredAccount *sa = lookup_stored_account (amd, account);
+
+  if (sa == NULL)
+    {
+      /* Apparently we never had this account anyway. The plugin API
+       * considers this to be "success". */
+      return TRUE;
+    }
 
   if (key == NULL)
     {
-      if (g_key_file_remove_group (amd->keyfile, account, NULL))
-        amd->save = TRUE;
+      amd->save = TRUE;
+
+      /* flag the whole account as purged */
+      sa->pending_deletion = TRUE;
+      g_hash_table_remove_all (sa->attributes);
+      g_hash_table_remove_all (sa->untyped_parameters);
     }
   else
     {
-      gsize n;
-      GStrv keys;
-      gboolean save = FALSE;
-
-      save = g_key_file_remove_key (amd->keyfile, account, key, NULL);
-
-      if (save)
-        amd->save = TRUE;
-
-      keys = g_key_file_get_keys (amd->keyfile, account, &n, NULL);
-
-      /* if that was the last parameter, the account is gone too */
-      if (keys == NULL || n == 0)
+      if (g_str_has_prefix (key, "param-"))
         {
-          g_key_file_remove_group (amd->keyfile, account, NULL);
+          if (g_hash_table_remove (sa->untyped_parameters, key + 6))
+            amd->save = TRUE;
+        }
+      else
+        {
+          if (g_hash_table_remove (sa->attributes, key))
+            amd->save = TRUE;
         }
 
-      g_strfreev (keys);
+      /* if that was the last attribute or parameter, the account is gone
+       * too */
+      if (g_hash_table_size (sa->attributes) == 0 &&
+          g_hash_table_size (sa->untyped_parameters) == 0)
+        {
+          sa->pending_deletion = TRUE;
+        }
     }
 
   return TRUE;
@@ -226,6 +374,9 @@ _commit (const McpAccountStorage *self,
   gboolean rval = FALSE;
   gchar *dir;
   GError *error = NULL;
+  GHashTableIter outer;
+  gpointer account_p, sa_p;
+  GKeyFile *keyfile;
 
   if (!amd->save)
     return TRUE;
@@ -244,7 +395,37 @@ _commit (const McpAccountStorage *self,
 
   g_free (dir);
 
-  data = g_key_file_to_data (amd->keyfile, &n, NULL);
+  keyfile = g_key_file_new ();
+
+  g_hash_table_iter_init (&outer, amd->accounts);
+
+  while (g_hash_table_iter_next (&outer, &account_p, &sa_p))
+    {
+      McdDefaultStoredAccount *sa = sa_p;
+      GHashTableIter inner;
+      gpointer k, v;
+
+      /* don't save accounts that are being deleted */
+      if (sa->pending_deletion)
+        continue;
+
+      g_hash_table_iter_init (&inner, sa->attributes);
+
+      while (g_hash_table_iter_next (&inner, &k, &v))
+        g_key_file_set_value (keyfile, account_p, k, v);
+
+      g_hash_table_iter_init (&inner, sa->untyped_parameters);
+
+      while (g_hash_table_iter_next (&inner, &k, &v))
+        {
+          gchar *prefixed = g_strdup_printf ("param-%s", (const gchar *) k);
+
+          g_key_file_set_value (keyfile, account_p, prefixed, v);
+          g_free (prefixed);
+        }
+    }
+
+  data = g_key_file_to_data (keyfile, &n, NULL);
   rval = g_file_set_contents (amd->filename, data, n, &error);
 
   if (rval)
@@ -258,6 +439,18 @@ _commit (const McpAccountStorage *self,
     }
 
   g_free (data);
+  g_key_file_unref (keyfile);
+
+  g_hash_table_iter_init (&outer, amd->accounts);
+
+  /* forget about any entirely removed accounts */
+  while (g_hash_table_iter_next (&outer, NULL, &sa_p))
+    {
+      McdDefaultStoredAccount *sa = sa_p;
+
+      if (sa->pending_deletion)
+        g_hash_table_iter_remove (&outer);
+    }
 
   return rval;
 }
@@ -267,8 +460,12 @@ am_default_load_keyfile (McdAccountManagerDefault *self,
     const gchar *filename)
 {
   GError *error = NULL;
+  GKeyFile *keyfile = g_key_file_new ();
+  gsize i;
+  gsize n = 0;
+  GStrv account_tails;
 
-  if (g_key_file_load_from_file (self->keyfile, filename,
+  if (g_key_file_load_from_file (keyfile, filename,
         G_KEY_FILE_KEEP_COMMENTS, &error))
     {
       DEBUG ("Loaded accounts from %s", filename);
@@ -282,20 +479,53 @@ am_default_load_keyfile (McdAccountManagerDefault *self,
        * we don't want to overwrite a corrupt-but-maybe-recoverable
        * configuration file with an empty one until given a reason to
        * do so. */
-      g_key_file_load_from_data (self->keyfile, INITIAL_CONFIG, -1,
+      g_key_file_load_from_data (keyfile, INITIAL_CONFIG, -1,
           G_KEY_FILE_KEEP_COMMENTS, NULL);
     }
+
+  account_tails = g_key_file_get_groups (keyfile, &n);
+
+  for (i = 0; i < n; i++)
+    {
+      const gchar *account = account_tails[i];
+      McdDefaultStoredAccount *sa = ensure_stored_account (self, account);
+      gsize j;
+      gsize m = 0;
+      GStrv keys = g_key_file_get_keys (keyfile, account, &m, NULL);
+
+      for (j = 0; j < m; j++)
+        {
+          gchar *key = keys[j];
+          gchar *raw = g_key_file_get_value (keyfile, account, key, NULL);
+
+          if (g_str_has_prefix (key, "param-"))
+            {
+              /* steals ownership of raw */
+              g_hash_table_insert (sa->untyped_parameters, g_strdup (key + 6),
+                  raw);
+            }
+          else
+            {
+              /* steals ownership of raw */
+              g_hash_table_insert (sa->attributes, g_strdup (key), raw);
+            }
+        }
+
+      g_strfreev (keys);
+    }
+
+  g_strfreev (account_tails);
+  g_key_file_unref (keyfile);
 }
 
 static GList *
 _list (const McpAccountStorage *self,
     const McpAccountManager *am)
 {
-  gsize i;
-  gsize n;
-  GStrv accounts;
   GList *rval = NULL;
   McdAccountManagerDefault *amd = MCD_ACCOUNT_MANAGER_DEFAULT (self);
+  GHashTableIter hash_iter;
+  gpointer k, v;
 
   if (!amd->loaded && g_file_test (amd->filename, G_FILE_TEST_EXISTS))
     {
@@ -358,21 +588,17 @@ _list (const McpAccountStorage *self,
   if (!amd->loaded)
     {
       DEBUG ("Creating initial account data");
-      g_key_file_load_from_data (amd->keyfile, INITIAL_CONFIG, -1,
-          G_KEY_FILE_KEEP_COMMENTS, NULL);
       amd->loaded = TRUE;
       amd->save = TRUE;
       _commit (self, am, NULL);
     }
 
-  accounts = g_key_file_get_groups (amd->keyfile, &n);
+  g_hash_table_iter_init (&hash_iter, amd->accounts);
 
-  for (i = 0; i < n; i++)
+  while (g_hash_table_iter_next (&hash_iter, &k, &v))
     {
-      rval = g_list_prepend (rval, g_strdup (accounts[i]));
+      rval = g_list_prepend (rval, g_strdup (k));
     }
-
-  g_strfreev (accounts);
 
   return rval;
 }
