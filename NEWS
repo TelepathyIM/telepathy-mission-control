@@ -8,11 +8,29 @@ Incompatible changes:
   this functionality (e.g. Empathy's GNOME Online Accounts integration),
   a simple recompile should be sufficient.
 
+• The mcp_account_storage_create() virtual method now takes a single string
+  (the result of IdentifyAccount()), instead of a GHashTable (containing all
+  the new account's initial parameters).
+
 • Channel requests that specify an emergency service point by handle,
   rather than by ID, are no longer treated specially. Channel requests
   to an emergency service point by its normalized identifier (e.g.
   from a user dialling 911 on a phone keypad) still get special treatment:
   request policy plugins are bypassed for these requests.
+
+• The Account.I.Hidden and AccountManager.I.Hidden interfaces have been
+  removed. See fd.o #70427 for a somewhat similar idea.
+
+• The Account.I.Conditions interface has finally been removed.
+  Most of its supporting code was already deleted between 5.14 and 5.16.
+
+Dependencies:
+
+• GLib ≥ 2.36 (including GObject, GModule and GIO) is now required
+
+Enhancements:
+
+• Use IdentifyAccount to name new accounts (fd.o #34640, Simon)
 
 telepathy-mission-control 5.16.0 (2013-10-02)
 =============================================
