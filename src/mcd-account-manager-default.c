@@ -41,8 +41,11 @@ typedef struct {
     /* owned string, attribute => owned GVariant, value
      * attributes to be stored in the variant-file */
     GHashTable *attributes;
+    /* owned string, parameter (without "param-") => owned GVariant, value
+     * parameters of known type to be stored in the variant-file */
+    GHashTable *parameters;
     /* owned string, parameter (without "param-") => owned string, value
-     * parameters to be stored in the variant-file */
+     * parameters of unknwn type to be stored in the variant-file */
     GHashTable *untyped_parameters;
     /* TRUE if the entire account is pending deletion */
     gboolean pending_deletion;
@@ -69,6 +72,8 @@ ensure_stored_account (McdAccountManagerDefault *self,
       sa = g_slice_new0 (McdDefaultStoredAccount);
       sa->attributes = g_hash_table_new_full (g_str_hash, g_str_equal,
           g_free, (GDestroyNotify) g_variant_unref);
+      sa->parameters = g_hash_table_new_full (g_str_hash, g_str_equal,
+          g_free, (GDestroyNotify) g_variant_unref);
       sa->untyped_parameters = g_hash_table_new_full (g_str_hash, g_str_equal,
           g_free, g_free);
       g_hash_table_insert (self->accounts, g_strdup (account), sa);
@@ -85,6 +90,7 @@ stored_account_free (gpointer p)
   McdDefaultStoredAccount *sa = p;
 
   g_hash_table_unref (sa->attributes);
+  g_hash_table_unref (sa->parameters);
   g_hash_table_unref (sa->untyped_parameters);
   g_slice_free (McdDefaultStoredAccount, sa);
 }
@@ -160,14 +166,13 @@ mcd_account_manager_default_class_init (McdAccountManagerDefaultClass *cls)
   DEBUG ("mcd_account_manager_default_class_init");
 }
 
-/* The value is escaped as if for a keyfile */
 static gboolean
-set_parameter (const McpAccountStorage *self,
-    const McpAccountManager *am,
+set_parameter (McpAccountStorage *self,
+    McpAccountManager *am,
     const gchar *account,
-    const gchar *prefixed,
     const gchar *parameter,
-    const gchar *val)
+    GVariant *val,
+    McpParameterFlags flags)
 {
   McdAccountManagerDefault *amd = MCD_ACCOUNT_MANAGER_DEFAULT (self);
   McdDefaultStoredAccount *sa;
@@ -175,11 +180,14 @@ set_parameter (const McpAccountStorage *self,
   sa = ensure_stored_account (amd, account);
   amd->save = TRUE;
 
+  /* remove it from all sets, then re-add it to the right one if
+   * non-null */
+  g_hash_table_remove (sa->parameters, parameter);
+  g_hash_table_remove (sa->untyped_parameters, parameter);
+
   if (val != NULL)
-    g_hash_table_insert (sa->untyped_parameters, g_strdup (parameter),
-        g_strdup (val));
-  else
-    g_hash_table_remove (sa->untyped_parameters, parameter);
+    g_hash_table_insert (sa->parameters, g_strdup (parameter),
+        g_variant_ref (val));
 
   return TRUE;
 }
@@ -213,15 +221,7 @@ _set (const McpAccountStorage *self,
     const gchar *key,
     const gchar *val)
 {
-  if (g_str_has_prefix (key, "param-"))
-    {
-      return set_parameter (self, am, account, key, key + 6, val);
-    }
-  else
-    {
-      /* we implement set_attribute(), so MC shouldn't call this */
-      g_assert_not_reached ();
-    }
+  return FALSE;
 }
 
 static gboolean
@@ -237,9 +237,19 @@ get_parameter (const McpAccountStorage *self,
   if (parameter != NULL)
     {
       gchar *v = NULL;
+      GVariant *variant = NULL;
 
       if (sa == NULL || sa->absent)
         return FALSE;
+
+      variant = g_hash_table_lookup (sa->parameters, parameter);
+
+      if (variant != NULL)
+        {
+          mcp_account_manager_set_parameter (am, account, parameter,
+              variant, MCP_PARAMETER_FLAG_NONE);
+          return TRUE;
+        }
 
       v = g_hash_table_lookup (sa->untyped_parameters, parameter);
 
@@ -297,6 +307,15 @@ _get (const McpAccountStorage *self,
           if (v != NULL)
             mcp_account_manager_set_attribute (am, account, k,
                 v, MCP_ATTRIBUTE_FLAG_NONE);
+        }
+
+      g_hash_table_iter_init (&iter, sa->parameters);
+
+      while (g_hash_table_iter_next (&iter, &k, &v))
+        {
+          if (v != NULL)
+            mcp_account_manager_set_parameter (am, account, k, v,
+                MCP_PARAMETER_FLAG_NONE);
         }
 
       g_hash_table_iter_init (&iter, sa->untyped_parameters);
@@ -360,12 +379,16 @@ _delete (const McpAccountStorage *self,
       /* flag the whole account as purged */
       sa->pending_deletion = TRUE;
       g_hash_table_remove_all (sa->attributes);
+      g_hash_table_remove_all (sa->parameters);
       g_hash_table_remove_all (sa->untyped_parameters);
     }
   else
     {
       if (g_str_has_prefix (key, "param-"))
         {
+          if (g_hash_table_remove (sa->parameters, key + 6))
+            amd->save = TRUE;
+
           if (g_hash_table_remove (sa->untyped_parameters, key + 6))
             amd->save = TRUE;
         }
@@ -378,7 +401,8 @@ _delete (const McpAccountStorage *self,
       /* if that was the last attribute or parameter, the account is gone
        * too */
       if (g_hash_table_size (sa->attributes) == 0 &&
-          g_hash_table_size (sa->untyped_parameters) == 0)
+          g_hash_table_size (sa->untyped_parameters) == 0 &&
+          g_hash_table_size (sa->parameters) == 0)
         {
           sa->pending_deletion = TRUE;
         }
@@ -466,6 +490,17 @@ am_default_commit_one (McdAccountManagerDefault *self,
     {
       g_variant_builder_add (&attrs_builder, "{sv}", k, v);
     }
+
+  g_variant_builder_init (&params_builder, G_VARIANT_TYPE ("a{sv}"));
+  g_hash_table_iter_init (&inner, sa->parameters);
+
+  while (g_hash_table_iter_next (&inner, &k, &v))
+    {
+      g_variant_builder_add (&params_builder, "{sv}", k, v);
+    }
+
+  g_variant_builder_add (&attrs_builder, "{sv}",
+      "Parameters", g_variant_builder_end (&params_builder));
 
   g_variant_builder_init (&params_builder, G_VARIANT_TYPE ("a{ss}"));
   g_hash_table_iter_init (&inner, sa->untyped_parameters);
@@ -736,6 +771,31 @@ am_default_load_variant_file (McdAccountManagerDefault *self,
                   param_value);
             }
         }
+      else if (!tp_strdiff (k, "Parameters"))
+        {
+          GVariantIter param_iter;
+          gchar *parameter;
+          GVariant *param_value;
+
+          if (!g_variant_is_of_type (v, G_VARIANT_TYPE ("a{sv}")))
+            {
+              gchar *repr = g_variant_print (v, TRUE);
+
+              WARNING ("invalid Parameters found in %s, "
+                  "ignoring: %s", full_name, repr);
+              g_free (repr);
+              continue;
+            }
+
+          g_variant_iter_init (&param_iter, v);
+
+          while (g_variant_iter_next (&param_iter, "{sv}", &parameter,
+                &param_value))
+            {
+              /* steals parameter, param_value */
+              g_hash_table_insert (sa->parameters, parameter, param_value);
+            }
+        }
       else
         {
           /* an ordinary attribute */
@@ -952,6 +1012,7 @@ account_storage_iface_init (McpAccountStorageIface *iface,
   iface->get = _get;
   iface->set = _set;
   iface->set_attribute = set_attribute;
+  iface->set_parameter = set_parameter;
   iface->create = _create;
   iface->delete = _delete;
   iface->commit_one = _commit;

@@ -76,7 +76,8 @@ def test(q, bus, mc):
         properties.get('InvalidAccounts')
 
     params = dbus.Dictionary({"account": "dontdivert@example.com",
-        "password": "secrecy"}, signature='sv')
+        "password": "secrecy",
+        "snakes": dbus.UInt32(23)}, signature='sv')
     (simulated_cm, account) = create_fakecm_account(q, bus, mc, params)
 
     account_path = account.__dbus_object_path__
@@ -122,15 +123,20 @@ def test(q, bus, mc):
         'ConnectAutomatically'))
     assertEquals("(uint32 4, 'xa', 'never online')",
             account_store('get', 'variant-file', 'AutomaticPresence'))
-    assertEquals("keyfile-escaped 'dontdivert@example.com'",
+    assertEquals("'dontdivert@example.com'",
             account_store('get', 'variant-file', 'param-account'))
-    assertEquals("keyfile-escaped 'secrecy'",
+    assertEquals("uint32 23",
+            account_store('get', 'variant-file', 'param-snakes'))
+    assertEquals("'secrecy'",
             account_store('get', 'variant-file', 'param-password'))
 
     # Reactivate MC
     account_manager, properties, interfaces = resuscitate_mc(q, bus, mc)
     account = get_fakecm_account(bus, mc, account_path)
     account_iface = dbus.Interface(account, cs.ACCOUNT)
+
+    assertEquals({'password': 'secrecy', 'account': 'dontdivert@example.com',
+        'snakes': 23}, account.Properties.Get(cs.ACCOUNT, 'Parameters'))
 
     # Delete the account
     assert account_iface.Remove() is None
@@ -172,7 +178,8 @@ def test(q, bus, mc):
 'AutomaticPresence': <(uint32 2, 'available', '')>,
 'KeyFileParameters': <{
     'account': 'dontdivert@example.com',
-    'password': 'password_in_variant_file'
+    'password': 'password_in_variant_file',
+    'snakes': '42'
     }>
 }
 """)
@@ -218,6 +225,11 @@ def test(q, bus, mc):
     assertContains(account_path, properties['ValidAccounts'])
     account = get_fakecm_account(bus, mc, account_path)
     account_iface = dbus.Interface(account, cs.ACCOUNT)
+
+    assertEquals(42,
+            account.Properties.Get(cs.ACCOUNT, 'Parameters')['snakes'])
+    assertEquals(dbus.UInt32,
+            type(account.Properties.Get(cs.ACCOUNT, 'Parameters')['snakes']))
 
     # Files in lower-priority XDG locations aren't copied until something
     # actually changes, and they aren't deleted.
