@@ -157,8 +157,8 @@ _mcd_client_proxy_find_client_file (const gchar *client_name)
     gchar *filename, *absolute_filepath;
 
     /*
-     * The full path is $XDG_DATA_DIRS/telepathy/clients/clientname.client
-     * or $XDG_DATA_HOME/telepathy/clients/clientname.client
+     * The full path is $XDG_DATA_DIRS/telepathy-1/clients/clientname.client
+     * or $XDG_DATA_HOME/telepathy-1/clients/clientname.client
      * For testing purposes, we also look for $MC_CLIENTS_DIR/clientname.client
      * if $MC_CLIENTS_DIR is set.
      */
@@ -175,7 +175,7 @@ _mcd_client_proxy_find_client_file (const gchar *client_name)
     dirname = g_get_user_data_dir ();
     if (G_LIKELY (dirname))
     {
-        absolute_filepath = g_build_filename (dirname, "telepathy/clients",
+        absolute_filepath = g_build_filename (dirname, "telepathy-1/clients",
                                               filename, NULL);
         if (g_file_test (absolute_filepath, G_FILE_TEST_IS_REGULAR))
             goto finish;
@@ -185,7 +185,7 @@ _mcd_client_proxy_find_client_file (const gchar *client_name)
     dirs = g_get_system_data_dirs ();
     for (dirname = *dirs; dirname != NULL; dirs++, dirname = *dirs)
     {
-        absolute_filepath = g_build_filename (dirname, "telepathy/clients",
+        absolute_filepath = g_build_filename (dirname, "telepathy-1/clients",
                                               filename, NULL);
         if (g_file_test (absolute_filepath, G_FILE_TEST_IS_REGULAR))
             goto finish;

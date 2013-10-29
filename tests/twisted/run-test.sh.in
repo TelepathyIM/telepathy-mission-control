@@ -71,7 +71,7 @@ export MC_FILTER_PLUGIN_DIR
 XDG_CONFIG_DIRS="${test_src}/twisted"
 export XDG_CONFIG_DIRS
 
-MC_CLIENTS_DIR="${test_src}/twisted/telepathy/clients"
+MC_CLIENTS_DIR="${test_src}/twisted/telepathy-1/clients"
 export MC_CLIENTS_DIR
 MC_MANAGER_DIR="${test_src}/twisted/telepathy/managers"
 export MC_MANAGER_DIR

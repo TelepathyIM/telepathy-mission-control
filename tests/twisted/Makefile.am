@@ -104,9 +104,9 @@ TWISTED_OTHER_FILES = \
 	fakeconnectivity.py \
 	mctest.py \
 	servicetest.py \
-	telepathy/clients/README \
-	telepathy/clients/AbiWord.client \
-	telepathy/clients/Logger.client \
+	telepathy-1/clients/README \
+	telepathy-1/clients/AbiWord.client \
+	telepathy-1/clients/Logger.client \
 	telepathy/managers/fakecm.manager \
 	telepathy/managers/onewitheverything.manager \
 	telepathy/managers/README \
