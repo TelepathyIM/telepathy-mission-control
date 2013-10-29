@@ -1090,7 +1090,7 @@ class SimulatedConnectionManager(object):
                     ('i', 0, 'i', dbus.Int32(0)),
                     ('x', 0, 'x', dbus.Int64(0)),
                     ('d', 0, 'd', 0.0),
-                    ('as', 0, 'as', dbus.Array(signature=s)),
+                    ('as', 0, 'as', dbus.Array(signature='s')),
                     ('y', 0, 'y', dbus.Byte(0)),
                     ], signature='(susv)')
 
@@ -1107,7 +1107,7 @@ class SimulatedConnectionManager(object):
                     ('x', cs.PARAM_HAS_DEFAULT, 'x', dbus.Int64(-1)),
                     ('d', cs.PARAM_HAS_DEFAULT, 'd', 1.5),
                     ('as', cs.PARAM_HAS_DEFAULT, 'as',
-                        dbus.Array(['foo', 'bar', 'baz'], signature=s)),
+                        dbus.Array(['foo', 'bar', 'baz'], signature='s')),
                     ('y', cs.PARAM_HAS_DEFAULT, 'y', dbus.Byte(1)),
                     ], signature='(susv)')
 
