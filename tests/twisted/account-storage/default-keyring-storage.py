@@ -109,8 +109,7 @@ def test(q, bus, mc):
     assert kf[group]['Icon'] == 'im-jabber', kf
     assert kf[group]['Nickname'] == 'Joe Bloggs', kf
 
-    # This works wherever the password is stored
-    pwd = account_store('get', 'default', 'param-password')
+    pwd = account_store('get', 'keyfile', 'param-password')
     assert pwd == params['password'], pwd
 
     # We no longer use gnome-keyring, so the password is stored as clear-text.
@@ -192,7 +191,7 @@ AutomaticPresence=2;available;;
     assert os.path.exists(low_prio_key_file_name)
     kf = keyfile_read(new_key_file_name)
     assert 'param-password' not in kf[group]
-    pwd = account_store('get', 'default', 'param-password')
+    pwd = account_store('get', 'keyfile', 'param-password')
     assertEquals(None, pwd)
 
     # Write out an account configuration in the old keyfile, to test

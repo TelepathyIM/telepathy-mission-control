@@ -27,7 +27,7 @@
 #include <glib.h>
 #include <glib-object.h>
 
-#include "account-store-default.h"
+#include "account-store-keyfile.h"
 
 #define DOCSTRING_A \
   "%s OP BACKEND ACCOUNT [KEY [VALUE]]\n\n"        \
@@ -63,12 +63,12 @@ typedef enum {
 } Operation;
 
 const Backend backends[] = {
-  { "default",
-    default_get,
-    default_set,
-    default_delete,
-    default_exists,
-    default_list },
+  { "keyfile",
+    keyfile_get,
+    keyfile_set,
+    keyfile_delete,
+    keyfile_exists,
+    keyfile_list },
 
 #if ENABLE_LIBACCOUNTS_SSO
   { "libaccounts",
