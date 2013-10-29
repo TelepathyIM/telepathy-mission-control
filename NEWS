@@ -32,6 +32,13 @@ Enhancements:
 
 • Use IdentifyAccount to name new accounts (fd.o #34640, Simon)
 
+Fixes:
+
+• UPower is no longer an optional dependency, since the API we used
+  has been removed. This version only supports "take accounts offline before
+  suspending" on systems with either systemd-logind, or a reimplementation
+  with the same D-Bus API. (fd.o #70458, Simon)
+
 telepathy-mission-control 5.16.0 (2013-10-02)
 =============================================
 
