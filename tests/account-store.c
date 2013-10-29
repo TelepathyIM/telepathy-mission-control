@@ -28,6 +28,7 @@
 #include <glib-object.h>
 
 #include "account-store-keyfile.h"
+#include "account-store-variant-file.h"
 
 #define DOCSTRING_A \
   "%s OP BACKEND ACCOUNT [KEY [VALUE]]\n\n"        \
@@ -69,6 +70,13 @@ const Backend backends[] = {
     keyfile_delete,
     keyfile_exists,
     keyfile_list },
+
+  { "variant-file",
+    variant_get,
+    NULL,
+    variant_delete,
+    variant_exists,
+    variant_list },
 
 #if ENABLE_LIBACCOUNTS_SSO
   { "libaccounts",
@@ -182,6 +190,12 @@ int main (int argc, char **argv)
         break;
 
       case OP_SET:
+        if (store->set == NULL)
+          {
+            g_printerr ("Listing is unimplemented for this backend");
+            break;
+          }
+
         success = store->set (account, setting, value);
         output = g_strdup_printf ("%s.%s set to '%s' in %s",
             account, setting, value, store->name);

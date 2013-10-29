@@ -38,7 +38,10 @@ account_store_LDADD = $(GLIB_LIBS)
 account_store_SOURCES = \
 	account-store.c \
 	account-store-keyfile.c \
-	account-store-keyfile.h
+	account-store-keyfile.h \
+	account-store-variant-file.c \
+	account-store-variant-file.h \
+	$(NULL)
 
 if ENABLE_LIBACCOUNTS_SSO
 account_store_SOURCES += account-store-libaccounts.c account-store-libaccounts.h
