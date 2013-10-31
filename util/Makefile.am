@@ -15,21 +15,21 @@ LDADD = \
 
 AM_CFLAGS = $(ERROR_CFLAGS)
 
-bin_PROGRAMS = mc-tool mc-wait-for-name
+bin_PROGRAMS = mc6-tool mc6-wait-for-name
 
-mc_tool_SOURCES = mc-tool.c
+mc6_tool_SOURCES = mc-tool.c
 
-mc_wait_for_name_SOURCES = wait-for-name.c
+mc6_wait_for_name_SOURCES = wait-for-name.c
 
-dist_man1_MANS = mc-tool.1
+dist_man1_MANS = mc6-tool.1
 
-man1_MANS = mc-wait-for-name.1
+man1_MANS = mc6-wait-for-name.1
 
 EXTRA_DIST = \
     $(man1_MANS:%=%.in)
 CLEANFILES = $(man1_MANS)
 
-mc-wait-for-name.1: mc-wait-for-name.1.in Makefile
+mc6-wait-for-name.1: mc6-wait-for-name.1.in Makefile
 	$(AM_V_GEN)sed -e 's![@]bindir[@]!@bindir@!g' < $< > $@
 
 Android.mk: Makefile.am

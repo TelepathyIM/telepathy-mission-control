@@ -101,7 +101,7 @@ tests/twisted/tools/servicedir-uninstalled/tmp-session-bus.conf
 /tests/twisted/with-session-bus-*.address
 /tests/twisted/with-session-bus-*.pid
 /util/mc-account-convert
-/util/mc-tool
-/util/mc-wait-for-name
-/util/mc-wait-for-name.1
+/util/mc6-tool
+/util/mc6-wait-for-name
+/util/mc6-wait-for-name.1
 tests/twisted/config.py

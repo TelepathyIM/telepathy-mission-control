@@ -3,18 +3,18 @@
 \" This document may be distributed under the same terms as
 \" telepathy-mission-control itself.
 .SH NAME
-mc-wait-for-name \- run until a D-Bus name appears on the session bus
+mc6-wait-for-name \- run until a D-Bus name appears on the session bus
 .SH SYNOPSIS
-.B mc-wait-for-name
+.B mc6-wait-for-name
 .I WELL-KNOWN-NAME
 .PP
 .nf
 .B [D-BUS Service]
 .BI Name= im.telepathy1.Client.Something
-.BI Exec=@bindir@/mc-wait-for-name " im.telepathy1.Client.Something"
+.BI Exec=@bindir@/mc6-wait-for-name " im.telepathy1.Client.Something"
 .fi
 .SH DESCRIPTION
-.B mc-wait-for-name
+.B mc6-wait-for-name
 runs until a bus name appears, then exits successfully. This can be used as a
 service-activation helper for a bus name that is not directly activatable, but
 will be provided automatically (after a while) by the desktop session.
@@ -28,7 +28,7 @@ Invocation error (too many or too few arguments, or the bus name given was
 not a syntactically valid well-known bus name).
 .TP
 69 (EX_UNAVAILABLE)
-mc-wait-for-name was unable to connect to the session bus.
+mc6-wait-for-name was unable to connect to the session bus.
 .TP
 75 (EX_TEMPFAIL)
 The name did not appear within a reasonable time.

@@ -3,71 +3,71 @@
 \" This document may be distributed under the same terms as
 \" telepathy-mission-control itself.
 .SH NAME
-mc-tool \- manipulate Mission Control accounts from the command line
+mc6-tool \- manipulate Mission Control accounts from the command line
 .SH SYNOPSIS
 
-.B mc-tool list
+.B mc6-tool list
 .PP
 
-.B mc-tool add
+.B mc6-tool add
 .I PROFILE
 .I DISPLAY-NAME
 .IR "" [ PARAMETER-SETTINGS ...]
 .PP
 
-.B mc-tool add
+.B mc6-tool add
 .IR MANAGER / PROTOCOL " [" PARAMETER-SETTINGS ...]
 .PP
 
-.B mc-tool update
+.B mc6-tool update
 .IR ACCOUNT " [" PARAMETER-SETTINGS ...]
 .PP
 
-.B mc-tool display
+.B mc6-tool display
 .I ACCOUNT DISPLAY-NAME
 .PP
 
-.B mc-tool nick
+.B mc6-tool nick
 .I ACCOUNT NICKNAME
 .PP
 
-.B mc-tool service
+.B mc6-tool service
 .I ACCOUNT SERVICE-NAME
 .PP
 
-.B mc-tool icon
+.B mc6-tool icon
 .I ACCOUNT ICON
 .PP
 
-.B mc-tool show
+.B mc6-tool show
 .I ACCOUNT
 .PP
 
-.B mc-tool get
+.B mc6-tool get
 .I ACCOUNT
 .IR PARAMETER " [" PARAMETER ...]
 .PP
 
-.B mc-tool auto-presence
+.B mc6-tool auto-presence
 .IR ACCOUNT " " STATUS " [" MESSAGE ]
 .PP
 
-.B mc-tool request
+.B mc6-tool request
 .IR ACCOUNT " " STATUS " [" MESSAGE ]
 .PP
 
-.B mc-tool auto-connect
+.B mc6-tool auto-connect
 .I ACCOUNT
 .BR on | off
 .PP
 
-.B mc-tool remove
+.B mc6-tool remove
 .I ACCOUNT
 .PP
 
 .SH DESCRIPTION
 
-.BR mc-tool 's
+.BR mc6-tool 's
 usage depends on its first argument (the "command")
 
 .SS SPECIFYING ACCOUNTS
@@ -90,7 +90,7 @@ is either
 .BR int ", " uint ", " bool ", or "
 .BR string
 (other parameter types exist, but are currently unsupported by
-.BR mc-tool ),
+.BR mc6-tool ),
 .I NAME
 is the name of the connection manager parameter (e.g.
 .BR account " or " password ),
@@ -105,11 +105,11 @@ command also accepts arguments of the form
 .BI clear: NAME
 which delete the named parameter from the account configuration.
 .SS LIST
-.B mc-tool list
+.B mc6-tool list
 lists the available accounts.
 
 .SS ADD
-.B mc-tool add
+.B mc6-tool add
 adds an account. The connection manager and protocol can either be given
 as the name of a Mission Control
 .IR profile ,
@@ -119,7 +119,7 @@ or as a slash-separated connection manager name and protocol (e.g.
 .BR gabble/jabber ).
 
 .SS DISPLAY
-.B mc-tool display
+.B mc6-tool display
 .I ACCOUNT DISPLAY-NAME
 sets the
 .B DisplayName
@@ -127,7 +127,7 @@ property of
 .IR ACCOUNT " to " DISPLAY-NAME.
 
 .SS NICK
-.B mc-tool nick
+.B mc6-tool nick
 .I ACCOUNT NICKNAME
 sets the
 .B Nickname
@@ -135,7 +135,7 @@ property of
 .IR ACCOUNT " to " NICKNAME .
 
 .SS SERVICE
-.B mc-tool service
+.B mc6-tool service
 .I ACCOUNT SERVICE-NAME
 sets the
 .B Service
@@ -143,7 +143,7 @@ property of
 .IR ACCOUNT " to " SERVICE-NAME .
 
 .SS ICON
-.B mc-tool icon
+.B mc6-tool icon
 .I ACCOUNT ICON
 sets the
 .B Icon
@@ -151,20 +151,20 @@ property of
 .IR ACCOUNT " to " ICON .
 
 .SS SHOW
-.B mc-tool show
+.B mc6-tool show
 .I ACCOUNT
 shows information about
 .IR ACCOUNT .
 
 .SS GET
-.B mc-tool get
+.B mc6-tool get
 .I ACCOUNT
 .IR PARAMETER " [" PARAMETER ...]
 shows the values of the given parameters of
 .IR ACCOUNT .
 
 .SS ENABLE
-.B mc-tool enable
+.B mc6-tool enable
 .I ACCOUNT
 sets the
 .B Enabled
@@ -173,7 +173,7 @@ property of
 .BR True .
 
 .SS DISABLE
-.B mc-tool disable
+.B mc6-tool disable
 .I ACCOUNT
 sets the
 .B Enabled
@@ -182,7 +182,7 @@ property of
 .BR False .
 
 .SS AUTO-PRESENCE
-.B mc-tool auto-presence
+.B mc6-tool auto-presence
 .IR ACCOUNT " " STATUS " [" MESSAGE ]
 sets the
 .B AutomaticPresence
@@ -191,7 +191,7 @@ property of
 .IR STATUS " with optional message " MESSAGE .
 
 .SS REQUEST
-.B mc-tool request
+.B mc6-tool request
 .IR ACCOUNT " " STATUS " [" MESSAGE ]
 sets the
 .B RequestedPresence
@@ -201,7 +201,7 @@ property of
 this is how you tell an account to connect or go offline, for example.
 
 .SS AUTO-CONNECT
-.B mc-tool auto-connect
+.B mc6-tool auto-connect
 .I ACCOUNT
 .B on
 sets the
@@ -209,7 +209,7 @@ sets the
 property of
 .IR ACCOUNT " to"
 .BR True .
-.B mc-tool auto-connect
+.B mc6-tool auto-connect
 .I ACCOUNT
 .B off
 sets it to
