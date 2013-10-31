@@ -73,7 +73,7 @@ export XDG_CONFIG_DIRS
 
 MC_CLIENTS_DIR="${test_src}/twisted/telepathy-1/clients"
 export MC_CLIENTS_DIR
-MC_MANAGER_DIR="${test_src}/twisted/telepathy/managers"
+MC_MANAGER_DIR="${test_src}/twisted/telepathy-1/managers"
 export MC_MANAGER_DIR
 
 if [ -n "$1" ] ; then

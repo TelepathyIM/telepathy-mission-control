@@ -107,9 +107,9 @@ TWISTED_OTHER_FILES = \
 	telepathy-1/clients/README \
 	telepathy-1/clients/AbiWord.client \
 	telepathy-1/clients/Logger.client \
-	telepathy/managers/fakecm.manager \
-	telepathy/managers/onewitheverything.manager \
-	telepathy/managers/README \
+	telepathy-1/managers/fakecm.manager \
+	telepathy-1/managers/onewitheverything.manager \
+	telepathy-1/managers/README \
 	$(NULL)
 
 # This deliberately doesn't include the TWISTED_SPECIAL_BUILD_TESTS
