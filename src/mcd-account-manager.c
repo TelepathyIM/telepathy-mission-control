@@ -1556,7 +1556,7 @@ _mcd_account_manager_constructed (GObject *obj)
 
     priv->account_connections_dir = g_strdup (get_connections_cache_dir ());
     priv->account_connections_file =
-        g_build_filename (priv->account_connections_dir, ".mc_connections",
+        g_build_filename (priv->account_connections_dir, ".mc6_connections",
                           NULL);
 
     DEBUG ("loading plugins");

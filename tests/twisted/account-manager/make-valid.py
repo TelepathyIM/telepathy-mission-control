@@ -90,7 +90,7 @@ def preseed(q, bus, fake_accounts_service):
     avatar_bin.write('Invisible War')
     avatar_bin.close()
 
-    account_connections_file = open(accounts_dir + '/.mc_connections', 'w')
+    account_connections_file = open(accounts_dir + '/.mc6_connections', 'w')
     account_connections_file.write("")
     account_connections_file.close()
 

@@ -269,7 +269,7 @@ EXTRA_DIST = \
 
 CLEANFILES = \
 	accounts/accounts.cfg \
-	accounts/.mc_connections \
+	accounts/.mc6_connections \
 	mc-[1-9]*.log \
 	missioncontrol.log \
 	*.pyc \
