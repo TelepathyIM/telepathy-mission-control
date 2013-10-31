@@ -103,6 +103,7 @@ G_DEFINE_TYPE_WITH_CODE (McdAccountManagerDefault, mcd_account_manager_default,
     G_IMPLEMENT_INTERFACE (MCP_TYPE_ACCOUNT_STORAGE,
         account_storage_iface_init));
 
+#if 0
 static gchar *
 get_old_filename (void)
 {
@@ -121,6 +122,7 @@ get_old_filename (void)
   else
     return g_build_filename (base, "accounts.cfg", NULL);
 }
+#endif
 
 static gchar *
 accounts_cfg_in (const gchar *dir)
@@ -947,6 +949,7 @@ _list (const McpAccountStorage *self,
         }
     }
 
+#if 0
   if (!amd->loaded)
     {
       migrate_from = get_old_filename ();
@@ -963,6 +966,7 @@ _list (const McpAccountStorage *self,
           tp_clear_pointer (&migrate_from, g_free);
         }
     }
+#endif
 
   if (!amd->loaded)
     {

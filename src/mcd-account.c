@@ -625,6 +625,7 @@ load_manager (McdAccount *account)
 	return FALSE;
 }
 
+#if 0
 /* Returns the data dir for the given account name.
  * Returned string must be freed by caller. */
 static gchar *
@@ -644,6 +645,7 @@ get_old_account_data_path (McdAccountPrivate *priv)
     else
 	return g_build_filename (base, priv->unique_name, NULL);
 }
+#endif
 
 static void
 account_delete_identify_account_cb (TpProxy *protocol,
@@ -681,7 +683,9 @@ mcd_account_delete (McdAccount *account,
                      gpointer user_data)
 {
     McdAccountPrivate *priv = account->priv;
+#if 0
     gchar *data_dir_str;
+#endif
     GError *error = NULL;
     const gchar *name = mcd_account_get_unique_name (account);
     TpConnectionManager *cm = mcd_account_get_cm (account);
@@ -736,6 +740,7 @@ mcd_account_delete (McdAccount *account,
 
     mcd_storage_delete_account (priv->storage, name);
 
+#if 0
     data_dir_str = get_old_account_data_path (priv);
 
     if (data_dir_str != NULL)
@@ -760,6 +765,7 @@ mcd_account_delete (McdAccount *account,
 
         g_free (data_dir_str);
     }
+#endif
 
     mcd_storage_commit (priv->storage, name);
 
@@ -3140,6 +3146,7 @@ save_avatar (McdAccount *self,
     return ret;
 }
 
+#if 0
 static gchar *_mcd_account_get_old_avatar_filename (McdAccount *account,
                                                     gchar **old_dir);
 
@@ -3249,6 +3256,7 @@ finally:
     g_free (contents);
     g_free (old_file);
 }
+#endif
 
 static gboolean
 mcd_account_setup (McdAccount *account)
@@ -3625,7 +3633,9 @@ _mcd_account_constructed (GObject *object)
 
     DEBUG ("%p (%s)", object, account->priv->unique_name);
 
+#if 0
     mcd_account_migrate_avatar (account);
+#endif
     mcd_account_setup (account);
 
     tp_g_signal_connect_object (account->priv->connectivity, "state-change",
@@ -4732,6 +4742,7 @@ _mcd_account_get_keyfile (McdAccount *account)
     return priv->keyfile;
 }
 
+#if 0
 static gchar *
 _mcd_account_get_old_avatar_filename (McdAccount *account,
                                       gchar **old_dir)
@@ -4743,6 +4754,7 @@ _mcd_account_get_old_avatar_filename (McdAccount *account,
     filename = g_build_filename (*old_dir, MC_OLD_AVATAR_FILENAME, NULL);
     return filename;
 }
+#endif
 
 static void
 mcd_account_process_initial_avatar_token (McdAccount *self,
