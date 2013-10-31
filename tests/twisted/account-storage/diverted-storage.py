@@ -40,7 +40,7 @@ def test(q, bus, mc):
         pass
 
     empty_key_file_name = os.path.join(os.environ['XDG_DATA_HOME'],
-            'telepathy', 'mission-control', 'accounts.cfg')
+            'telepathy-1', 'mission-control', 'accounts.cfg')
 
     group = 'fakecm/fakeprotocol/someguy_40example_2ecom0'
 

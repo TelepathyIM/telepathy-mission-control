@@ -39,7 +39,7 @@ def test(q, bus, mc):
     avatar_filename = account.object_path[len(cs.ACCOUNT_PATH_PREFIX):]
     avatar_filename = avatar_filename.replace('/', '-') + '.avatar'
     avatar_filename = (os.environ['XDG_DATA_HOME'] +
-        '/telepathy/mission-control/' + avatar_filename)
+        '/telepathy-1/mission-control/' + avatar_filename)
 
     call_async(q, account_props, 'Set', cs.ACCOUNT_IFACE_AVATAR, 'Avatar',
             dbus.Struct((dbus.ByteArray('AAAA'), 'image/jpeg')))

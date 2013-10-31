@@ -83,7 +83,7 @@ class Account(object):
                     self.avatar_location = 'datadir'
                     avatar_filename = self.id
                     datadir = os.environ['XDG_DATA_DIRS'].split(':')[0]
-                    datadir += '/telepathy/mission-control'
+                    datadir += '/telepathy-1/mission-control'
                     avatar_filename = (
                             avatar_filename.replace('/', '-') + '.avatar')
                     if not os.path.isdir(datadir):
@@ -106,7 +106,7 @@ class Account(object):
                     self.avatar_location = 'home'
                     avatar_filename = self.id
                     datadir = os.environ['XDG_DATA_HOME']
-                    datadir += '/telepathy/mission-control'
+                    datadir += '/telepathy-1/mission-control'
                     avatar_filename = (
                             avatar_filename.replace('/', '-') + '.avatar')
                     if not os.path.isdir(datadir):
@@ -268,7 +268,7 @@ class Account(object):
             avatar_filename = self.id
             avatar_filename = avatar_filename.replace('/', '-') + '.avatar'
             avatar_filename = (os.environ['XDG_DATA_HOME'] +
-                '/telepathy/mission-control/' + avatar_filename)
+                '/telepathy-1/mission-control/' + avatar_filename)
             assertEquals(conn.avatar[0], ''.join(open(avatar_filename,
                 'r').readlines()))
         elif self.avatar_location == 'datadir' and self.winner == 'service':
@@ -281,7 +281,7 @@ class Account(object):
             avatar_filename = self.id
             avatar_filename = avatar_filename.replace('/', '-') + '.avatar'
             avatar_filename = (os.environ['XDG_DATA_HOME'] +
-                '/telepathy/mission-control/' + avatar_filename)
+                '/telepathy-1/mission-control/' + avatar_filename)
             assertEquals(self.remote_avatar, ''.join(open(avatar_filename,
                 'r').readlines()))
 
@@ -289,7 +289,7 @@ class Account(object):
             low_prio_filename = self.id
             low_prio_filename = low_prio_filename.replace('/', '-') + '.avatar'
             low_prio_filename = (datadirs[0] +
-                '/telepathy/mission-control/' + low_prio_filename)
+                '/telepathy-1/mission-control/' + low_prio_filename)
             assertEquals(self.local_avatar, ''.join(open(low_prio_filename,
                 'r').readlines()))
 

@@ -27,7 +27,7 @@
 
 static const gchar *default_config (void)
 {
-  return g_build_filename (g_get_user_data_dir (), "telepathy",
+  return g_build_filename (g_get_user_data_dir (), "telepathy-1",
       "mission-control", "accounts.cfg", NULL);
 }
 

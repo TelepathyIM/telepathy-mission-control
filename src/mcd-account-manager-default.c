@@ -67,8 +67,8 @@ get_old_filename (void)
 static gchar *
 account_filename_in (const gchar *dir)
 {
-  return g_build_filename (dir, "telepathy", "mission-control", "accounts.cfg",
-      NULL);
+  return g_build_filename (dir, "telepathy-1", "mission-control",
+      "accounts.cfg", NULL);
 }
 
 static void

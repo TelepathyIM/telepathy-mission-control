@@ -3015,7 +3015,7 @@ get_avatar_paths (McdAccount *account,
     gchar *dir = NULL;
 
     dir = g_build_filename (g_get_user_data_dir (),
-                            "telepathy", "mission-control", NULL);
+                            "telepathy-1", "mission-control", NULL);
 
     if (account == NULL)
     {
@@ -4239,7 +4239,7 @@ _mcd_account_get_avatar (McdAccount *account, GArray **avatar,
              iter != NULL && *iter != NULL;
              iter++)
         {
-            gchar *candidate = g_build_filename (*iter, "telepathy",
+            gchar *candidate = g_build_filename (*iter, "telepathy-1",
                                                  "mission-control",
                                                  basename, NULL);
 

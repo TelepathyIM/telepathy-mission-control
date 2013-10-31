@@ -62,7 +62,7 @@ def test(q, bus, mc):
     ctl_dir = os.environ['MC_ACCOUNT_DIR']
     old_key_file_name = os.path.join(ctl_dir, 'accounts.cfg')
     new_key_file_name = os.path.join(os.environ['XDG_DATA_HOME'],
-            'telepathy', 'mission-control', 'accounts.cfg')
+            'telepathy-1', 'mission-control', 'accounts.cfg')
     group = 'fakecm/fakeprotocol/dontdivert_40example_2ecom0'
 
     account_manager, properties, interfaces = connect_to_mc(q, bus, mc)
@@ -146,7 +146,7 @@ def test(q, bus, mc):
 
     low_prio_key_file_name = os.path.join(
             os.environ['XDG_DATA_DIRS'].split(':')[0],
-            'telepathy', 'mission-control', 'accounts.cfg')
+            'telepathy-1', 'mission-control', 'accounts.cfg')
     os.makedirs(os.path.dirname(low_prio_key_file_name), 0700)
 
     # This is deliberately a lower-priority location
