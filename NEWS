@@ -1,6 +1,12 @@
 telepathy-mission-control 5.17.0 (UNRELEASED)
 =============================================
 
+Running this version of Mission Control for the first time will automatically
+migrate some account data to a new format. If you subsequently downgrade
+to an older version, it will no longer understand all account data.
+Taking a backup copy of ~/.local/share/telepathy/mission-control
+before you upgrade is recommended.
+
 Incompatible changes:
 
 • The mission-control-plugins library has broken API/ABI; deprecated functions
@@ -24,13 +30,23 @@ Incompatible changes:
 • The Account.I.Conditions interface has finally been removed.
   Most of its supporting code was already deleted between 5.14 and 5.16.
 
+• The ChannelDispatcher.I.Messages.DRAFT interface is now called
+  ChannelDispatcher.I.Messages1. This will require some minor changes to
+  Telepathy-Qt, its only known user.
+
 Dependencies:
 
 • GLib ≥ 2.36 (including GObject, GModule and GIO) is now required
+• telepathy-glib ≥ 0.23 is now required
 
 Enhancements:
 
 • Use IdentifyAccount to name new accounts (fd.o #34640, Simon)
+
+• Store accounts in one file per account, with a GVariant-based
+  text format that preserves data types (fd.o #54875, Simon)
+
+• Use telepathy-glib 0.23 for CD.I.Messages (fd.o #37380, Simon)
 
 Fixes:
 
