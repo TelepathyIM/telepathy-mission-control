@@ -30,7 +30,6 @@ TWISTED_BASIC_TESTS = \
 	dispatcher/already-has-channel.py \
 	dispatcher/approver-fails.py \
 	dispatcher/bypass-approval.py \
-	dispatcher/bypass-observers.py \
 	dispatcher/cancel.py \
 	dispatcher/capture-bundle.py \
 	dispatcher/cdo-claim.py \
