@@ -42,9 +42,3 @@ account_store_SOURCES = \
 	account-store-variant-file.c \
 	account-store-variant-file.h \
 	$(NULL)
-
-if ENABLE_LIBACCOUNTS_SSO
-account_store_SOURCES += account-store-libaccounts.c account-store-libaccounts.h
-account_store_LDADD += $(LIBACCOUNTS_SSO_LIBS)
-AM_CPPFLAGS += $(LIBACCOUNTS_SSO_CFLAGS)
-endif

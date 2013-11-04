@@ -175,38 +175,6 @@ AM_CONDITIONAL(ENABLE_AEGIS, [test x$aegis_enabled = xyes])
 
 PKG_PROG_PKG_CONFIG()
 
-dnl libaccounts-glib SSO
-libaccounts_sso_enabled="no"
-AC_MSG_CHECKING(whether to build with libaccounts-glib SSO suport)
-
-AC_ARG_ENABLE([libaccounts-sso],
-              AC_HELP_STRING([--enable-libaccounts-sso],
-                             [build with SSO suport. default=no]),
-              [ AC_MSG_RESULT(${enableval})
-                libaccounts_sso_enabled="${enableval}" ],
-              [ AC_MSG_RESULT(no) ] )
-
-AS_IF([ test "x$libaccounts_sso_enabled" = xauto ],
-      [ PKG_CHECK_EXISTS([libaccounts-glib],
-                         [libaccounts_sso_enabled=yes],
-                         [libaccounts_sso_enabled=no]) ])
-
-dnl set up the shell/make variable, the #define and check the package version
-AS_IF([ test "x$libaccounts_sso_enabled" = xyes ],
-      [ ENABLE_LIBACCOUNTS_SSO=yes
-        AC_DEFINE(ENABLE_LIBACCOUNTS_SSO, [1],
-                  [Define if libaccounts SSO support is required])
-        PKG_CHECK_MODULES([LIBACCOUNTS_SSO], [libaccounts-glib >= 0.26]) ],
-      [ AC_DEFINE(ENABLE_LIBACCOUNTS_SSO, [0]) ])
-
-dnl export the CFLAGS and LDFLAGS equivalents determined by PKG_CHECK_MODULES
-AC_SUBST(LIBACCOUNTS_SSO_CFLAGS)
-AC_SUBST(LIBACCOUNTS_SSO_LIBS)
-
-dnl the automake conditional
-AM_CONDITIONAL(ENABLE_LIBACCOUNTS_SSO, [test x$libaccounts_sso_enabled = xyes])
-dnl /libaccounts-glib SSO
-
 PKG_CHECK_MODULES(DBUS, [dbus-1 >= 0.95, dbus-glib-1 >= 0.82])
 AC_SUBST(DBUS_CFLAGS)
 AC_SUBST(DBUS_LIBS)
@@ -337,6 +305,5 @@ Configure summary:
         ConnMan integration..........:  ${have_connman}
         Connectivity GSetting........:  ${enable_conn_setting}
         Aegis........................:  ${aegis_enabled}
-        libaccounts-glib backend.....:  ${libaccounts_sso_enabled}
         Nokia Mode Control Entity....:  ${HAVE_MCE}
 "

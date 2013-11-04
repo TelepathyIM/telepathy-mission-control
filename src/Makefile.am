@@ -26,12 +26,6 @@ mc_headers = \
 	mcd-service.h \
 	mcd-storage.h
 
-if ENABLE_LIBACCOUNTS_SSO
-mc_headers += \
-	mcd-account-manager-sso.h \
-	$(NULL)
-endif
-
 mc_gen_headers = \
 	_gen/cli-Connection_Manager_Interface_Account_Storage.h \
 	_gen/enums.h \
@@ -73,11 +67,6 @@ libmcd_convenience_la_LIBADD = \
 	$(NETWORK_MANAGER_LIBS) \
 	$(CONNMAN_LIBS) \
 	$(NULL)
-
-if ENABLE_LIBACCOUNTS_SSO
-libmcd_convenience_la_LIBADD += $(LIBACCOUNTS_SSO_LIBS)
-AM_CPPFLAGS += $(LIBACCOUNTS_SSO_CFLAGS)
-endif
 
 if ENABLE_AEGIS
 libmcd_convenience_la_LIBADD += $(top_builddir)/plugins/libmcp-aegis.la
@@ -143,12 +132,6 @@ libmcd_convenience_la_SOURCES = \
 	request.h \
 	sp_timestamp.h \
 	$(mc_headers)
-
-if ENABLE_LIBACCOUNTS_SSO
-libmcd_convenience_la_SOURCES += \
-	mcd-account-manager-sso.c \
-	$(NULL)
-endif
 
 mcd-enum-types.h: stamp-mcd-enum-types.h
 	$(AM_V_GEN)true

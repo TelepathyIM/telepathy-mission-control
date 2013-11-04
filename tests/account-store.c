@@ -41,10 +41,6 @@
   "  KEY     := <manager | protocol | DisplayName | param-<PARAMETER>>\n" \
   "  VALUE   := <STRING>\n\n"
 
-#if ENABLE_LIBACCOUNTS_SSO
-#include "account-store-libaccounts.h"
-#endif
-
 typedef struct {
   const gchar *name;
   gchar *  (*get) (const gchar *account, const gchar *key);
@@ -77,15 +73,6 @@ const Backend backends[] = {
     variant_delete,
     variant_exists,
     variant_list },
-
-#if ENABLE_LIBACCOUNTS_SSO
-  { "libaccounts",
-    libaccounts_get,
-    libaccounts_set,
-    libaccounts_delete,
-    libaccounts_exists,
-    libaccounts_list },
-#endif
 
   { NULL }
 };
