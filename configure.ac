@@ -272,6 +272,5 @@ Configure summary:
     Features:
         Plugin API documentation.....:  ${enable_gtk_doc}
         Network Manager integration..:  ${have_nm}
-        ConnMan integration..........:  ${have_connman}
         Connectivity GSetting........:  ${enable_conn_setting}
 "
