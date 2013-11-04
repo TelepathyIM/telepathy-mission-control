@@ -68,10 +68,6 @@ libmcd_convenience_la_LIBADD = \
 	$(CONNMAN_LIBS) \
 	$(NULL)
 
-if ENABLE_AEGIS
-libmcd_convenience_la_LIBADD += $(top_builddir)/plugins/libmcp-aegis.la
-endif
-
 noinst_LTLIBRARIES = libmcd-convenience.la
 
 libmcd_convenience_la_SOURCES = \
