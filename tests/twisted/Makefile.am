@@ -143,13 +143,6 @@ nobase_nodist_twistedtests_DATA = \
 	$(NULL)
 endif
 
-
-if HAVE_MCE
-HAVE_MCE_PYBOOL = True
-else
-HAVE_MCE_PYBOOL = False
-endif
-
 if HAVE_NM
 HAVE_NM_PYBOOL = True
 else
@@ -158,7 +151,6 @@ endif
 
 config.py: Makefile
 	$(AM_V_GEN) { \
-		echo "HAVE_MCE = $(HAVE_MCE_PYBOOL)"; \
 		echo "HAVE_NM = $(HAVE_NM_PYBOOL)"; \
 	} > $@
 

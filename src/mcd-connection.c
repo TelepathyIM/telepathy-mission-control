@@ -1879,7 +1879,7 @@ mcd_connection_class_init (McdConnectionClass * klass)
     g_object_class_install_property
         (object_class, PROP_SLACKER,
          g_param_spec_object ("slacker",
-                              "MCE slacker",
+                              "Slacker",
                               "Slacker object notifies us of user inactivity",
                               MCD_TYPE_SLACKER,
                               G_PARAM_READWRITE | G_PARAM_CONSTRUCT_ONLY));

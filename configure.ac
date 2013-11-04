@@ -178,13 +178,6 @@ PKG_CHECK_MODULES([GIO_UNIX], [gio-unix-2.0],
 AC_DEFINE([GLIB_VERSION_MIN_REQUIRED], [GLIB_VERSION_2_30], [Ignore post 2.30 deprecations])
 AC_DEFINE([GLIB_VERSION_MAX_ALLOWED], [GLIB_VERSION_2_36], [Prevent post 2.36 APIs])
 
-dnl Check for MCE, a Maemo service used to determine when the device is idle.
-PKG_CHECK_MODULES([MCE], mce >= 1.5, [HAVE_MCE=yes], [HAVE_MCE=no])
-AM_CONDITIONAL([HAVE_MCE], [test x"$HAVE_MCE" = xyes])
-if test x"$HAVE_MCE" = xyes; then
-  AC_DEFINE([HAVE_MCE], [1], [Define if mce is available])
-fi
-
 # -----------------------------------------------------------
 # Connectivity integration
 # -----------------------------------------------------------
@@ -281,5 +274,4 @@ Configure summary:
         Network Manager integration..:  ${have_nm}
         ConnMan integration..........:  ${have_connman}
         Connectivity GSetting........:  ${enable_conn_setting}
-        Nokia Mode Control Entity....:  ${HAVE_MCE}
 "
