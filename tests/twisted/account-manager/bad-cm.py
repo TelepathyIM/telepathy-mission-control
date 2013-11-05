@@ -46,10 +46,10 @@ def test(q, bus, mc):
     assertContains("nonexistent_cm", e.message)
 
     # Create an account with a bad Protocol - it should fail
-    call_create(protocol='nonexistent-protocol')
+    call_create(protocol='nonexistentprotocol')
     e = q.expect('dbus-error', method='CreateAccount')
     assertEquals(cs.NOT_IMPLEMENTED, e.name)
-    assertContains("nonexistent-protocol", e.message)
+    assertContains("nonexistentprotocol", e.message)
 
     # Create an account with incomplete Parameters - it should fail
     call_create(parameters={"account": "someguy@example.com"})
