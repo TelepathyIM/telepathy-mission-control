@@ -22,7 +22,7 @@ import dbus.service
 
 from servicetest import EventPattern, tp_name_prefix, tp_path_prefix, \
         call_async
-from mctest import exec_test, create_fakecm_account, get_account_manager
+from mctest import exec_test, SimulatedConnectionManager, get_account_manager
 import constants as cs
 
 def test(q, bus, mc):
@@ -35,8 +35,7 @@ def test(q, bus, mc):
     params = dbus.Dictionary({"account": "create-twice",
         "password": "secrecy"}, signature='sv')
 
-    cm_name_ref = dbus.service.BusName(cs.tp_name_prefix +
-            '.ConnectionManager.fakecm', bus=bus)
+    simulated_cm = SimulatedConnectionManager(q, bus)
     account_manager = bus.get_object(cs.AM, cs.AM_PATH)
     am_iface = dbus.Interface(account_manager, cs.AM)
 

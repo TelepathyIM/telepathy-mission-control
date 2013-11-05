@@ -30,11 +30,8 @@ params = dbus.Dictionary({"account": "someguy@example.com",
     "password": "secrecy"}, signature='sv')
 
 def test(q, bus, mc):
-    cm_name_ref = dbus.service.BusName(
-            tp_name_prefix + '.ConnectionManager.fakecm', bus=bus)
-
     # Create an account
-    (cm_name_ref, account) = create_fakecm_account(q, bus, mc, params)
+    (simulated_cm, account) = create_fakecm_account(q, bus, mc, params)
 
     account_iface = dbus.Interface(account, cs.ACCOUNT)
     account_props = dbus.Interface(account, cs.PROPERTIES_IFACE)

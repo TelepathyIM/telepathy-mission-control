@@ -105,6 +105,9 @@ typedef struct
 typedef struct
 {
     McdAccountManager *account_manager;
+    gchar *cm_name;
+    gchar *protocol_name;
+    gchar *display_name;
     GHashTable *parameters;
     GHashTable *properties;
     McdGetAccountCb callback;
@@ -654,6 +657,13 @@ mcd_create_account_data_free (McdCreateAccountData *cad)
     if (G_UNLIKELY (cad->error))
         g_error_free (cad->error);
 
+    if (cad->destroy != NULL)
+        cad->destroy (cad->user_data);
+
+    g_free (cad->cm_name);
+    g_free (cad->protocol_name);
+    g_free (cad->display_name);
+
     g_slice_free (McdCreateAccountData, cad);
 }
 
@@ -786,6 +796,71 @@ complete_account_creation (McdAccount *account,
                                  cad);
 }
 
+static void
+identify_account_cb (GObject *source_object,
+                     GAsyncResult *result,
+                     gpointer user_data)
+{
+    McdStorage *storage = MCD_STORAGE (source_object);
+    McdCreateAccountData *cad = user_data;
+    const gchar *provider;
+    gchar *id;
+    gchar *unique_name;
+    McdAccount *account;
+
+    id = mcp_account_manager_identify_account_finish (
+        MCP_ACCOUNT_MANAGER (storage), result, &cad->error);
+
+    if (id == NULL)
+    {
+        cad->callback (cad->account_manager, NULL, cad->error, cad->user_data);
+        mcd_create_account_data_free (cad);
+        return;
+    }
+
+    provider = tp_asv_get_string (cad->properties,
+        TP_PROP_ACCOUNT_INTERFACE_STORAGE1_STORAGE_PROVIDER);
+
+    unique_name = mcd_storage_create_account (storage, provider,
+                                              cad->cm_name, cad->protocol_name,
+                                              id, &cad->error);
+
+    if (unique_name == NULL)
+    {
+        g_free (id);
+        cad->callback (cad->account_manager, NULL, cad->error, cad->user_data);
+        mcd_create_account_data_free (cad);
+        return;
+    }
+
+    /* create the basic account keys */
+    mcd_storage_set_string (storage, unique_name,
+                            MC_ACCOUNTS_KEY_MANAGER, cad->cm_name);
+    mcd_storage_set_string (storage, unique_name,
+                            MC_ACCOUNTS_KEY_PROTOCOL, cad->protocol_name);
+    g_free (id);
+
+    if (cad->display_name != NULL)
+        mcd_storage_set_string (storage, unique_name,
+                                MC_ACCOUNTS_KEY_DISPLAY_NAME,
+                                cad->display_name);
+
+    account = mcd_account_new (cad->account_manager, unique_name,
+                               cad->account_manager->priv->minotaur);
+    g_free (unique_name);
+
+    if (G_LIKELY (account))
+    {
+        _mcd_account_load (account, complete_account_creation, cad);
+    }
+    else
+    {
+        GError error = { TP_ERROR, TP_ERROR_NOT_AVAILABLE, "" };
+        cad->callback (cad->account_manager, NULL, &error, cad->user_data);
+        mcd_create_account_data_free (cad);
+    }
+}
+
 void
 _mcd_account_manager_create_account (McdAccountManager *account_manager,
                                      const gchar *manager,
@@ -800,10 +875,8 @@ _mcd_account_manager_create_account (McdAccountManager *account_manager,
     McdAccountManagerPrivate *priv = account_manager->priv;
     McdStorage *storage = priv->storage;
     McdCreateAccountData *cad;
-    McdAccount *account;
-    gchar *unique_name = NULL;
-    const gchar *provider;
-    GError *e = NULL;
+    GValue value = G_VALUE_INIT;
+    GVariant *variant_params;
 
     DEBUG ("called");
     if (G_UNLIKELY (manager == NULL || manager[0] == 0 ||
@@ -817,54 +890,26 @@ _mcd_account_manager_create_account (McdAccountManager *account_manager,
         return;
     }
 
-    provider = tp_asv_get_string (properties,
-        TP_PROP_ACCOUNT_INTERFACE_STORAGE1_STORAGE_PROVIDER);
+    cad = g_slice_new (McdCreateAccountData);
+    cad->account_manager = account_manager;
+    cad->cm_name = g_strdup (manager);
+    cad->protocol_name = g_strdup (protocol);
+    cad->display_name = g_strdup (display_name);
+    cad->parameters = g_hash_table_ref (params);
+    cad->properties = (properties ? g_hash_table_ref (properties) : NULL);
+    cad->callback = callback;
+    cad->user_data = user_data;
+    cad->destroy = destroy;
+    cad->error = NULL;
 
-    unique_name = mcd_storage_create_account (storage, provider,
-                                              manager, protocol, params,
-                                              &e);
+    g_value_init (&value, TP_HASH_TYPE_STRING_VARIANT_MAP);
+    g_value_set_static_boxed (&value, params);
+    variant_params = dbus_g_value_build_g_variant (&value);
+    g_value_unset (&value);
 
-    if (unique_name == NULL)
-    {
-        callback (account_manager, NULL, e, user_data);
-        g_clear_error (&e);
-        if (destroy)
-            destroy (user_data);
-        return;
-    }
-
-    /* create the basic account keys */
-    mcd_storage_set_string (storage, unique_name,
-                            MC_ACCOUNTS_KEY_MANAGER, manager);
-    mcd_storage_set_string (storage, unique_name,
-                            MC_ACCOUNTS_KEY_PROTOCOL, protocol);
-
-    if (display_name != NULL)
-        mcd_storage_set_string (storage, unique_name,
-                                MC_ACCOUNTS_KEY_DISPLAY_NAME, display_name);
-
-    account = mcd_account_new (account_manager, unique_name, priv->minotaur);
-    g_free (unique_name);
-
-    if (G_LIKELY (account))
-    {
-        cad = g_slice_new (McdCreateAccountData);
-        cad->account_manager = account_manager;
-        cad->parameters = g_hash_table_ref (params);
-        cad->properties = (properties ? g_hash_table_ref (properties) : NULL);
-        cad->callback = callback;
-        cad->user_data = user_data;
-        cad->destroy = destroy;
-        cad->error = NULL;
-        _mcd_account_load (account, complete_account_creation, cad);
-    }
-    else
-    {
-        GError error = { TP_ERROR, TP_ERROR_NOT_AVAILABLE, "" };
-        callback (account_manager, NULL, &error, user_data);
-        if (destroy)
-            destroy (user_data);
-    }
+    mcp_account_manager_identify_account_async (MCP_ACCOUNT_MANAGER (storage),
+        manager, protocol, variant_params, NULL, identify_account_cb, cad);
+    g_variant_unref (variant_params);
 }
 
 static void

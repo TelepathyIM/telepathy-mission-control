@@ -182,7 +182,7 @@ def expect_and_exercise_approval(q, bus, chan, channel_properties,
 def test(q, bus, mc):
     params = dbus.Dictionary({"account": "someguy@example.com",
         "password": "secrecy"}, signature='sv')
-    cm_name_ref, account = create_fakecm_account(q, bus, mc, params)
+    simulated_cm, account = create_fakecm_account(q, bus, mc, params)
     conn = enable_fakecm_account(q, bus, mc, account, params)
 
     # Two clients want to observe, approve and handle channels. Additionally,

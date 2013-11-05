@@ -28,7 +28,7 @@ import dbus.service
 from servicetest import EventPattern, tp_name_prefix, tp_path_prefix, \
         call_async
 from mctest import exec_test, SimulatedConnection, SimulatedClient, \
-        create_fakecm_account, enable_fakecm_account, SimulatedChannel, \
+        SimulatedConnectionManager, SimulatedChannel, \
         expect_client_setup, MC
 import constants as cs
 
@@ -76,8 +76,7 @@ def test(q, bus, unused, **kwargs):
             observe=[text_fixed_properties], approve=[text_fixed_properties],
             handle=[text_fixed_properties], bypass_approval=False,
             implement_get_interfaces=False)
-    cm_name_ref = dbus.service.BusName(
-            cs.tp_name_prefix + '.ConnectionManager.fakecm', bus=bus)
+    simulated_cm = SimulatedConnectionManager(q, bus)
 
     # service-activate MC; it will try to introspect the running client.
     mc = MC(q, bus, wait_for_names=False)

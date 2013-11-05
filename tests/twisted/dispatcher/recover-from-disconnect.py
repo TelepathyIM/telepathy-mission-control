@@ -48,13 +48,10 @@ def test(q, bus, mc):
     # wait for MC to download the properties
     expect_client_setup(q, [empathy, kopete])
 
-    cm_name_ref = dbus.service.BusName(
-            tp_name_prefix + '.ConnectionManager.fakecm', bus=bus)
-
     # Create an account
     params = dbus.Dictionary({"account": "someguy@example.com",
         "password": "secrecy"}, signature='sv')
-    (cm_name_ref, account) = create_fakecm_account(q, bus, mc, params)
+    (simulated_cm, account) = create_fakecm_account(q, bus, mc, params)
 
     account_iface = dbus.Interface(account, cs.ACCOUNT)
     account_props = dbus.Interface(account, cs.PROPERTIES_IFACE)

@@ -30,16 +30,13 @@ from mctest import exec_test, SimulatedConnection, create_fakecm_account,\
 import constants as cs
 
 def test(q, bus, mc, **kwargs):
-    cm_name_ref = dbus.service.BusName(
-            tp_name_prefix + '.ConnectionManager.fakecm', bus=bus)
-
     # Create an account
     params = dbus.Dictionary(
         {"account": "someguy@example.com",
          "password": "secrecy",
          "nickname": "albinoblacksheep",
          }, signature='sv')
-    (cm_name_ref, account) = create_fakecm_account(q, bus, mc, params)
+    (simulated_cm, account) = create_fakecm_account(q, bus, mc, params)
 
     # Enable the account
     account.Set(cs.ACCOUNT, 'Enabled', True,

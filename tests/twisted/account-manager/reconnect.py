@@ -27,13 +27,10 @@ from mctest import exec_test, SimulatedConnection, create_fakecm_account,\
 import constants as cs
 
 def test(q, bus, mc):
-    cm_name_ref = dbus.service.BusName(
-            tp_name_prefix + '.ConnectionManager.fakecm', bus=bus)
-
     # Create an account
     params = dbus.Dictionary({"account": "someguy@example.com",
         "password": "secrecy"}, signature='sv')
-    (cm_name_ref, account) = create_fakecm_account(q, bus, mc, params)
+    (simulated_cm, account) = create_fakecm_account(q, bus, mc, params)
 
     # Events that indicate that Reconnect might have done something
     looks_like_reconnection = [

@@ -1,5 +1,5 @@
 /*
- * MC account storage backend inspector, default backend
+ * MC account storage inspector: MC 5.0-compatible single keyfile backend
  *
  * Copyright © 2010 Nokia Corporation
  * Copyright © 2010 Collabora Ltd.
@@ -19,23 +19,23 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-#ifndef _ACCOUNT_STORE_DEFAULT_H_
-#define _ACCOUNT_STORE_DEFAULT_H_
+#ifndef _ACCOUNT_STORE_KEYFILE_H_
+#define _ACCOUNT_STORE_KEYFILE_H_
 
 #include <glib.h>
 #include <glib-object.h>
 
-gchar * default_get (const gchar *account,
+gchar * keyfile_get (const gchar *account,
     const gchar *key);
 
-gboolean default_set (const gchar *account,
+gboolean keyfile_set (const gchar *account,
     const gchar *key,
     const gchar *value);
 
-gboolean default_delete (const gchar *account);
+gboolean keyfile_delete (const gchar *account);
 
-gboolean default_exists (const gchar *account);
+gboolean keyfile_exists (const gchar *account);
 
-GStrv default_list (void);
+GStrv keyfile_list (void);
 
 #endif

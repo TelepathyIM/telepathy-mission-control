@@ -49,10 +49,8 @@ G_BEGIN_DECLS
 
 typedef struct {
   GObject parent;
-  GKeyFile *keyfile;
-  GKeyFile *removed;
-  GHashTable *removed_accounts;
-  gchar *filename;
+  GHashTable *accounts;
+  gchar *directory;
   gboolean save;
   gboolean loaded;
 } _McdAccountManagerDefault;

@@ -95,7 +95,7 @@ gchar *mcd_storage_create_account (McdStorage *storage,
     const gchar *provider,
     const gchar *manager,
     const gchar *protocol,
-    GHashTable *params,
+    const gchar *identification,
     GError **error);
 
 void mcd_storage_delete_account (McdStorage *storage, const gchar *account);
@@ -135,11 +135,20 @@ gboolean mcd_storage_add_account_from_plugin (McdStorage *storage,
     McpAccountStorage *plugin,
     const gchar *account);
 
+GVariant *mcd_keyfile_get_variant (GKeyFile *keyfile,
+    const gchar *group,
+    const gchar *key,
+    const GVariantType *type,
+    GError **error);
 gboolean mcd_keyfile_get_value (GKeyFile *keyfile,
     const gchar *group,
     const gchar *key,
     GValue *value,
     GError **error);
+gboolean mcd_keyfile_set_variant (GKeyFile *keyfile,
+    const gchar *name,
+    const gchar *key,
+    GVariant *value);
 gboolean mcd_keyfile_set_value (GKeyFile *keyfile,
     const gchar *name,
     const gchar *key,

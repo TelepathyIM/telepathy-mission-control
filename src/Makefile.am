@@ -4,7 +4,6 @@ AM_CPPFLAGS = \
 	   $(GLIB_CFLAGS) \
 	   $(NETWORK_MANAGER_CFLAGS) \
 	   $(CONNMAN_CFLAGS) \
-	   $(UPOWER_GLIB_CFLAGS) \
 	   -DG_LOG_DOMAIN=\"mcd\" \
 	   -DMCD_PLUGIN_LOADER_DIR=\"@libdir@/mission-control-plugins.@MCP_ABI_VERSION@\" \
 	   -DMC_DISABLE_DEPRECATED -I$(top_srcdir)
@@ -39,7 +38,7 @@ mc_gen_headers = \
 	_gen/gtypes.h \
 	_gen/interfaces.h \
 	_gen/svc-Account_Interface_External_Password_Storage.h \
-	_gen/svc-dispatcher.h
+	$(NULL)
 
 nodist_libmcd_convenience_la_SOURCES = \
 	_gen/cli-Connection_Manager_Interface_Account_Storage-body.h \
@@ -50,7 +49,6 @@ nodist_libmcd_convenience_la_SOURCES = \
 	_gen/signals-marshal.h \
 	_gen/signals-marshal.list \
 	_gen/svc-Account_Interface_External_Password_Storage.c \
-	_gen/svc-dispatcher.c \
 	mcd-enum-types.c \
 	mcd-enum-types.h \
 	$(mc_gen_headers)
@@ -63,7 +61,6 @@ BUILT_SOURCES = \
 CLEANFILES = \
 	$(BUILT_SOURCES) \
 	_gen/cli-Connection_Manager_Interface_Account_Storage-gtk-doc.h \
-	_gen/svc-dispatcher-gtk-doc.h \
 	_gen/svc-Account_Interface_External_Password_Storage-gtk-doc.h \
 	_gen/gtypes-gtk-doc.h \
 	$(NULL)
@@ -75,7 +72,6 @@ libmcd_convenience_la_LIBADD = \
 	$(GLIB_LIBS) \
 	$(NETWORK_MANAGER_LIBS) \
 	$(CONNMAN_LIBS) \
-	$(UPOWER_GLIB_LIBS) \
 	$(NULL)
 
 if ENABLE_LIBACCOUNTS_SSO
@@ -181,7 +177,6 @@ mcd-enum-types.c: Makefile $(mc_headers)
 
 EXTRA_DIST = \
 	mcd.xml \
-	dispatcher.xml \
 	stamp-mcd-enum-types.h
 
 Android.mk: Makefile.am $(nodist_libmcd_convenience_la_SOURCES)

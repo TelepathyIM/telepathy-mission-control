@@ -46,7 +46,7 @@ def test(q, bus, mc):
         {"account": "yum yum network manager",
          "password": "boo boo connman (although your API *is* simpler)",
         }, signature='sv')
-    (cm_name_ref, account) = create_fakecm_account(q, bus, mc, params)
+    (simulated_cm, account) = create_fakecm_account(q, bus, mc, params)
 
     # While we're not connected to the internet, RequestConnection should not
     # be called.

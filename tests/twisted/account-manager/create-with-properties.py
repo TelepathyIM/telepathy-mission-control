@@ -22,7 +22,7 @@ import dbus.service
 
 from servicetest import EventPattern, tp_name_prefix, tp_path_prefix, \
         call_async, assertEquals, assertContains
-from mctest import exec_test, create_fakecm_account, AccountManager
+from mctest import (exec_test, SimulatedConnectionManager, AccountManager)
 import constants as cs
 
 def test(q, bus, mc):
@@ -48,11 +48,10 @@ def test(q, bus, mc):
     assert (cs.ACCOUNT + '.Supersedes') in supported
     assertContains(cs.ACCOUNT + '.Service', supported)
 
-    params = dbus.Dictionary({"account": "anarki@example.com",
+    params = dbus.Dictionary({"account": "aNaRkI@eXaMpLe.CoM",
         "password": "secrecy"}, signature='sv')
 
-    cm_name_ref = dbus.service.BusName(cs.tp_name_prefix +
-            '.ConnectionManager.fakecm', bus=bus)
+    simulated_cm = SimulatedConnectionManager(q, bus)
 
     creation_properties = dbus.Dictionary({
         cs.ACCOUNT + '.Enabled': True,
@@ -93,6 +92,9 @@ def test(q, bus, mc):
             )
     account_path = ret.value[0]
     assert am_signal.args == [account_path, True], am_signal.args
+    # We called IdentifyAccount, which normalized the silly account name.
+    # The _xx hex-escaping and the trailing digit are implementation details.
+    assert account_path.endswith('/anarki_40example_2ecom0'), account_path
 
     assert account_path is not None
 

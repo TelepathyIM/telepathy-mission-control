@@ -77,7 +77,7 @@ void mcp_account_manager_parameter_make_secret (const McpAccountManager *mcpa,
 gchar * mcp_account_manager_get_unique_name (McpAccountManager *mcpa,
     const gchar *manager,
     const gchar *protocol,
-    const GHashTable *params);
+    const gchar *identification);
 
 GStrv mcp_account_manager_list_keys (const McpAccountManager *mcpa,
     const gchar *account);
@@ -100,6 +100,17 @@ gboolean mcp_account_manager_init_value_for_attribute (
     const McpAccountManager *mcpa,
     GValue *value,
     const gchar *attribute);
+
+void mcp_account_manager_identify_account_async (McpAccountManager *mcpa,
+    const gchar *manager,
+    const gchar *protocol,
+    GVariant *parameters,
+    GCancellable *cancellable,
+    GAsyncReadyCallback callback,
+    gpointer user_data);
+gchar *mcp_account_manager_identify_account_finish (McpAccountManager *mcpa,
+    GAsyncResult *res,
+    GError **error);
 
 G_END_DECLS
 

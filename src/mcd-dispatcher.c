@@ -59,8 +59,6 @@
 #include "mcd-misc.h"
 #include "plugin-loader.h"
 
-#include "_gen/svc-dispatcher.h"
-
 #include <telepathy-glib/telepathy-glib.h>
 #include <telepathy-glib/telepathy-glib-dbus.h>
 
@@ -69,11 +67,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include "sp_timestamp.h"
-
-#define CREATE_CHANNEL TP_IFACE_CONNECTION_INTERFACE_REQUESTS ".CreateChannel"
-#define ENSURE_CHANNEL TP_IFACE_CONNECTION_INTERFACE_REQUESTS ".EnsureChannel"
-#define SEND_MESSAGE \
-  TP_IFACE_CHANNEL_DISPATCHER ".Interface.Messages.DRAFT.SendMessage"
 
 #define MCD_DISPATCHER_PRIV(dispatcher) (MCD_DISPATCHER (dispatcher)->priv)
 
@@ -84,7 +77,7 @@ static void messages_iface_init (gpointer, gpointer);
 G_DEFINE_TYPE_WITH_CODE (McdDispatcher, mcd_dispatcher, G_TYPE_OBJECT,
     G_IMPLEMENT_INTERFACE (TP_TYPE_SVC_CHANNEL_DISPATCHER,
                            dispatcher_iface_init);
-    G_IMPLEMENT_INTERFACE (MC_TYPE_SVC_CHANNEL_DISPATCHER_INTERFACE_MESSAGES_DRAFT,
+    G_IMPLEMENT_INTERFACE (TP_TYPE_SVC_CHANNEL_DISPATCHER_INTERFACE_MESSAGES1,
                            messages_iface_init);
     G_IMPLEMENT_INTERFACE (
         TP_TYPE_SVC_CHANNEL_DISPATCHER_INTERFACE_OPERATION_LIST1,
@@ -357,6 +350,7 @@ _mcd_dispatcher_set_property (GObject * obj, guint prop_id,
 
 static const char * const interfaces[] = {
     TP_IFACE_CHANNEL_DISPATCHER_INTERFACE_OPERATION_LIST1,
+    TP_IFACE_CHANNEL_DISPATCHER_INTERFACE_MESSAGES1,
     NULL
 };
 
@@ -1510,7 +1504,7 @@ send_message_submitted (TpChannel *proxy,
     /* this frees the dbus context, so clear it from our cache afterwards */
     if (error == NULL)
     {
-        mc_svc_channel_dispatcher_interface_messages_draft_return_from_send_message (context, token);
+        tp_svc_channel_dispatcher_interface_messages1_return_from_send_message (context, token);
         message_context_set_return_context (message, NULL);
     }
     else
@@ -1670,7 +1664,7 @@ finished:
 }
 
 static void
-messages_send_message (McSvcChannelDispatcherInterfaceMessagesDraft *iface,
+messages_send_message (TpSvcChannelDispatcherInterfaceMessages1 *iface,
                        const gchar *account_path,
                        const gchar *target_id,
                        const GPtrArray *payload,
@@ -1688,7 +1682,7 @@ static void
 messages_iface_init (gpointer iface, gpointer data G_GNUC_UNUSED)
 {
 #define IMPLEMENT(x) \
-  mc_svc_channel_dispatcher_interface_messages_draft_implement_##x (iface, messages_##x)
+  tp_svc_channel_dispatcher_interface_messages1_implement_##x (iface, messages_##x)
     IMPLEMENT (send_message);
 #undef IMPLEMENT
 }

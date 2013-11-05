@@ -35,10 +35,6 @@
 #include <nm-client.h>
 #endif
 
-#ifdef HAVE_UPOWER
-#include <upower.h>
-#endif
-
 #include <telepathy-glib/telepathy-glib.h>
 
 #include "mcd-debug.h"
@@ -94,10 +90,6 @@ struct _McdConnectivityMonitorPrivate {
 #ifdef HAVE_NM
   NMClient *nm_client;
   gulong state_change_signal_id;
-#endif
-
-#ifdef HAVE_UPOWER
-  UpClient *upower_client;
 #endif
 
 #ifdef ENABLE_CONN_SETTING
@@ -263,43 +255,6 @@ connectivity_monitor_network_changed (GNetworkMonitor *monitor,
           CONNECTIVITY_UP, NULL);
     }
 }
-
-#ifdef HAVE_UPOWER
-static void
-connectivity_monitor_set_awake (
-    McdConnectivityMonitor *self,
-    gboolean awake)
-{
-  if (awake)
-    connectivity_monitor_add_states (self, CONNECTIVITY_AWAKE, NULL);
-  else
-    connectivity_monitor_remove_states (self, CONNECTIVITY_AWAKE, NULL);
-}
-
-static void
-notify_sleep_cb (
-    UpClient *upower_client,
-    UpSleepKind sleep_kind,
-    gpointer user_data)
-{
-  McdConnectivityMonitor *self = MCD_CONNECTIVITY_MONITOR (user_data);
-
-  DEBUG ("about to sleep! sleep_kind=%s", up_sleep_kind_to_string (sleep_kind));
-  connectivity_monitor_set_awake (self, FALSE);
-}
-
-static void
-notify_resume_cb (
-    UpClient *upower_client,
-    UpSleepKind sleep_kind,
-    gpointer user_data)
-{
-  McdConnectivityMonitor *self = MCD_CONNECTIVITY_MONITOR (user_data);
-
-  DEBUG ("woke up! sleep_kind=%s", up_sleep_kind_to_string (sleep_kind));
-  connectivity_monitor_set_awake (self, TRUE);
-}
-#endif
 
 #ifdef HAVE_GIO_UNIX
 static void
@@ -543,16 +498,6 @@ mcd_connectivity_monitor_init (McdConnectivityMonitor *connectivity_monitor)
     }
 #endif
 
-#ifdef HAVE_UPOWER
-  priv->upower_client = up_client_new ();
-  tp_g_signal_connect_object (priv->upower_client,
-      "notify-sleep", G_CALLBACK (notify_sleep_cb), connectivity_monitor,
-      G_CONNECT_AFTER);
-  tp_g_signal_connect_object (priv->upower_client,
-      "notify-resume", G_CALLBACK (notify_resume_cb), connectivity_monitor,
-      G_CONNECT_AFTER);
-#endif
-
   g_bus_get (G_BUS_TYPE_SYSTEM, NULL, got_system_bus_cb,
       g_object_ref (connectivity_monitor));
 }
@@ -560,12 +505,10 @@ mcd_connectivity_monitor_init (McdConnectivityMonitor *connectivity_monitor)
 static void
 connectivity_monitor_finalize (GObject *object)
 {
-#if defined(HAVE_NM) || defined(HAVE_UPOWER)
+#if defined(HAVE_NM)
   McdConnectivityMonitor *connectivity_monitor = MCD_CONNECTIVITY_MONITOR (object);
   McdConnectivityMonitorPrivate *priv = connectivity_monitor->priv;
-#endif
 
-#ifdef HAVE_NM
   if (priv->nm_client != NULL)
     {
       g_signal_handler_disconnect (priv->nm_client,
@@ -574,10 +517,6 @@ connectivity_monitor_finalize (GObject *object)
       g_object_unref (priv->nm_client);
       priv->nm_client = NULL;
     }
-#endif
-
-#ifdef HAVE_UPOWER
-  tp_clear_object (&priv->upower_client);
 #endif
 
   G_OBJECT_CLASS (mcd_connectivity_monitor_parent_class)->finalize (object);

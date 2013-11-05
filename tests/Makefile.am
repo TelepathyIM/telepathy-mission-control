@@ -37,8 +37,11 @@ tease_the_minotaur_LDADD = $(top_builddir)/src/libmcd-convenience.la
 account_store_LDADD = $(GLIB_LIBS)
 account_store_SOURCES = \
 	account-store.c \
-	account-store-default.c \
-	account-store-default.h
+	account-store-keyfile.c \
+	account-store-keyfile.h \
+	account-store-variant-file.c \
+	account-store-variant-file.h \
+	$(NULL)
 
 if ENABLE_LIBACCOUNTS_SSO
 account_store_SOURCES += account-store-libaccounts.c account-store-libaccounts.h

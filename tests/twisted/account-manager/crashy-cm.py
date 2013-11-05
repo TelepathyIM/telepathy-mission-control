@@ -38,7 +38,7 @@ def test(q, bus, mc):
         {"account": "someguy@example.com",
          "password": "secrecy",
         }, signature='sv')
-    (cm_name_ref, account) = create_fakecm_account(q, bus, mc, params,
+    (simulated_cm, account) = create_fakecm_account(q, bus, mc, params,
         cm_bus=cm_bus)
 
     account.Properties.Set(cs.ACCOUNT, 'Enabled', True)
@@ -69,7 +69,7 @@ def test(q, bus, mc):
 
     # CM crashes
     conn.release_name()
-    del cm_name_ref
+    simulated_cm.release_name()
     cm_bus.flush()
     cm_bus.close()
 

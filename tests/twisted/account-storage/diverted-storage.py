@@ -51,7 +51,7 @@ def test(q, bus, mc):
 
     params = dbus.Dictionary({"account": "someguy@example.com",
         "password": "secrecy"}, signature='sv')
-    (cm_name_ref, account) = create_fakecm_account(q, bus, mc, params)
+    (simulated_cm, account) = create_fakecm_account(q, bus, mc, params)
 
     account_path = account.__dbus_object_path__
 
@@ -85,10 +85,6 @@ def test(q, bus, mc):
     assert kf[group]['DisplayName'] == 'Work account', kf
     assert kf[group]['Icon'] == 'im-jabber', kf
     assert kf[group]['Nickname'] == 'Joe Bloggs', kf
-
-    # default keyfile should be empty
-    ekf = keyfile_read(empty_key_file_name)
-    assert ekf == { None: {} }, ekf
 
     # Reactivate MC
     account_manager, properties, interfaces = resuscitate_mc(q, bus, mc)

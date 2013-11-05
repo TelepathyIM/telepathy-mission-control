@@ -970,7 +970,11 @@ _ag_accountid_to_mc_key (McdAccountManagerSso *sso,
       /* we want this to override any other settings for uid generation */
       g_hash_table_insert (params, g_strdup (MC_ACCOUNT_KEY), &value);
 
-      name = mcp_account_manager_get_unique_name (am, cman, proto, params);
+      /* FIXME: We should call IdentifyAccount(params) really. But this
+       * plugin probably doesn't even compile any more, so, whatever;
+       * just use the "account name". */
+      name = mcp_account_manager_get_unique_name (am, cman, proto,
+          g_value_get_string (&value));
 
     cleanup:
       ag_account_select_service (account, service);

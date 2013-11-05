@@ -27,11 +27,9 @@ import dbus.service
 
 from servicetest import EventPattern, tp_name_prefix, tp_path_prefix, \
         call_async, sync_dbus
-from mctest import exec_test, SimulatedConnection, create_fakecm_account, MC
+from mctest import (exec_test, SimulatedConnection, create_fakecm_account, MC,
+        SimulatedConnectionManager)
 import constants as cs
-
-cm_name_ref = dbus.service.BusName(
-        cs.tp_name_prefix + '.ConnectionManager.fakecm', bus=dbus.SessionBus())
 
 account1_id = 'fakecm/fakeprotocol/jc_2edenton_40unatco_2eint'
 account2_id = 'fakecm/fakeprotocol/jc_2edenton_40example_2ecom'
@@ -95,6 +93,7 @@ def preseed(q, bus, fake_accounts_service):
     account_connections_file.close()
 
 def test(q, bus, unused, **kwargs):
+    simulated_cm = SimulatedConnectionManager(q, bus)
 
     # make sure RequestConnection doesn't get called yet
     events = [EventPattern('dbus-method-call', method='RequestConnection')]

@@ -882,7 +882,7 @@ test_dbus_account_plugin_create (const McpAccountStorage *storage,
     const McpAccountManager *am,
     const gchar *manager,
     const gchar *protocol,
-    GHashTable *params,
+    const gchar *identifier,
     GError **error)
 {
   TestDBusAccountPlugin *self = TEST_DBUS_ACCOUNT_PLUGIN (storage);
@@ -893,7 +893,7 @@ test_dbus_account_plugin_create (const McpAccountStorage *storage,
     return FALSE;
 
   name = mcp_account_manager_get_unique_name ((McpAccountManager *) am,
-      manager, protocol, params);
+      manager, protocol, identifier);
   account = ensure_account (self, name);
   g_dbus_connection_emit_signal (self->bus, NULL,
       TEST_DBUS_ACCOUNT_PLUGIN_PATH, TEST_DBUS_ACCOUNT_PLUGIN_IFACE,
