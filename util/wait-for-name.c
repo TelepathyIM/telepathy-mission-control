@@ -8,7 +8,7 @@
  *
  * [D-BUS Service]
  * Name=....Client.Something
- * Exec=/usr/lib/telepathy/mc-wait-for-name ....Client.Something
+ * Exec=/usr/lib/telepathy/mc6-wait-for-name ....Client.Something
  *
  * Alternatively, it can be used to activate something via an alternative
  * name, e.g. in
@@ -16,7 +16,7 @@
  *
  * [D-BUS Service]
  * Name=....AccountManager
- * Exec=/usr/lib/telepathy/mc-wait-for-name --activate ....MissionControl6 ....AccountManager
+ * Exec=/usr/lib/telepathy/mc6-wait-for-name --activate ....MissionControl6 ....AccountManager
  *
  * Copyright (C) 2009 Nokia Corporation
  * Copyright (C) 2009, 2012 Collabora Ltd.
@@ -148,7 +148,7 @@ main (int argc,
   GError *error = NULL;
   GOptionContext *context;
 
-  g_set_prgname ("mc-wait-for-name");
+  g_set_prgname ("mc6-wait-for-name");
 
   context = g_option_context_new ("- wait for a bus name");
   g_option_context_add_main_entries (context, entries, NULL);
@@ -172,7 +172,7 @@ main (int argc,
       !tp_dbus_check_valid_bus_name (argv[1], TP_DBUS_NAME_TYPE_WELL_KNOWN,
         NULL))
     {
-      g_message ("Usage: mc-wait-for-name [OPTIONS] com.example.SomeBusName");
+      g_message ("Usage: mc6-wait-for-name [OPTIONS] com.example.SomeBusName");
       return EX_USAGE;
     }
 
