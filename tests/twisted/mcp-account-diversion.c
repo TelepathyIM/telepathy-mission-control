@@ -206,8 +206,9 @@ _delete (const McpAccountStorage *self,
 
 
 static gboolean
-_commit (const McpAccountStorage *self,
-    const McpAccountManager *am)
+_commit_one (const McpAccountStorage *self,
+    const McpAccountManager *am,
+    const gchar *account_name)
 {
   gsize n;
   gchar *data;
@@ -266,7 +267,7 @@ account_storage_iface_init (McpAccountStorageIface *iface,
   iface->get = _get;
   iface->set = _set;
   iface->delete = _delete;
-  iface->commit = _commit;
+  iface->commit_one = _commit_one;
   iface->list = _list;
 }
 

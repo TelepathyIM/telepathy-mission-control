@@ -131,7 +131,7 @@ McpAccountStorage * mcd_storage_get_plugin (McdStorage *storage,
 
 G_GNUC_INTERNAL void _mcd_storage_store_connections (McdStorage *storage);
 
-gboolean mcd_storage_add_account_from_plugin (McdStorage *storage,
+void mcd_storage_add_account_from_plugin (McdStorage *storage,
     McpAccountStorage *plugin,
     const gchar *account);
 

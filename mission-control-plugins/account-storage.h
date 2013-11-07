@@ -85,9 +85,6 @@ typedef gboolean (*McpAccountStorageDeleteFunc) (
 typedef GList * (*McpAccountStorageListFunc) (
     const McpAccountStorage *storage,
     const McpAccountManager *am);
-typedef gboolean (*McpAccountStorageCommitFunc) (
-    const McpAccountStorage *storage,
-    const McpAccountManager *am);
 typedef gboolean (*McpAccountStorageCommitOneFunc) (
     const McpAccountStorage *storage,
     const McpAccountManager *am,
@@ -118,7 +115,6 @@ struct _McpAccountStorageIface
   McpAccountStorageSetFunc set;
   McpAccountStorageGetFunc get;
   McpAccountStorageDeleteFunc delete;
-  McpAccountStorageCommitFunc commit;
   McpAccountStorageListFunc list;
   McpAccountStorageReadyFunc ready;
   McpAccountStorageCommitOneFunc commit_one;
@@ -128,9 +124,6 @@ struct _McpAccountStorageIface
   McpAccountStorageCreate create;
 
   /* Since 5.15.0 */
-  gboolean (*owns) (McpAccountStorage *storage,
-      McpAccountManager *am,
-      const gchar *account);
   gboolean (*set_attribute) (McpAccountStorage *storage,
       McpAccountManager *am,
       const gchar *account,
@@ -175,10 +168,6 @@ void mcp_account_storage_ready (const McpAccountStorage *storage,
     const McpAccountManager *am);
 
 gboolean
-mcp_account_storage_commit (const McpAccountStorage *storage,
-    const McpAccountManager *am);
-
-gboolean
 mcp_account_storage_commit_one (const McpAccountStorage *storage,
     const McpAccountManager *am,
     const gchar *account);
@@ -202,10 +191,6 @@ const gchar *mcp_account_storage_name (const McpAccountStorage *storage);
 
 const gchar *mcp_account_storage_description (const McpAccountStorage *storage);
 const gchar *mcp_account_storage_provider (const McpAccountStorage *storage);
-
-gboolean mcp_account_storage_owns (McpAccountStorage *storage,
-    McpAccountManager *am,
-    const gchar *account);
 
 gboolean mcp_account_storage_set_attribute (McpAccountStorage *storage,
     McpAccountManager *am,

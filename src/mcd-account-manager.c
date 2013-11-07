@@ -272,16 +272,9 @@ created_cb (GObject *storage_plugin_obj,
     lad->account_lock = 1; /* will be released at the end of this function */
 
     /* actually fetch the data into our cache from the plugin: */
-    if (mcd_storage_add_account_from_plugin (storage, plugin, name))
-    {
-        account = mcd_account_new (am, name, priv->minotaur);
-        lad->account = account;
-    }
-    else
-    {
-        /* that function already warned about it */
-        goto finish;
-    }
+    mcd_storage_add_account_from_plugin (storage, plugin, name);
+    account = mcd_account_new (am, name, priv->minotaur);
+    lad->account = account;
 
     if (G_UNLIKELY (!account))
     {
