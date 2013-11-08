@@ -112,21 +112,54 @@ _create_config (void)
 }
 
 static gboolean
-_set (const McpAccountStorage *self,
-    const McpAccountManager *am,
-    const gchar *account,
-    const gchar *key,
-    const gchar *val)
+_set (McpAccountStorage *self,
+      McpAccountManager *am,
+      const gchar *account,
+      const gchar *key,
+      GVariant *val,
+      McpParameterFlags flags)
 {
   AccountDiversionPlugin *adp = ACCOUNT_DIVERSION_PLUGIN (self);
+  gchar *val_str;
 
   if (g_str_has_prefix (account, DONT_DIVERT))
       return FALSE;
 
   adp->save = TRUE;
-  g_key_file_set_value (adp->keyfile, account, key, val);
+
+  val_str = mcp_account_manager_escape_variant_for_keyfile (am, val);
+  g_key_file_set_value (adp->keyfile, account, key, val_str);
+  g_free (val_str);
 
   return TRUE;
+}
+
+static gboolean
+_set_attribute (McpAccountStorage *self,
+      McpAccountManager *am,
+      const gchar *account,
+      const gchar *attribute,
+      GVariant *val,
+      McpAttributeFlags flags)
+{
+  return _set (self, am, account, attribute, val, flags);
+}
+
+static gboolean
+_set_parameter (McpAccountStorage *self,
+      McpAccountManager *am,
+      const gchar *account,
+      const gchar *parameter,
+      GVariant *val,
+      McpParameterFlags flags)
+{
+  gchar *param = g_strdup_printf ("param-%s", parameter);
+  gboolean ret;
+
+  ret = _set (self, am, account, param, val, flags);
+  g_free (param);
+
+  return ret;
 }
 
 static gboolean
@@ -266,7 +299,8 @@ account_storage_iface_init (McpAccountStorageIface *iface,
   iface->priority = PLUGIN_PRIORITY;
 
   iface->get = _get;
-  iface->set = _set;
+  iface->set_attribute = _set_attribute;
+  iface->set_parameter = _set_parameter;
   iface->delete = _delete;
   iface->commit = _commit;
   iface->list = _list;

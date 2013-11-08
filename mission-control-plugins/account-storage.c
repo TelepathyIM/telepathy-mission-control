@@ -57,7 +57,6 @@
  *   iface->provider = "org.freedesktop.Telepathy.MissionControl5.FooStorage";
  *
  *   iface->get = foo_plugin_get;
- *   iface->set = foo_plugin_get;
  *   iface->delete = foo_plugin_delete;
  *   iface->commit = foo_plugin_commit;
  *   iface->list = foo_plugin_list;
@@ -109,16 +108,6 @@ enum
 };
 
 static guint signals[NO_SIGNAL] = { 0 };
-
-static gboolean
-default_set (const McpAccountStorage *storage,
-    const McpAccountManager *am,
-    const gchar *account,
-    const gchar *key,
-    const gchar *val)
-{
-  return FALSE;
-}
 
 static gboolean
 default_set_attribute (McpAccountStorage *storage,
@@ -208,7 +197,6 @@ class_init (gpointer klass,
   GType type = G_TYPE_FROM_CLASS (klass);
   McpAccountStorageIface *iface = klass;
 
-  iface->set = default_set;
   iface->set_attribute = default_set_attribute;
   iface->set_parameter = default_set_parameter;
   iface->create = default_create;
@@ -474,59 +462,6 @@ mcp_account_storage_get (const McpAccountStorage *storage,
 }
 
 /**
- * McpAccountStorageSetFunc:
- * @storage: an #McpAccountStorage instance
- * @am: an #McpAccountManager instance
- * @account: the unique name of the account
- * @key: the setting whose value we wish to store: either an attribute
- *  like "DisplayName", or "param-" plus a parameter like "account"
- * @val: a non-%NULL value for @key
- *
- * An implementation of mcp_account_storage_set().
- *
- * Returns: %TRUE if @storage is responsible for @account
- */
-
-/**
- * mcp_account_storage_set:
- * @storage: an #McpAccountStorage instance
- * @am: an #McpAccountManager instance
- * @account: the unique name of the account
- * @key: the non-%NULL setting whose value we wish to store: either an
- *  attribute like "DisplayName", or "param-" plus a parameter like "account"
- * @value: a value to associate with @key, escaped as if for a #GKeyFile
- *
- * The plugin is expected to either quickly and synchronously
- * update its internal cache of values with @value, or to
- * decline to store the setting.
- *
- * The plugin is not expected to write to its long term storage
- * at this point. It can expect Mission Control to call
- * mcp_account_storage_commit() after a short delay.
- *
- * Plugins that implement mcp_storage_set_attribute() and
- * mcp_account_storage_set_parameter() can just return %FALSE here.
- * There is a default implementation, which just returns %FALSE.
- *
- * Returns: %TRUE if the attribute was claimed, %FALSE otherwise
- */
-gboolean
-mcp_account_storage_set (const McpAccountStorage *storage,
-    const McpAccountManager *am,
-    const gchar *account,
-    const gchar *key,
-    const gchar *value)
-{
-  McpAccountStorageIface *iface = MCP_ACCOUNT_STORAGE_GET_IFACE (storage);
-
-  SDEBUG (storage, "");
-  g_return_val_if_fail (iface != NULL, FALSE);
-  g_return_val_if_fail (iface->set != NULL, FALSE);
-
-  return iface->set (storage, am, account, key, value);
-}
-
-/**
  * mcp_account_storage_set_attribute:
  * @storage: an #McpAccountStorage instance
  * @am: an #McpAccountManager instance
@@ -544,9 +479,8 @@ mcp_account_storage_set (const McpAccountStorage *storage,
  * The plugin is not expected to write to its long term storage
  * at this point.
  *
- * There is a default implementation, which just returns %FALSE.
- * Mission Control will call mcp_account_storage_set() instead,
- * using a keyfile-escaped version of @value.
+ * There is a default implementation, which just returns %FALSE for read-only
+ * storage plugins.
  *
  * Returns: %TRUE if the attribute was claimed, %FALSE otherwise
  *
@@ -588,10 +522,8 @@ mcp_account_storage_set_attribute (McpAccountStorage *storage,
  * The plugin is not expected to write to its long term storage
  * at this point.
  *
- * There is a default implementation, which just returns %FALSE.
- * Mission Control will call mcp_account_storage_set() instead,
- * using "param-" + @parameter as key and a keyfile-escaped version
- * of @value as value.
+ * There is a default implementation, which just returns %FALSE for read-only
+ * storage plugins.
  *
  * Returns: %TRUE if the parameter was claimed, %FALSE otherwise
  *
@@ -1026,7 +958,7 @@ mcp_account_storage_provider (const McpAccountStorage *storage)
 }
 
 /**
- * mcp_account_storage_emit_create:
+ * mcp_account_storage_emit_created:
  * @storage: an #McpAccountStorage instance
  * @account: the unique name of the created account
  *
