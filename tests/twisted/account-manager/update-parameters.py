@@ -252,13 +252,11 @@ def test(q, bus, mc, **kwargs):
     assertEquals(r'\\',
             kwargs['fake_accounts_service'].accounts
             [account.object_path[len(cs.ACCOUNT_PATH_PREFIX):]]
-            [2]     # parameters of known type
-            ['account'])
+            .params['account'])
     assertEquals(None,
             kwargs['fake_accounts_service'].accounts
             [account.object_path[len(cs.ACCOUNT_PATH_PREFIX):]]
-            [3]     # parameters of unknown type
-            .get('account', None))
+            .untyped_params.get('account', None))
 
 if __name__ == '__main__':
     exec_test(test, {}, pass_kwargs=True)
