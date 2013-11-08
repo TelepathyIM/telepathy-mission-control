@@ -27,7 +27,6 @@
 
 typedef enum {
     MCP_PARAMETER_FLAG_NONE = 0,
-    MCP_PARAMETER_FLAG_SECRET = TP_CONN_MGR_PARAM_FLAG_SECRET
 } McpParameterFlags;
 
 typedef enum {

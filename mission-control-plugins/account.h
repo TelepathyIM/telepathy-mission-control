@@ -66,14 +66,6 @@ gchar * mcp_account_manager_get_value (const McpAccountManager *mcpa,
     const gchar *account,
     const gchar *key);
 
-gboolean mcp_account_manager_parameter_is_secret (const McpAccountManager *mcpa,
-    const gchar *account,
-    const gchar *key);
-
-void mcp_account_manager_parameter_make_secret (const McpAccountManager *mcpa,
-    const gchar *account,
-    const gchar *key);
-
 gchar * mcp_account_manager_get_unique_name (McpAccountManager *mcpa,
     const gchar *manager,
     const gchar *protocol,

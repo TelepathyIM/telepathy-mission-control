@@ -378,9 +378,8 @@ _mcd_account_set_parameter (McdAccount *account, const gchar *name,
     McdAccountPrivate *priv = account->priv;
     McdStorage *storage = priv->storage;
     const gchar *account_name = mcd_account_get_unique_name (account);
-    gboolean secret = mcd_account_parameter_is_secret (account, name);
 
-    mcd_storage_set_parameter (storage, account_name, name, value, secret);
+    mcd_storage_set_parameter (storage, account_name, name, value);
 }
 
 static GType mc_param_type (const TpConnectionManagerParam *param);
@@ -5154,19 +5153,6 @@ _mcd_account_needs_dispatch (McdAccount *self)
     g_return_val_if_fail (MCD_IS_ACCOUNT (self), FALSE);
 
     return self->priv->always_dispatch;
-}
-
-gboolean
-mcd_account_parameter_is_secret (McdAccount *self, const gchar *name)
-{
-    McdAccountPrivate *priv = self->priv;
-    const TpConnectionManagerParam *param;
-
-    param = mcd_manager_get_protocol_param (priv->manager,
-                                            priv->protocol_name, name);
-
-    return (param != NULL &&
-        tp_connection_manager_param_is_secret (param));
 }
 
 void
