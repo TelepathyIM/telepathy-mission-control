@@ -1194,36 +1194,6 @@ test_dbus_account_plugin_set_parameter (McpAccountStorage *storage,
   return TRUE;
 }
 
-static gboolean
-test_dbus_account_plugin_commit (const McpAccountStorage *storage,
-    const McpAccountManager *am)
-{
-  TestDBusAccountPlugin *self = TEST_DBUS_ACCOUNT_PLUGIN (storage);
-  GHashTableIter iter;
-  gpointer k;
-
-  DEBUG ("called");
-
-  if (!self->active)
-    return FALSE;
-
-  g_dbus_connection_emit_signal (self->bus, NULL,
-      TEST_DBUS_ACCOUNT_PLUGIN_PATH, TEST_DBUS_ACCOUNT_PLUGIN_IFACE,
-      "CommittingAll", NULL, NULL);
-
-  g_hash_table_iter_init (&iter, self->accounts);
-
-  while (g_hash_table_iter_next (&iter, &k, NULL))
-    {
-      if (!mcp_account_storage_commit_one (storage, am, k))
-        {
-          g_warning ("declined to commit account %s", (const gchar *) k);
-        }
-    }
-
-  return TRUE;
-}
-
 static void
 delete_account_cb (GObject *source_object,
     GAsyncResult *res,
@@ -1355,11 +1325,9 @@ update_parameters_cb (GObject *source_object,
 }
 
 static gboolean
-test_dbus_account_plugin_commit_one (const McpAccountStorage *storage,
-    const McpAccountManager *am,
+commit_one (TestDBusAccountPlugin *self,
     const gchar *account_name)
 {
-  TestDBusAccountPlugin *self = TEST_DBUS_ACCOUNT_PLUGIN (storage);
   Account *account = lookup_account (self, account_name);
   GHashTableIter iter;
   gpointer k;
@@ -1369,9 +1337,6 @@ test_dbus_account_plugin_commit_one (const McpAccountStorage *storage,
   GVariantBuilder as_builder;
 
   DEBUG ("%s", account_name);
-
-  if (account_name == NULL)
-    return test_dbus_account_plugin_commit (storage, am);
 
   if (!self->active || account == NULL)
     return FALSE;
@@ -1524,6 +1489,40 @@ test_dbus_account_plugin_commit_one (const McpAccountStorage *storage,
   return TRUE;
 }
 
+static gboolean
+test_dbus_account_plugin_commit (const McpAccountStorage *storage,
+    const McpAccountManager *am,
+    const gchar *account_name)
+{
+  TestDBusAccountPlugin *self = TEST_DBUS_ACCOUNT_PLUGIN (storage);
+  GHashTableIter iter;
+  gpointer k;
+
+  DEBUG ("called");
+
+  if (!self->active)
+    return FALSE;
+
+  if (account_name != NULL)
+    return commit_one (self, account_name);
+
+  g_dbus_connection_emit_signal (self->bus, NULL,
+      TEST_DBUS_ACCOUNT_PLUGIN_PATH, TEST_DBUS_ACCOUNT_PLUGIN_IFACE,
+      "CommittingAll", NULL, NULL);
+
+  g_hash_table_iter_init (&iter, self->accounts);
+
+  while (g_hash_table_iter_next (&iter, &k, NULL))
+    {
+      if (!commit_one (self, k))
+        {
+          g_warning ("declined to commit account %s", (const gchar *) k);
+        }
+    }
+
+  return TRUE;
+}
+
 static void
 test_dbus_account_plugin_get_identifier (const McpAccountStorage *storage,
     const gchar *account_name,
@@ -1594,7 +1593,7 @@ account_storage_iface_init (McpAccountStorageIface *iface)
   iface->list = test_dbus_account_plugin_list;
   iface->ready = test_dbus_account_plugin_ready;
   iface->delete = test_dbus_account_plugin_delete;
-  iface->commit_one = test_dbus_account_plugin_commit_one;
+  iface->commit = test_dbus_account_plugin_commit;
   iface->get_identifier = test_dbus_account_plugin_get_identifier;
   iface->get_additional_info = test_dbus_account_plugin_get_additional_info;
   iface->get_restrictions = test_dbus_account_plugin_get_restrictions;

@@ -59,7 +59,7 @@
  *   iface->get = foo_plugin_get;
  *   iface->set = foo_plugin_get;
  *   iface->delete = foo_plugin_delete;
- *   iface->commit_one = foo_plugin_commit_one;
+ *   iface->commit = foo_plugin_commit;
  *   iface->list = foo_plugin_list;
  *   iface->ready = foo_plugin_ready;
  *   iface->get_identifier = foo_plugin_get_identifier;
@@ -165,7 +165,7 @@ default_delete (const McpAccountStorage *storage,
 }
 
 static gboolean
-default_commit_one (const McpAccountStorage *storage,
+default_commit (const McpAccountStorage *storage,
     const McpAccountManager *am,
     const gchar *account)
 {
@@ -213,7 +213,7 @@ class_init (gpointer klass,
   iface->set_parameter = default_set_parameter;
   iface->create = default_create;
   iface->delete = default_delete;
-  iface->commit_one = default_commit_one;
+  iface->commit = default_commit;
   iface->ready = default_ready;
   iface->get_identifier = default_get_identifier;
   iface->get_additional_info = default_get_additional_info;
@@ -365,7 +365,7 @@ mcp_account_storage_get_type (void)
  * @delete: implementation of mcp_account_storage_delete()
  * @list: implementation of mcp_account_storage_list()
  * @ready: implementation of mcp_account_storage_ready()
- * @commit_one: implementation of mcp_account_storage_commit_one()
+ * @commit: implementation of mcp_account_storage_commit()
  * @get_identifier: implementation of mcp_account_storage_get_identifier()
  * @get_additional_info: implementation of
  *  mcp_account_storage_get_additional_info()
@@ -503,7 +503,7 @@ mcp_account_storage_get (const McpAccountStorage *storage,
  *
  * The plugin is not expected to write to its long term storage
  * at this point. It can expect Mission Control to call
- * mcp_account_storage_commit_one() after a short delay.
+ * mcp_account_storage_commit() after a short delay.
  *
  * Plugins that implement mcp_storage_set_attribute() and
  * mcp_account_storage_set_parameter() can just return %FALSE here.
@@ -642,7 +642,7 @@ mcp_account_storage_set_parameter (McpAccountStorage *storage,
  * Inform the plugin that a new account is being created. @manager, @protocol
  * and @identification are given to help determining the account's unique name,
  * but does not need to be stored on the account yet, mcp_account_storage_set()
- * and mcp_account_storage_commit_one() will be called later.
+ * and mcp_account_storage_commit() will be called later.
  *
  * It is recommended to use mcp_account_manager_get_unique_name() to create the
  * unique name, but it's not mandatory. One could base the unique name on an
@@ -650,7 +650,7 @@ mcp_account_storage_set_parameter (McpAccountStorage *storage,
  * (e.g. goa__1234).
  *
  * #McpAccountStorage::created signal should not be emitted for this account,
- * not even when mcp_account_storage_commit_one() will be called.
+ * not even when mcp_account_storage_commit() will be called.
  *
  * There is a default implementation, which just returns %NULL and raise an
  * error.
@@ -735,19 +735,19 @@ mcp_account_storage_delete (const McpAccountStorage *storage,
 }
 
 /**
- * McpAccountStorageCommitOneFunc:
+ * McpAccountStorageCommitFunc:
  * @storage: an #McpAccountStorage instance
  * @am: an #McpAccountManager instance
  * @account: (allow-none): the unique suffix of an account's object path,
  *  or %NULL
  *
- * An implementation of mcp_account_storage_commit_one().
+ * An implementation of mcp_account_storage_commit().
  *
  * Returns: %TRUE if the commit process was started successfully
  */
 
 /**
- * mcp_account_storage_commit_one:
+ * mcp_account_storage_commit:
  * @storage: an #McpAccountStorage instance
  * @am: an #McpAccountManager instance
  * @account: (allow-none): the unique suffix of an account's object path,
@@ -771,7 +771,7 @@ mcp_account_storage_delete (const McpAccountStorage *storage,
  * obvious.
  */
 gboolean
-mcp_account_storage_commit_one (const McpAccountStorage *storage,
+mcp_account_storage_commit (const McpAccountStorage *storage,
     const McpAccountManager *am,
     const gchar *account)
 {
@@ -779,9 +779,9 @@ mcp_account_storage_commit_one (const McpAccountStorage *storage,
 
   SDEBUG (storage, "called for %s", account ? account : "<all accounts>");
   g_return_val_if_fail (iface != NULL, FALSE);
-  g_return_val_if_fail (iface->commit_one != NULL, FALSE);
+  g_return_val_if_fail (iface->commit != NULL, FALSE);
 
-  return iface->commit_one (storage, am, account);
+  return iface->commit (storage, am, account);
 }
 
 /**

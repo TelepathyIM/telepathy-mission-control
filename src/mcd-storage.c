@@ -2169,7 +2169,7 @@ mcd_storage_commit (McdStorage *self, const gchar *account)
 
       DEBUG ("flushing plugin %s %s to long term storage",
           mcp_account_storage_name (sa->storage), account);
-      mcp_account_storage_commit_one (sa->storage, ma, account);
+      mcp_account_storage_commit (sa->storage, ma, account);
       return;
     }
 
@@ -2179,7 +2179,7 @@ mcd_storage_commit (McdStorage *self, const gchar *account)
 
       DEBUG ("flushing plugin %s to long term storage",
           mcp_account_storage_name (plugin));
-      mcp_account_storage_commit_one (plugin, ma, NULL);
+      mcp_account_storage_commit (plugin, ma, NULL);
     }
 }
 
