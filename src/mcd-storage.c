@@ -224,54 +224,6 @@ lookup_account (McdStorage *self,
   return g_hash_table_lookup (self->accounts, account);
 }
 
-static gchar *
-get_value (const McpAccountManager *ma,
-    const gchar *account,
-    const gchar *key)
-{
-  McdStorage *self = MCD_STORAGE (ma);
-  McdStorageAccount *sa = lookup_account (self, account);
-  GVariant *variant;
-  gchar *ret;
-
-  if (sa == NULL)
-    return NULL;
-
-  if (g_str_has_prefix (key, "param-"))
-    {
-      variant = g_hash_table_lookup (sa->parameters, key + 6);
-
-      if (variant != NULL)
-        {
-          ret = mcd_keyfile_escape_variant (variant);
-          g_variant_unref (variant);
-          return ret;
-        }
-      else
-        {
-          /* OK, we don't have it as a variant. How about the keyfile-escaped
-           * version? */
-          return g_strdup (g_hash_table_lookup (sa->escaped_parameters,
-                key + 6));
-        }
-    }
-  else
-    {
-      variant = g_hash_table_lookup (sa->attributes, key);
-
-      if (variant != NULL)
-        {
-          ret = mcd_keyfile_escape_variant (variant);
-          g_variant_unref (variant);
-          return ret;
-        }
-      else
-        {
-          return NULL;
-        }
-    }
-}
-
 static struct {
     const gchar *type;
     const gchar *name;
@@ -377,14 +329,6 @@ mcd_storage_init_value_for_attribute (GValue *value,
     }
 
   return FALSE;
-}
-
-static gboolean
-mcpa_init_value_for_attribute (const McpAccountManager *mcpa,
-    GValue *value,
-    const gchar *attribute)
-{
-  return mcd_storage_init_value_for_attribute (value, attribute);
 }
 
 static void
@@ -989,15 +933,6 @@ mcd_storage_get_parameter (McdStorage *self,
       return FALSE;
     }
 
-  return mcd_keyfile_unescape_value (escaped, value, error);
-}
-
-static gboolean
-mcpa_unescape_value_from_keyfile (const McpAccountManager *unused G_GNUC_UNUSED,
-    const gchar *escaped,
-    GValue *value,
-    GError **error)
-{
   return mcd_keyfile_unescape_value (escaped, value, error);
 }
 
@@ -1692,13 +1627,6 @@ mcd_storage_set_parameter (McdStorage *self,
   return updated;
 }
 
-static gchar *
-mcpa_escape_value_for_keyfile (const McpAccountManager *unused G_GNUC_UNUSED,
-    const GValue *value)
-{
-  return mcd_keyfile_escape_value (value);
-}
-
 /*
  * @value: a populated #GValue of a supported #GType
  *
@@ -2156,7 +2084,6 @@ plugin_iface_init (McpAccountManagerIface *iface,
 {
   DEBUG ();
 
-  iface->get_value = get_value;
   iface->set_value = set_value;
   iface->set_attribute = mcpa_set_attribute;
   iface->set_parameter = mcpa_set_parameter;
@@ -2164,10 +2091,7 @@ plugin_iface_init (McpAccountManagerIface *iface,
   iface->identify_account_async = identify_account_async;
   iface->identify_account_finish = identify_account_finish;
   iface->list_keys = list_keys;
-  iface->escape_value_for_keyfile = mcpa_escape_value_for_keyfile;
   iface->escape_variant_for_keyfile = mcpa_escape_variant_for_keyfile;
-  iface->unescape_value_from_keyfile = mcpa_unescape_value_from_keyfile;
-  iface->init_value_for_attribute = mcpa_init_value_for_attribute;
 }
 
 void
