@@ -142,6 +142,9 @@ def test(q, bus, mc, fake_accounts_service=None, **kwargs):
                     'ConnectAutomatically', not online)
             q.expect('dbus-error', method='Set')
 
+            call_async(q, account, 'Remove')
+            q.expect('dbus-error', method='Remove')
+
             # ... but the backend can still change them
             if enabled and online:
                 q.forbid_events(try_to_connect)
@@ -159,7 +162,24 @@ def test(q, bus, mc, fake_accounts_service=None, **kwargs):
                             'Enabled': True,
                             'ConnectAutomatically': True,
                         })
-                q.expect_many(*try_to_connect)
+
+                events = q.expect_many(*try_to_connect)
+                conn = SimulatedConnection(q, bus, 'fakecm', 'fakeprotocol',
+                        account_tail.replace('/', '_'), 'ezio',
+                        has_presence=True)
+                q.dbus_return(events[-1].message, conn.bus_name,
+                        conn.object_path, signature='so')
+
+                # we are connected: deleting the account should
+                # disconnect us
+                fake_accounts_service.delete_account(account_tail)
+                q.expect_many(
+                        EventPattern('dbus-signal', signal='AccountRemoved',
+                            args=[account_path]),
+                        EventPattern('dbus-signal', signal='Removed',
+                            path=account_path),
+                        EventPattern('dbus-method-call', method='Disconnect'),
+                        )
 
 if __name__ == '__main__':
     exec_test(test, {}, pass_kwargs=True)

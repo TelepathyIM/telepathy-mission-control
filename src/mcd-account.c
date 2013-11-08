@@ -671,8 +671,12 @@ account_delete_identify_account_cb (TpProxy *protocol,
   g_object_unref (account);
 }
 
+static TpStorageRestrictionFlags mcd_account_get_storage_restrictions (
+    McdAccount *account);
+
 void
 mcd_account_delete (McdAccount *account,
+                    McdDBusPropSetFlags flags,
                      McdAccountDeleteCb callback,
                      gpointer user_data)
 {
@@ -681,6 +685,23 @@ mcd_account_delete (McdAccount *account,
     GError *error = NULL;
     const gchar *name = mcd_account_get_unique_name (account);
     TpConnectionManager *cm = mcd_account_get_cm (account);
+
+    /* We don't really have a flag for "cannot delete accounts" yet, but
+     * it seems reasonable that if you can't disable it or put it
+     * offline, you shouldn't be able to delete it. Also, we're going
+     * to try to disable it in a moment anyway. */
+    if ((flags & MCD_DBUS_PROP_SET_FLAG_ALREADY_IN_STORAGE) == 0 &&
+        (mcd_account_get_storage_restrictions (account) &
+          (TP_STORAGE_RESTRICTION_FLAG_CANNOT_SET_ENABLED |
+           TP_STORAGE_RESTRICTION_FLAG_CANNOT_SET_PRESENCE)) != 0)
+    {
+        g_set_error (&error, TP_ERROR, TP_ERROR_PERMISSION_DENIED,
+                     "Storage plugin for %s does not allow deleting it",
+                     name);
+        callback (account, error, user_data);
+        g_error_free (error);
+        return;
+    }
 
     /* if the CM implements CM.I.AccountStorage, we need to tell the CM
      * to forget any account credentials it knows */
@@ -705,7 +726,7 @@ mcd_account_delete (McdAccount *account,
     /* got to turn the account off before removing it, otherwise we can *
      * end up with an orphaned CM holding the account online            */
     if (!_mcd_account_set_enabled (account, FALSE, FALSE,
-                                   MCD_DBUS_PROP_SET_FLAG_NONE, &error))
+                                   flags, &error))
     {
         g_warning ("could not disable account %s (%s)", name, error->message);
         callback (account, error, user_data);
@@ -1132,9 +1153,6 @@ get_has_been_online (TpSvcDBusProperties *self, const gchar *name,
     g_value_init (value, G_TYPE_BOOLEAN);
     g_value_set_boolean (value, priv->has_been_online);
 }
-
-static TpStorageRestrictionFlags mcd_account_get_storage_restrictions (
-    McdAccount *account);
 
 /**
  * mcd_account_set_enabled:
@@ -2443,7 +2461,8 @@ account_remove (TpSvcAccount *svc, DBusGMethodInvocation *context)
     data->context = context;
 
     DEBUG ("called");
-    mcd_account_delete (self, account_remove_delete_cb, data);
+    mcd_account_delete (self, MCD_DBUS_PROP_SET_FLAG_NONE,
+                        account_remove_delete_cb, data);
 }
 
 /*
