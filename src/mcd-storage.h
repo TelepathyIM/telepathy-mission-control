@@ -88,8 +88,7 @@ gboolean mcd_storage_set_attribute (McdStorage *storage,
 gboolean mcd_storage_set_parameter (McdStorage *storage,
     const gchar *account,
     const gchar *parameter,
-    const GValue *value,
-    gboolean secret);
+    const GValue *value);
 
 gchar *mcd_storage_create_account (McdStorage *storage,
     const gchar *provider,

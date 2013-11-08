@@ -72,9 +72,6 @@ typedef struct {
      * e.g. { 'account': 'fred@example.com', 'password': 'foo' }
      * keys of @parameters and @escaped_parameters are disjoint */
     GHashTable *escaped_parameters;
-    /* set of owned strings
-     * e.g. { 'password': 'password' } */
-    GHashTable *secrets;
 } McdStorageAccount;
 
 static void
@@ -85,7 +82,6 @@ mcd_storage_account_free (gpointer p)
   g_hash_table_unref (sa->attributes);
   g_hash_table_unref (sa->parameters);
   g_hash_table_unref (sa->escaped_parameters);
-  g_hash_table_unref (sa->secrets);
   g_slice_free (McdStorageAccount, sa);
 }
 
@@ -222,8 +218,6 @@ ensure_account (McdStorage *self,
           g_free, (GDestroyNotify) g_variant_unref);
       sa->escaped_parameters = g_hash_table_new_full (g_str_hash, g_str_equal,
           g_free, g_free);
-      sa->secrets = g_hash_table_new_full (g_str_hash, g_str_equal,
-          g_free, NULL);
       g_hash_table_insert (self->accounts, g_strdup (account), sa);
     }
 
@@ -430,12 +424,6 @@ mcpa_set_parameter (const McpAccountManager *ma,
   if (value != NULL)
     g_hash_table_insert (sa->parameters, g_strdup (parameter),
         g_variant_ref_sink (value));
-
-  if (flags & MCP_PARAMETER_FLAG_SECRET)
-    {
-      DEBUG ("flagging %s parameter %s as secret", account, parameter);
-      g_hash_table_add (sa->secrets, g_strdup (parameter));
-    }
 }
 
 static void
@@ -517,47 +505,6 @@ list_keys (const McpAccountManager *ma,
 
   g_ptr_array_add (ret, NULL);
   return (GStrv) g_ptr_array_free (ret, FALSE);
-}
-
-static gboolean
-is_secret (const McpAccountManager *ma,
-    const gchar *account,
-    const gchar *key)
-{
-  McdStorage *self = MCD_STORAGE (ma);
-  McdStorageAccount *sa = lookup_account (self, account);
-
-  if (sa == NULL || !g_str_has_prefix (key, "param-"))
-    return FALSE;
-
-  return g_hash_table_contains (sa->secrets, key + 6);
-}
-
-static void
-mcd_storage_make_secret (McdStorage *self,
-    const gchar *account,
-    const gchar *key)
-{
-  McdStorageAccount *sa;
-
-  g_return_if_fail (MCD_IS_STORAGE (self));
-  g_return_if_fail (account != NULL);
-  g_return_if_fail (key != NULL);
-
-  if (!g_str_has_prefix (key, "param-"))
-    return;
-
-  DEBUG ("flagging %s parameter %s as secret", account, key + 6);
-  sa = ensure_account (self, account);
-  g_hash_table_add (sa->secrets, g_strdup (key + 6));
-}
-
-static void
-make_secret (const McpAccountManager *ma,
-    const gchar *account,
-    const gchar *key)
-{
-  mcd_storage_make_secret (MCD_STORAGE (ma), account, key);
 }
 
 static gchar *
@@ -1547,16 +1494,12 @@ update_storage (McdStorage *self,
     const gchar *account,
     const gchar *key,
     GVariant *variant,
-    const gchar *escaped,
-    gboolean secret)
+    const gchar *escaped)
 {
   GList *store;
   gboolean done = FALSE;
   gboolean parameter = g_str_has_prefix (key, "param-");
   McpAccountManager *ma = MCP_ACCOUNT_MANAGER (self);
-
-  if (secret)
-    mcd_storage_make_secret (self, account, key);
 
   /* we're deleting, which is unconditional, no need to check if anyone *
    * claims this setting for themselves                                 */
@@ -1582,8 +1525,7 @@ update_storage (McdStorage *self,
         }
       else if (variant != NULL && parameter &&
           mcp_account_storage_set_parameter (plugin, ma, account, key + 6,
-            variant,
-            secret ? MCP_PARAMETER_FLAG_SECRET : MCP_PARAMETER_FLAG_NONE))
+            variant, MCP_PARAMETER_FLAG_NONE))
         {
           done = TRUE;
           DEBUG ("MCP:%s -> store parameter %s.%s", pn, account, key);
@@ -1700,7 +1642,7 @@ mcd_storage_set_attribute (McdStorage *self,
       if (value != NULL)
         escaped = mcd_keyfile_escape_value (value);
 
-      update_storage (self, account, attribute, new_v, escaped, FALSE);
+      update_storage (self, account, attribute, new_v, escaped);
       g_free (escaped);
       updated = TRUE;
     }
@@ -1715,8 +1657,6 @@ mcd_storage_set_attribute (McdStorage *self,
  * @account: the unique name of an account
  * @parameter: the name of the parameter, e.g. "account"
  * @value: the value to be stored (or %NULL to erase it)
- * @secret: whether the value is confidential (might get stored in the
- * keyring, for example)
  *
  * Copies and stores the supplied @value (or removes it if %NULL) in the
  * internal cache.
@@ -1731,8 +1671,7 @@ gboolean
 mcd_storage_set_parameter (McdStorage *self,
     const gchar *account,
     const gchar *parameter,
-    const GValue *value,
-    gboolean secret)
+    const GValue *value)
 {
   GVariant *old_v;
   GVariant *new_v = NULL;
@@ -1775,7 +1714,7 @@ mcd_storage_set_parameter (McdStorage *self,
             g_variant_ref (new_v));
 
       g_snprintf (key, sizeof (key), "param-%s", parameter);
-      update_storage (self, account, key, new_v, new_escaped, secret);
+      update_storage (self, account, key, new_v, new_escaped);
       return TRUE;
     }
 
@@ -2279,8 +2218,6 @@ plugin_iface_init (McpAccountManagerIface *iface,
   iface->set_value = set_value;
   iface->set_attribute = mcpa_set_attribute;
   iface->set_parameter = mcpa_set_parameter;
-  iface->is_secret = is_secret;
-  iface->make_secret = make_secret;
   iface->unique_name = unique_name;
   iface->identify_account_async = identify_account_async;
   iface->identify_account_finish = identify_account_finish;

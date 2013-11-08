@@ -216,65 +216,6 @@ mcp_account_manager_get_value (const McpAccountManager *mcpa,
 }
 
 /**
- * mcp_account_manager_parameter_is_secret:
- * @mcpa: an #McpAccountManager instance
- * @account: the unique name of an account
- * @key: the constant string "param-", plus a parameter name like
- *  "account" or "password"
- *
- * Determine whether a given account parameter is secret.
- * Generally this is determined by MC and passed down to plugins,
- * but any #McpAccountStorage plugin may decide a parameter is
- * secret, in which case the return value for this call will
- * indicate that fact too.
- *
- * For historical reasons, this function only operates on parameters,
- * but requires its argument to be prefixed with "param-".
- *
- * Returns: %TRUE for secret settings, %FALSE otherwise
- */
-gboolean
-mcp_account_manager_parameter_is_secret (const McpAccountManager *mcpa,
-    const gchar *account,
-    const gchar *key)
-{
-  McpAccountManagerIface *iface = MCP_ACCOUNT_MANAGER_GET_IFACE (mcpa);
-
-  g_return_val_if_fail (iface != NULL, FALSE);
-  g_return_val_if_fail (iface->is_secret != NULL, FALSE);
-
-  return iface->is_secret (mcpa, account, key);
-}
-
-/**
- * mcp_account_manager_parameter_make_secret:
- * @mcpa: an #McpAccountManager instance
- * @account: the unique name of an account
- * @key: the constant string "param-", plus a parameter name like
- *  "account" or "password"
- *
- * Flag an account setting as secret for the lifetime of this
- * #McpAccountManager. For instance, this should be called if
- * @key has been retrieved from gnome-keyring.
- *
- * For historical reasons, this function only operates on parameters,
- * but requires its argument to be prefixed with "param-".
- */
-void
-mcp_account_manager_parameter_make_secret (const McpAccountManager *mcpa,
-    const gchar *account,
-    const gchar *key)
-{
-  McpAccountManagerIface *iface = MCP_ACCOUNT_MANAGER_GET_IFACE (mcpa);
-
-  g_return_if_fail (iface != NULL);
-  g_return_if_fail (iface->make_secret != NULL);
-
-  g_debug ("%s.%s should be secret", account, key);
-  iface->make_secret (mcpa, account, key);
-}
-
-/**
  * mcp_account_manager_get_unique_name:
  * @mcpa: an #McpAccountManager instance
  * @manager: the name of the manager
