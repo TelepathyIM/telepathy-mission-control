@@ -33,8 +33,9 @@ class FakeAccount(object):
         self.params = dbus.Dictionary({}, signature='sv')
         self.untyped_params = dbus.Dictionary({}, signature='ss')
         self.param_flags = dbus.Dictionary({}, signature='su')
+        self.restrictions = 0
 
-    SIGNATURE = 'a{sv}a{su}a{sv}a{ss}a{su}'
+    SIGNATURE = 'a{sv}a{su}a{sv}a{ss}a{su}u'
 
     def to_dbus(self):
         return (
@@ -43,6 +44,7 @@ class FakeAccount(object):
                 self.params,
                 self.untyped_params,
                 self.param_flags,
+                dbus.UInt32(self.restrictions),
                 )
 
 class FakeAccountsService(object):
@@ -81,12 +83,13 @@ class FakeAccountsService(object):
                 method='UpdateParameters')
 
     def create_account(self, account, attrs={}, attr_flags={}, params={},
-            untyped_params={}, param_flags={}):
+            untyped_params={}, param_flags={}, restrictions=0):
 
         if account in self.accounts:
             raise KeyError('Account %s already exists' % account)
 
         self.accounts[account] = FakeAccount()
+        self.accounts[account].restrictions = restrictions
         self.accounts[account].attrs.update(attrs)
         for attr in attrs:
             self.accounts[account].attr_flags[attr] = dbus.UInt32(0)

@@ -333,7 +333,7 @@ toggled_cb (GObject *plugin, const gchar *name, gboolean on, gpointer data)
     }
 
   _mcd_account_set_enabled (account, on, FALSE,
-                            MCD_DBUS_PROP_SET_FLAG_NONE, &error);
+                            MCD_DBUS_PROP_SET_FLAG_ALREADY_IN_STORAGE, &error);
 
   if (error != NULL)
     {

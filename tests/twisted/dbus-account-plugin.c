@@ -55,6 +55,7 @@ typedef struct {
     /* set of strings */
     GHashTable *uncommitted_parameters;
     enum { UNCOMMITTED_CREATION, UNCOMMITTED_DELETION } flags;
+    TpStorageRestrictionFlags restrictions;
 } Account;
 
 static void
@@ -267,7 +268,8 @@ test_dbus_account_plugin_add_account (TestDBusAccountPlugin *self,
     GVariant *attribute_flags,
     GVariant *parameters,
     GVariant *untyped_parameters,
-    GVariant *param_flags)
+    GVariant *param_flags,
+    TpStorageRestrictionFlags restrictions)
 {
   GVariantIter iter;
   const gchar *k;
@@ -306,6 +308,8 @@ test_dbus_account_plugin_add_account (TestDBusAccountPlugin *self,
     g_hash_table_insert (account->parameter_flags, g_strdup (k),
         GUINT_TO_POINTER (u));
 
+  account->restrictions = restrictions;
+
   return account;
 }
 
@@ -320,10 +324,12 @@ test_dbus_account_plugin_process_account_creation (TestDBusAccountPlugin *self,
   GVariant *untyped_params;
   GVariant *attr_flags;
   GVariant *param_flags;
+  guint32 restrictions;
 
-  g_variant_get (args, "(&s@a{sv}@a{su}@a{sv}@a{ss}@a{su})",
+  g_variant_get (args, "(&s@a{sv}@a{su}@a{sv}@a{ss}@a{su}u)",
       &account_name, &attrs, &attr_flags,
-      &params, &untyped_params, &param_flags);
+      &params, &untyped_params, &param_flags,
+      &restrictions);
   DEBUG ("%s", account_name);
   account = lookup_account (self, account_name);
 
@@ -339,7 +345,7 @@ test_dbus_account_plugin_process_account_creation (TestDBusAccountPlugin *self,
        * a lot of rubbish */
       account = test_dbus_account_plugin_add_account (self,
           account_name, attrs, attr_flags,
-          params, untyped_params, param_flags);
+          params, untyped_params, param_flags, restrictions);
 
       mcp_account_storage_emit_created (
           MCP_ACCOUNT_STORAGE (self), account_name);
@@ -686,8 +692,8 @@ account_created_cb (GDBusConnection *bus,
   TestDBusAccountPlugin *self = TEST_DBUS_ACCOUNT_PLUGIN (user_data);
   const gchar *account_name;
 
-  g_variant_get (tuple, "(&s@a{sv}@a{su}@a{sv}@a{ss}@a{su})",
-      &account_name, NULL, NULL, NULL, NULL, NULL);
+  g_variant_get (tuple, "(&s@a{sv}@a{su}@a{sv}@a{ss}@a{su}u)",
+      &account_name, NULL, NULL, NULL, NULL, NULL, NULL);
   DEBUG ("%s", account_name);
 
   g_queue_push_tail (&self->events, event_new (EVENT_CREATION, tuple));
@@ -765,6 +771,7 @@ test_dbus_account_plugin_list (const McpAccountStorage *storage,
   GVariantIter account_iter;
   const gchar *account_name;
   GList *ret = NULL;
+  guint32 restrictions;
 
   DEBUG ("called");
 
@@ -823,7 +830,7 @@ test_dbus_account_plugin_list (const McpAccountStorage *storage,
       TEST_DBUS_ACCOUNT_SERVICE_IFACE,
       "GetAccounts",
       NULL, /* no parameters */
-      G_VARIANT_TYPE ("(a{s(a{sv}a{su}a{sv}a{ss}a{su})})"),
+      G_VARIANT_TYPE ("(a{s(a{sv}a{su}a{sv}a{ss}a{su}u)})"),
       G_DBUS_CALL_FLAGS_NONE,
       -1,
       NULL, /* no cancellable */
@@ -846,13 +853,13 @@ test_dbus_account_plugin_list (const McpAccountStorage *storage,
   g_variant_iter_init (&account_iter, accounts);
 
   while (g_variant_iter_loop (&account_iter,
-        "{s(@a{sv}@a{su}@a{sv}@a{ss}@a{su})}", &account_name,
+        "{s(@a{sv}@a{su}@a{sv}@a{ss}@a{su}u)}", &account_name,
         &attributes, &attribute_flags,
-        &parameters, &untyped_parameters, &param_flags))
+        &parameters, &untyped_parameters, &param_flags, &restrictions))
     {
       test_dbus_account_plugin_add_account (self, account_name,
           attributes, attribute_flags, parameters, untyped_parameters,
-          param_flags);
+          param_flags, restrictions);
 
       ret = g_list_prepend (ret, g_strdup (account_name));
     }
@@ -1570,8 +1577,7 @@ test_dbus_account_plugin_get_restrictions (const McpAccountStorage *storage,
   if (!self->active || account == NULL || (account->flags & UNCOMMITTED_DELETION))
     return 0;
 
-  /* FIXME: actually enforce this restriction */
-  return TP_STORAGE_RESTRICTION_FLAG_CANNOT_SET_SERVICE;
+  return account->restrictions;
 }
 
 static gboolean
