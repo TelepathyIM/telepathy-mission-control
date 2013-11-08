@@ -1971,7 +1971,8 @@ mcd_storage_create_account (McdStorage *self,
  */
 void
 mcd_storage_delete_account (McdStorage *self,
-    const gchar *account)
+    const gchar *account,
+    McdDBusPropSetFlags flags)
 {
   McpAccountManager *ma = MCP_ACCOUNT_MANAGER (self);
   McdStorageAccount *sa;
@@ -1982,7 +1983,9 @@ mcd_storage_delete_account (McdStorage *self,
   sa = lookup_account (self, account);
   g_return_if_fail (sa != NULL);
 
-  mcp_account_storage_delete (sa->storage, ma, account, NULL);
+  if ((flags & MCD_DBUS_PROP_SET_FLAG_ALREADY_IN_STORAGE) == 0)
+    mcp_account_storage_delete (sa->storage, ma, account, NULL);
+
   g_hash_table_remove (self->accounts, account);
 }
 
