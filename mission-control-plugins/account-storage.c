@@ -60,7 +60,6 @@
  *   iface->set = foo_plugin_get;
  *   iface->delete = foo_plugin_delete;
  *   iface->commit = foo_plugin_commit;
- *   iface->commit_one = foo_plugin_commit_one;
  *   iface->list = foo_plugin_list;
  *   iface->ready = foo_plugin_ready;
  *   iface->get_identifier = foo_plugin_get_identifier;
@@ -316,7 +315,6 @@ mcp_account_storage_get_type (void)
  * @commit: implementation of mcp_account_storage_commit()
  * @list: implementation of mcp_account_storage_list()
  * @ready: implementation of mcp_account_storage_ready()
- * @commit_one: implementation of mcp_account_storage_commit_one()
  * @get_identifier: implementation of mcp_account_storage_get_identifier()
  * @get_additional_info: implementation of
  *  mcp_account_storage_get_additional_info()
@@ -453,7 +451,7 @@ mcp_account_storage_get (const McpAccountStorage *storage,
  *
  * The plugin is not expected to write to its long term storage
  * at this point. It can expect Mission Control to call either
- * mcp_account_storage_commit() or mcp_account_storage_commit_one()
+ * mcp_account_storage_commit() with either @account or %NULL
  * after a short delay.
  *
  * Plugins that implement mcp_storage_set_attribute() and
@@ -686,6 +684,8 @@ mcp_account_storage_delete (const McpAccountStorage *storage,
  * McpAccountStorageCommitFunc:
  * @storage: an #McpAccountStorage instance
  * @am: an #McpAccountManager instance
+ * @account: (allow-none): the unique suffix of an account's object path,
+ *  or %NULL to commit all accounts
  *
  * An implementation of mcp_account_storage_commit().
  *
@@ -696,6 +696,8 @@ mcp_account_storage_delete (const McpAccountStorage *storage,
  * mcp_account_storage_commit:
  * @storage: an #McpAccountStorage instance
  * @am: an #McpAccountManager instance
+ * @account: (allow-none): the unique suffix of an account's object path,
+ *  or %NULL if all accounts are to be committed
  *
  * The plugin is expected to write its cache to long term storage,
  * deleting, adding or updating entries in said storage as needed.
@@ -704,74 +706,12 @@ mcp_account_storage_delete (const McpAccountStorage *storage,
  * not required to have finished its commit operation when it returns,
  * merely to have started the operation.
  *
- * If the @commit_one method is implemented, it will be called preferentially
- * if only one account is to be committed. If the @commit_one method is
- * implemented but @commit is not, @commit_one will be called with
- * @account_name = %NULL to commit all accounts.
- *
  * Returns: %TRUE if the commit process was started (but not necessarily
  * completed) successfully; %FALSE if there was a problem that was immediately
  * obvious.
  */
 gboolean
 mcp_account_storage_commit (const McpAccountStorage *storage,
-    const McpAccountManager *am)
-{
-  McpAccountStorageIface *iface = MCP_ACCOUNT_STORAGE_GET_IFACE (storage);
-
-  SDEBUG (storage, "committing all accounts");
-  g_return_val_if_fail (iface != NULL, FALSE);
-
-  if (iface->commit != NULL)
-    {
-      return iface->commit (storage, am);
-    }
-  else if (iface->commit_one != NULL)
-    {
-      return iface->commit_one (storage, am, NULL);
-    }
-  else
-    {
-      SDEBUG (storage,
-          "neither commit nor commit_one is implemented; cannot save accounts");
-      return FALSE;
-    }
-}
-
-/**
- * McpAccountStorageCommitOneFunc:
- * @storage: an #McpAccountStorage instance
- * @am: an #McpAccountManager instance
- * @account: (allow-none): the unique suffix of an account's object path,
- *  or %NULL
- *
- * An implementation of mcp_account_storage_commit_one().
- *
- * Returns: %TRUE if the commit process was started successfully
- */
-
-/**
- * mcp_account_storage_commit_one:
- * @storage: an #McpAccountStorage instance
- * @am: an #McpAccountManager instance
- * @account: (allow-none): the unique suffix of an account's object path,
- *  or %NULL if all accounts are to be committed and
- *  mcp_account_storage_commit() is unimplemented
- *
- * The same as mcp_account_storage_commit(), but only commit the given
- * account. This is optional to implement; the default implementation
- * is to call @commit.
- *
- * If both mcp_account_storage_commit_one() and mcp_account_storage_commit()
- * are implemented, Mission Control will never pass @account = %NULL to
- * this method.
- *
- * Returns: %TRUE if the commit process was started (but not necessarily
- * completed) successfully; %FALSE if there was a problem that was immediately
- * obvious.
- */
-gboolean
-mcp_account_storage_commit_one (const McpAccountStorage *storage,
     const McpAccountManager *am,
     const gchar *account)
 {
@@ -780,11 +720,10 @@ mcp_account_storage_commit_one (const McpAccountStorage *storage,
   SDEBUG (storage, "called for %s", account ? account : "<all accounts>");
   g_return_val_if_fail (iface != NULL, FALSE);
 
-  if (iface->commit_one != NULL)
-    return iface->commit_one (storage, am, account);
+  if (iface->commit != NULL)
+    return iface->commit (storage, am, account);
   else
-    /* Fall back to plain ->commit() */
-    return mcp_account_storage_commit (storage, am);
+    return FALSE;
 }
 
 /**

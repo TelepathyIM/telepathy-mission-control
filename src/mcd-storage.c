@@ -2144,12 +2144,12 @@ mcd_storage_commit (McdStorage *self, const gchar *account)
       if (account != NULL)
         {
           DEBUG ("flushing plugin %s %s to long term storage", pname, account);
-          mcp_account_storage_commit_one (plugin, ma, account);
+          mcp_account_storage_commit (plugin, ma, account);
         }
       else
         {
           DEBUG ("flushing plugin %s to long term storage", pname);
-          mcp_account_storage_commit (plugin, ma);
+          mcp_account_storage_commit (plugin, ma, NULL);
         }
     }
 }

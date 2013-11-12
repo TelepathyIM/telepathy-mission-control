@@ -1015,7 +1015,7 @@ account_storage_iface_init (McpAccountStorageIface *iface,
   iface->set_parameter = set_parameter;
   iface->create = _create;
   iface->delete = _delete;
-  iface->commit_one = _commit;
+  iface->commit = _commit;
   iface->list = _list;
 
 }

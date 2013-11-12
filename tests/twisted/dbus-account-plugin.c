@@ -1174,7 +1174,7 @@ test_dbus_account_plugin_set_parameter (McpAccountStorage *storage,
 }
 
 static gboolean
-test_dbus_account_plugin_commit (const McpAccountStorage *storage,
+test_dbus_account_plugin_commit_all (const McpAccountStorage *storage,
     const McpAccountManager *am)
 {
   TestDBusAccountPlugin *self = TEST_DBUS_ACCOUNT_PLUGIN (storage);
@@ -1194,7 +1194,7 @@ test_dbus_account_plugin_commit (const McpAccountStorage *storage,
 
   while (g_hash_table_iter_next (&iter, &k, NULL))
     {
-      if (!mcp_account_storage_commit_one (storage, am, k))
+      if (!mcp_account_storage_commit (storage, am, k))
         {
           g_warning ("declined to commit account %s", (const gchar *) k);
         }
@@ -1334,12 +1334,12 @@ update_parameters_cb (GObject *source_object,
 }
 
 static gboolean
-test_dbus_account_plugin_commit_one (const McpAccountStorage *storage,
+test_dbus_account_plugin_commit (const McpAccountStorage *storage,
     const McpAccountManager *am,
     const gchar *account_name)
 {
   TestDBusAccountPlugin *self = TEST_DBUS_ACCOUNT_PLUGIN (storage);
-  Account *account = lookup_account (self, account_name);
+  Account *account;
   GHashTableIter iter;
   gpointer k;
   GVariantBuilder a_sv_builder;
@@ -1349,9 +1349,10 @@ test_dbus_account_plugin_commit_one (const McpAccountStorage *storage,
 
   DEBUG ("%s", account_name);
 
-  /* MC does not call @commit_one with parameter %NULL (meaning "all accounts")
-   * if we also implement commit(), which, as it happens, we do */
-  g_return_val_if_fail (account_name != NULL, FALSE);
+  if (account_name == NULL)
+    return test_dbus_account_plugin_commit_all (storage, am);
+
+  account = lookup_account (self, account_name);
 
   if (!self->active || account == NULL)
     return FALSE;
@@ -1591,7 +1592,6 @@ account_storage_iface_init (McpAccountStorageIface *iface)
   iface->ready = test_dbus_account_plugin_ready;
   iface->delete = test_dbus_account_plugin_delete;
   iface->commit = test_dbus_account_plugin_commit;
-  iface->commit_one = test_dbus_account_plugin_commit_one;
   iface->get_identifier = test_dbus_account_plugin_get_identifier;
   iface->get_additional_info = test_dbus_account_plugin_get_additional_info;
   iface->get_restrictions = test_dbus_account_plugin_get_restrictions;

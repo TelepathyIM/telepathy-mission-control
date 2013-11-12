@@ -87,9 +87,6 @@ typedef GList * (*McpAccountStorageListFunc) (
     const McpAccountManager *am);
 typedef gboolean (*McpAccountStorageCommitFunc) (
     const McpAccountStorage *storage,
-    const McpAccountManager *am);
-typedef gboolean (*McpAccountStorageCommitOneFunc) (
-    const McpAccountStorage *storage,
     const McpAccountManager *am,
     const gchar *account);
 typedef void (*McpAccountStorageReadyFunc) (
@@ -121,7 +118,6 @@ struct _McpAccountStorageIface
   McpAccountStorageCommitFunc commit;
   McpAccountStorageListFunc list;
   McpAccountStorageReadyFunc ready;
-  McpAccountStorageCommitOneFunc commit_one;
   McpAccountStorageGetIdentifierFunc get_identifier;
   McpAccountStorageGetAdditionalInfoFunc get_additional_info;
   McpAccountStorageGetRestrictionsFunc get_restrictions;
@@ -176,10 +172,6 @@ void mcp_account_storage_ready (const McpAccountStorage *storage,
 
 gboolean
 mcp_account_storage_commit (const McpAccountStorage *storage,
-    const McpAccountManager *am);
-
-gboolean
-mcp_account_storage_commit_one (const McpAccountStorage *storage,
     const McpAccountManager *am,
     const gchar *account);
 

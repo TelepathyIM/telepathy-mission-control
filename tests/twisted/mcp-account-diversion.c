@@ -207,12 +207,16 @@ _delete (const McpAccountStorage *self,
 
 static gboolean
 _commit (const McpAccountStorage *self,
-    const McpAccountManager *am)
+    const McpAccountManager *am,
+    const gchar *account_name G_GNUC_UNUSED)
 {
   gsize n;
   gchar *data;
   AccountDiversionPlugin *adp = ACCOUNT_DIVERSION_PLUGIN (self);
   gboolean rval = FALSE;
+
+  /* This simple implementation ignores account_name and commits everything:
+   * we're writing out the whole keyfile anyway */
 
   if (!adp->save)
     return TRUE;
