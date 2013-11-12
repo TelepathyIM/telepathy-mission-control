@@ -1006,9 +1006,17 @@ test_dbus_account_plugin_get (const McpAccountStorage *storage,
       while (g_hash_table_iter_next (&iter, &k, &v))
         {
           gchar *param_foo;
+          McpParameterFlags flags;
 
           param_foo = g_strdup_printf ("param-%s", (const gchar *) k);
           mcp_account_manager_set_value (am, account_name, param_foo, v);
+
+          flags = GPOINTER_TO_UINT (g_hash_table_lookup (
+                account->parameter_flags, k));
+
+          if (flags & MCP_PARAMETER_FLAG_SECRET)
+            mcp_account_manager_parameter_make_secret (am, account_name,
+                param_foo);
 
           g_free (param_foo);
         }
@@ -1018,12 +1026,20 @@ test_dbus_account_plugin_get (const McpAccountStorage *storage,
       while (g_hash_table_iter_next (&iter, &k, &v))
         {
           gchar *param_foo;
+          guint32 flags;
           gchar *escaped = mcp_account_manager_escape_variant_for_keyfile (am,
               v);
 
           param_foo = g_strdup_printf ("param-%s", (const gchar *) k);
           mcp_account_manager_set_value (am, account_name, param_foo, escaped);
           g_free (escaped);
+
+          flags = GPOINTER_TO_UINT (g_hash_table_lookup (account->parameter_flags,
+                k));
+
+          if (flags & MCP_PARAMETER_FLAG_SECRET)
+            mcp_account_manager_parameter_make_secret (am, account_name,
+                param_foo);
 
           g_free (param_foo);
         }
@@ -1037,11 +1053,16 @@ test_dbus_account_plugin_get (const McpAccountStorage *storage,
     {
       GVariant *v = g_hash_table_lookup (account->parameters, key + 6);
       const gchar *s = g_hash_table_lookup (account->untyped_parameters, key + 6);
+      guint32 flags = GPOINTER_TO_UINT (
+          g_hash_table_lookup (account->parameter_flags, key + 6));
 
       g_dbus_connection_emit_signal (self->bus, NULL,
           TEST_DBUS_ACCOUNT_PLUGIN_PATH, TEST_DBUS_ACCOUNT_PLUGIN_IFACE,
           "GetParameter",
           g_variant_new_parsed ("(%o, %s)", account->path, key + 6), NULL);
+
+      if (flags & MCP_PARAMETER_FLAG_SECRET)
+        mcp_account_manager_parameter_make_secret (am, account_name, key);
 
       if (v != NULL)
         {

@@ -86,6 +86,14 @@ struct _McpAccountManagerIface {
       const gchar *acct,
       const gchar *key);
 
+  gboolean (*is_secret) (const McpAccountManager *ma,
+      const gchar *acct,
+      const gchar *key);
+
+  void (* make_secret) (const McpAccountManager *ma,
+      const gchar *acct,
+      const gchar *key);
+
   gchar * (* unique_name) (const McpAccountManager *ma,
       const gchar *manager,
       const gchar *protocol,

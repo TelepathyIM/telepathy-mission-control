@@ -444,7 +444,8 @@ mcp_account_storage_priority (const McpAccountStorage *storage)
  * Before emitting this signal, the plugin must call
  * either mcp_account_manager_set_attribute(),
  * mcp_account_manager_set_parameter(),
- * or mcp_account_manager_set_value()
+ * or mcp_account_manager_set_value() and (if appropriate)
+ * mcp_account_manager_parameter_make_secret()
  * before returning from this method call.
  *
  * Note that mcp_account_manager_set_parameter() does not use the
