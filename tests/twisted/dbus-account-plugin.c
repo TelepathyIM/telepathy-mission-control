@@ -1087,18 +1087,6 @@ test_dbus_account_plugin_get (const McpAccountStorage *storage,
 }
 
 static gboolean
-test_dbus_account_plugin_set (const McpAccountStorage *storage,
-    const McpAccountManager *am,
-    const gchar *account_name,
-    const gchar *key,
-    const gchar *value)
-{
-  /* Now that we implement set_attribute and set_parameter, this no longer
-   * needs a real implementation. */
-  return FALSE;
-}
-
-static gboolean
 test_dbus_account_plugin_set_attribute (McpAccountStorage *storage,
     McpAccountManager *am,
     const gchar *account_name,
@@ -1585,7 +1573,6 @@ account_storage_iface_init (McpAccountStorageIface *iface)
   iface->priority = MCP_ACCOUNT_STORAGE_PLUGIN_PRIO_NORMAL + 100;
 
   iface->get = test_dbus_account_plugin_get;
-  iface->set = test_dbus_account_plugin_set;
   iface->set_attribute = test_dbus_account_plugin_set_attribute;
   iface->set_parameter = test_dbus_account_plugin_set_parameter;
   iface->list = test_dbus_account_plugin_list;
