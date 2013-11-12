@@ -1298,13 +1298,13 @@ def tell_mc_to_die(q, bus):
     the version built for tests."""
 
     secret_debug_api = dbus.Interface(bus.get_object(cs.AM, "/"),
-        'im.telepathy1.MissionControl6.RegressionTests')
+        'im.telepathy.v1.MissionControl6.RegressionTests')
     secret_debug_api.Abort()
 
     # Make sure MC exits
     q.expect('dbus-signal', signal='NameOwnerChanged',
         predicate=(lambda e:
-            e.args[0] == 'im.telepathy1.AccountManager' and
+            e.args[0] == 'im.telepathy.v1.AccountManager' and
             e.args[2] == ''))
 
 def resuscitate_mc(q, bus, mc):

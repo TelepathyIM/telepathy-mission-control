@@ -1,10 +1,10 @@
-[im.telepathy1.Client]
-Interfaces=im.telepathy1.Client.Observer
+[im.telepathy.v1.Client]
+Interfaces=im.telepathy.v1.Client.Observer
 
-[im.telepathy1.Client.Observer]
+[im.telepathy.v1.Client.Observer]
 Recover=true
 
-[im.telepathy1.Client.Observer.ObserverChannelFilter 0]
-im.telepathy1.Channel.ChannelType s=im.telepathy1.Channel.Type.RespawnObservers
-im.telepathy1.Channel.TargetHandleType u=1
+[im.telepathy.v1.Client.Observer.ObserverChannelFilter 0]
+im.telepathy.v1.Channel.ChannelType s=im.telepathy.v1.Channel.Type.RespawnObservers
+im.telepathy.v1.Channel.TargetHandleType u=1
 

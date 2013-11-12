@@ -28,8 +28,8 @@
 
 #define DEBUG(format, ...) g_debug ("%s: " format, G_STRFUNC, ##__VA_ARGS__)
 
-#define TESTDOT "im.telepathy1.Test."
-#define TESTSLASH "/im/telepathy1/Test/"
+#define TESTDOT "im.telepathy.v1.Test."
+#define TESTSLASH "/im/telepathy/v1/Test/"
 
 #define TEST_DBUS_ACCOUNT_SERVICE       TESTDOT   "DBusAccountService"
 #define TEST_DBUS_ACCOUNT_SERVICE_PATH  TESTSLASH "DBusAccountService"

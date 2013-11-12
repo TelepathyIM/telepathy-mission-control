@@ -10,8 +10,8 @@ mc6-wait-for-name \- run until a D-Bus name appears on the session bus
 .PP
 .nf
 .B [D-BUS Service]
-.BI Name= im.telepathy1.Client.Something
-.BI Exec=@bindir@/mc6-wait-for-name " im.telepathy1.Client.Something"
+.BI Name= im.telepathy.v1.Client.Something
+.BI Exec=@bindir@/mc6-wait-for-name " im.telepathy.v1.Client.Something"
 .fi
 .SH DESCRIPTION
 .B mc6-wait-for-name

@@ -50,7 +50,7 @@ struct _McdDispatchOperationClass
 
 #define CDO_INTERNAL_HANDLER ""
 
-#define MC_DISPATCH_OPERATION_DBUS_OBJECT_BASE "/im/telepathy1/DispatchOperation/"
+#define MC_DISPATCH_OPERATION_DBUS_OBJECT_BASE "/im/telepathy/v1/DispatchOperation/"
 
 G_GNUC_INTERNAL GType _mcd_dispatch_operation_get_type (void);
 

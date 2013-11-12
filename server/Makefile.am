@@ -10,17 +10,17 @@ AM_CPPFLAGS = \
 
 AM_CFLAGS = $(ERROR_CFLAGS)
 
-EXTRA_DIST = im.telepathy1.MissionControl6.service.in \
-	     im.telepathy1.AccountManager.service.in \
+EXTRA_DIST = im.telepathy.v1.MissionControl6.service.in \
+	     im.telepathy.v1.AccountManager.service.in \
 	     mission-control-6.8.in
-CLEANFILES = im.telepathy1.MissionControl6.service \
-	     im.telepathy1.AccountManager.service \
+CLEANFILES = im.telepathy.v1.MissionControl6.service \
+	     im.telepathy.v1.AccountManager.service \
 	     mission-control-6.8
 
 servicefiledir=$(prefix)/share/dbus-1/services
 servicefile_DATA= \
-	im.telepathy1.MissionControl6.service \
-	im.telepathy1.AccountManager.service \
+	im.telepathy.v1.MissionControl6.service \
+	im.telepathy.v1.AccountManager.service \
 	$(NULL)
 
 %.service: %.service.in Makefile

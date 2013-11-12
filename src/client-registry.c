@@ -350,7 +350,7 @@ watch_clients (McdClientRegistry *self)
 
 #define CLIENT_MATCH_RULE \
     NAME_OWNER_RULE "," \
-    MATCH_ITEM (arg0namespace, "im.telepathy1.Client")
+    MATCH_ITEM (arg0namespace, "im.telepathy.v1.Client")
 
   if (!dbus_connection_add_filter (dconn, mcd_client_registry_name_owner_filter,
         self, NULL))

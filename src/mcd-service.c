@@ -57,7 +57,7 @@
 #include "mcd-service.h"
 
 /* DBus service specifics */
-#define MISSION_CONTROL_DBUS_SERVICE "im.telepathy1.MissionControl6"
+#define MISSION_CONTROL_DBUS_SERVICE "im.telepathy.v1.MissionControl6"
 
 static GObjectClass *parent_class = NULL;
 

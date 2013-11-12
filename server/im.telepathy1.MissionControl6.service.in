@@ -1,3 +1,0 @@
-[D-BUS Service]
-Name=im.telepathy1.MissionControl6
-Exec=@bindir@/mc6-wait-for-name --activate im.telepathy1.AccountManager im.telepathy1.MissionControl6

@@ -97,7 +97,7 @@ dbus_filter_function (DBusConnection *connection,
       mcd_mission_abort ((McdMission *) mcd);
     }
   else if (dbus_message_is_method_call (message,
-        "im.telepathy1.MissionControl6.RegressionTests",
+        "im.telepathy.v1.MissionControl6.RegressionTests",
         "Abort"))
     {
       DBusMessage *reply;
@@ -114,7 +114,7 @@ dbus_filter_function (DBusConnection *connection,
       return DBUS_HANDLER_RESULT_HANDLED;
     }
   else if (dbus_message_is_method_call (message,
-        "im.telepathy1.MissionControl6.RegressionTests",
+        "im.telepathy.v1.MissionControl6.RegressionTests",
         "BillyIdle"))
     {
       /* Used to drive a souped-up version of sync_dbus(), where we need to

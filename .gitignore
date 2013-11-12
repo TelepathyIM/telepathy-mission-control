@@ -72,8 +72,8 @@ patches/
 stamp-*
 /server/mission-control-6
 /server/mission-control-6.8
-/server/im.telepathy1.AccountManager.service
-/server/im.telepathy1.MissionControl6.service
+/server/im.telepathy.v1.AccountManager.service
+/server/im.telepathy.v1.MissionControl6.service
 tags
 TAGS
 /telepathy-mission-control-[56]*

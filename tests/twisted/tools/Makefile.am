@@ -37,14 +37,14 @@ servicedir-installed/%.conf: servicedir-installed/%.conf.in Makefile
 # We don't use the full filename for the .in because > 99 character filenames
 # in tarballs are non-portable (and automake 1.8 doesn't let us build
 # non-archaic tarballs)
-servicedir-uninstalled/im.telepathy1.%.service: servicedir-uninstalled/%.service.in Makefile
+servicedir-uninstalled/im.telepathy.v1.%.service: servicedir-uninstalled/%.service.in Makefile
 	$(AM_V_at)$(MKDIR_P) servicedir-uninstalled
 	$(AM_V_GEN)sed \
 		-e "s|[@]abs_top_srcdir[@]|@abs_top_srcdir@|g" \
 		-e "s|[@]abs_top_builddir[@]|@abs_top_builddir@|g" \
 		$< > $@
 
-servicedir-installed/im.telepathy1.%.service: servicedir-installed/%.service.in Makefile
+servicedir-installed/im.telepathy.v1.%.service: servicedir-installed/%.service.in Makefile
 	$(AM_V_at)$(MKDIR_P) servicedir-installed
 	$(AM_V_GEN)sed \
 		-e "s|[@]mctestsdir[@]|@mctestsdir@|g" \
@@ -55,12 +55,12 @@ uninstalled_service_in_files = \
 	servicedir-uninstalled/MissionControl6.service.in \
 	servicedir-uninstalled/Client.AbiWord.service.in \
 	servicedir-uninstalled/Client.Logger.service.in
-uninstalled_service_files = $(patsubst servicedir-uninstalled/%.in,servicedir-uninstalled/im.telepathy1.%, $(uninstalled_service_in_files))
+uninstalled_service_files = $(patsubst servicedir-uninstalled/%.in,servicedir-uninstalled/im.telepathy.v1.%, $(uninstalled_service_in_files))
 installed_service_in_files = \
 	servicedir-installed/MissionControl6.service.in \
 	servicedir-installed/Client.AbiWord.service.in \
 	servicedir-installed/Client.Logger.service.in
-installed_service_files = $(patsubst servicedir-installed/%.in,servicedir-installed/im.telepathy1.%, $(installed_service_in_files))
+installed_service_files = $(patsubst servicedir-installed/%.in,servicedir-installed/im.telepathy.v1.%, $(installed_service_in_files))
 
 # D-Bus config file for testing
 uninstalled_conf_in_files = servicedir-uninstalled/tmp-session-bus.conf.in
