@@ -1370,8 +1370,9 @@ test_dbus_account_plugin_commit_one (const McpAccountStorage *storage,
 
   DEBUG ("%s", account_name);
 
-  if (account_name == NULL)
-    return test_dbus_account_plugin_commit (storage, am);
+  /* MC does not call @commit_one with parameter %NULL (meaning "all accounts")
+   * if we also implement commit(), which, as it happens, we do */
+  g_return_val_if_fail (account_name != NULL, FALSE);
 
   if (!self->active || account == NULL)
     return FALSE;
@@ -1579,6 +1580,22 @@ test_dbus_account_plugin_get_restrictions (const McpAccountStorage *storage,
   return account->restrictions;
 }
 
+static gboolean
+test_dbus_account_plugin_owns (McpAccountStorage *storage,
+    McpAccountManager *am,
+    const gchar *account_name)
+{
+  TestDBusAccountPlugin *self = TEST_DBUS_ACCOUNT_PLUGIN (storage);
+  Account *account = lookup_account (self, account_name);
+
+  DEBUG ("%s", account_name);
+
+  if (!self->active || account == NULL || (account->flags & UNCOMMITTED_DELETION))
+    return FALSE;
+
+  return TRUE;
+}
+
 static void
 account_storage_iface_init (McpAccountStorageIface *iface)
 {
@@ -1594,9 +1611,11 @@ account_storage_iface_init (McpAccountStorageIface *iface)
   iface->list = test_dbus_account_plugin_list;
   iface->ready = test_dbus_account_plugin_ready;
   iface->delete = test_dbus_account_plugin_delete;
+  iface->commit = test_dbus_account_plugin_commit;
   iface->commit_one = test_dbus_account_plugin_commit_one;
   iface->get_identifier = test_dbus_account_plugin_get_identifier;
   iface->get_additional_info = test_dbus_account_plugin_get_additional_info;
   iface->get_restrictions = test_dbus_account_plugin_get_restrictions;
   iface->create = test_dbus_account_plugin_create;
+  iface->owns = test_dbus_account_plugin_owns;
 }
