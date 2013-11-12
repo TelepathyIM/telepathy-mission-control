@@ -111,6 +111,82 @@ enum
 static guint signals[NO_SIGNAL] = { 0 };
 
 static gboolean
+default_get (const McpAccountStorage *storage,
+    const McpAccountManager *am,
+    const gchar *account,
+    const gchar *key)
+{
+  return FALSE;
+}
+
+static gboolean
+default_delete (const McpAccountStorage *storage,
+    const McpAccountManager *am,
+    const gchar *account,
+    const gchar *key)
+{
+  return FALSE;
+}
+
+static gboolean
+default_commit (const McpAccountStorage *storage,
+    const McpAccountManager *am,
+    const gchar *account)
+{
+  return FALSE;
+}
+
+static gchar *
+default_create (const McpAccountStorage *storage,
+    const McpAccountManager *am,
+    const gchar *manager,
+    const gchar *protocol,
+    const gchar *identification,
+    GError **error)
+{
+  g_set_error (error, TP_ERROR, TP_ERROR_NOT_IMPLEMENTED,
+      "This storage does not implement the create() function");
+  return NULL;
+}
+
+static GList *
+default_list (const McpAccountStorage *storage,
+    const McpAccountManager *am)
+{
+  return NULL;
+}
+
+static void
+default_ready (const McpAccountStorage *storage,
+    const McpAccountManager *am)
+{
+  /* do nothing */
+}
+
+static void
+default_get_identifier (const McpAccountStorage *storage,
+    const gchar *account,
+    GValue *identifier)
+{
+  g_value_init (identifier, G_TYPE_STRING);
+  g_value_set_string (identifier, account);
+}
+
+static GHashTable *
+default_get_additional_info (const McpAccountStorage *storage,
+    const gchar *account)
+{
+  return g_hash_table_new (g_str_hash, g_str_equal);
+}
+
+static TpStorageRestrictionFlags
+default_get_restrictions (const McpAccountStorage *storage,
+    const gchar *account)
+{
+  return 0;
+}
+
+static gboolean
 default_set_attribute (McpAccountStorage *storage,
     McpAccountManager *am,
     const gchar *account,
@@ -152,6 +228,15 @@ class_init (gpointer klass,
   GType type = G_TYPE_FROM_CLASS (klass);
   McpAccountStorageIface *iface = klass;
 
+  iface->get = default_get;
+  iface->create = default_create;
+  iface->delete = default_delete;
+  iface->commit = default_commit;
+  iface->list = default_list;
+  iface->ready = default_ready;
+  iface->get_identifier = default_get_identifier;
+  iface->get_additional_info = default_get_additional_info;
+  iface->get_restrictions = default_get_restrictions;
   iface->owns = default_owns;
   iface->set_attribute = default_set_attribute;
   iface->set_parameter = default_set_parameter;
@@ -393,6 +478,9 @@ mcp_account_storage_priority (const McpAccountStorage *storage)
  * %TRUE if any attributes or parameters were found, or %FALSE if it
  * was not responsible for @account.
  *
+ * The default implementation just returns %FALSE, and should always be
+ * overridden.
+ *
  * Returns: %TRUE if @storage is responsible for @account
  */
 gboolean
@@ -532,6 +620,9 @@ mcp_account_storage_set_parameter (McpAccountStorage *storage,
  * #McpAccountStorage::created signal should not be emitted for this account,
  * not even when mcp_account_storage_commit() will be called.
  *
+ * The default implementation just returns %NULL, and is appropriate for
+ * read-only storage.
+ *
  * Returns: (transfer full): the newly allocated account name, which should
  *  be freed once the caller is done with it, or %NULL if that couldn't
  *  be done.
@@ -547,13 +638,7 @@ mcp_account_storage_create (const McpAccountStorage *storage,
   McpAccountStorageIface *iface = MCP_ACCOUNT_STORAGE_GET_IFACE (storage);
 
   g_return_val_if_fail (iface != NULL, NULL);
-
-  if (iface->create == NULL)
-    {
-      g_set_error (error, TP_ERROR, TP_ERROR_NOT_IMPLEMENTED,
-          "This storage does not implement create function");
-      return NULL;
-    }
+  g_return_val_if_fail (iface->create != NULL, NULL);
 
   return iface->create (storage, am, manager, protocol, identification, error);
 }
@@ -593,6 +678,9 @@ mcp_account_storage_create (const McpAccountStorage *storage,
  * The plugin is not expected to update its long term storage at
  * this point.
  *
+ * The default implementation just returns %FALSE, and is appropriate for
+ * read-only storage.
+ *
  * Returns: %TRUE if the setting or settings are not
  * the plugin's cache after this operation, %FALSE otherwise.
  * This is very unlikely to ever be %FALSE, as a plugin is always
@@ -608,6 +696,7 @@ mcp_account_storage_delete (const McpAccountStorage *storage,
 
   SDEBUG (storage, "");
   g_return_val_if_fail (iface != NULL, FALSE);
+  g_return_val_if_fail (iface->delete != NULL, FALSE);
 
   return iface->delete (storage, am, account, key);
 }
@@ -638,6 +727,9 @@ mcp_account_storage_delete (const McpAccountStorage *storage,
  * not required to have finished its commit operation when it returns,
  * merely to have started the operation.
  *
+ * The default implementation just returns %FALSE, and is appropriate for
+ * read-only storage.
+ *
  * Returns: %TRUE if the commit process was started (but not necessarily
  * completed) successfully; %FALSE if there was a problem that was immediately
  * obvious.
@@ -651,11 +743,9 @@ mcp_account_storage_commit (const McpAccountStorage *storage,
 
   SDEBUG (storage, "called for %s", account ? account : "<all accounts>");
   g_return_val_if_fail (iface != NULL, FALSE);
+  g_return_val_if_fail (iface->commit != NULL, FALSE);
 
-  if (iface->commit != NULL)
-    return iface->commit (storage, am, account);
-  else
-    return FALSE;
+  return iface->commit (storage, am, account);
 }
 
 /**
@@ -679,6 +769,8 @@ mcp_account_storage_commit (const McpAccountStorage *storage,
  * This method is called only at initialisation time, before the dbus name
  * has been claimed, and is the only one permitted to block.
  *
+ * The default implementation returns %NULL, i.e. an empty list.
+ *
  * Returns: (element-type utf8) (transfer full): a list of account names that
  * the plugin has settings for. The account names should be freed with
  * g_free(), and the list with g_list_free(), when the caller is done with
@@ -692,6 +784,7 @@ mcp_account_storage_list (const McpAccountStorage *storage,
 
   SDEBUG (storage, "");
   g_return_val_if_fail (iface != NULL, NULL);
+  g_return_val_if_fail (iface->list != NULL, NULL);
 
   return iface->list (storage, am);
 }
@@ -712,6 +805,10 @@ mcp_account_storage_list (const McpAccountStorage *storage,
  * Informs the plugin that it is now permitted to create new accounts,
  * ie it can now fire its "created", "altered-one", "toggled" and "deleted"
  * signals.
+ *
+ * The default implementation does nothing. It should be overridden by
+ * any plugin that will emit "created", "altered-one", "toggled" and/or
+ * "deleted".
  */
 void
 mcp_account_storage_ready (const McpAccountStorage *storage,
@@ -720,12 +817,9 @@ mcp_account_storage_ready (const McpAccountStorage *storage,
   McpAccountStorageIface *iface = MCP_ACCOUNT_STORAGE_GET_IFACE (storage);
 
   g_return_if_fail (iface != NULL);
+  g_return_if_fail (iface->ready != NULL);
 
-  /* plugins that can't create accounts from external sources don't  *
-   * need to implement this method, as they can never fire the async *
-   * account change signals:                                         */
-  if (iface->ready != NULL)
-    iface->ready (storage, am);
+  iface->ready (storage, am);
 }
 
 /**
@@ -748,6 +842,8 @@ mcp_account_storage_ready (const McpAccountStorage *storage,
  * Get the storage-specific identifier for this account. The type is variant,
  * hence the GValue.
  *
+ * The default implementation returns @account as a %G_TYPE_STRING.
+ *
  * This method will only be called for the storage plugin that "owns"
  * the account.
  */
@@ -760,18 +856,11 @@ mcp_account_storage_get_identifier (const McpAccountStorage *storage,
 
   SDEBUG (storage, "");
   g_return_if_fail (iface != NULL);
+  g_return_if_fail (iface->get_identifier != NULL);
   g_return_if_fail (identifier != NULL);
   g_return_if_fail (!G_IS_VALUE (identifier));
 
-  if (iface->get_identifier == NULL)
-    {
-      g_value_init (identifier, G_TYPE_STRING);
-      g_value_set_string (identifier, account);
-    }
-  else
-    {
-      iface->get_identifier (storage, account, identifier);
-    }
+  iface->get_identifier (storage, account, identifier);
 }
 
 /**
@@ -796,26 +885,22 @@ mcp_account_storage_get_identifier (const McpAccountStorage *storage,
  * This method will only be called for the storage plugin that "owns"
  * the account.
  *
+ * The default implementation returns an empty map.
+ *
  * Returns: (transfer container) (element-type utf8 GObject.Value): additional
- *  storage-specific information
+ *  storage-specific information, which must not be %NULL
  */
 GHashTable *
 mcp_account_storage_get_additional_info (const McpAccountStorage *storage,
     const gchar *account)
 {
   McpAccountStorageIface *iface = MCP_ACCOUNT_STORAGE_GET_IFACE (storage);
-  GHashTable *ret = NULL;
 
   SDEBUG (storage, "");
   g_return_val_if_fail (iface != NULL, FALSE);
+  g_return_val_if_fail (iface->get_additional_info != NULL, FALSE);
 
-  if (iface->get_additional_info != NULL)
-    ret = iface->get_additional_info (storage, account);
-
-  if (ret == NULL)
-    ret = g_hash_table_new (g_str_hash, g_str_equal);
-
-  return ret;
+  return iface->get_additional_info (storage, account);
 }
 
 /**
@@ -836,6 +921,8 @@ mcp_account_storage_get_additional_info (const McpAccountStorage *storage,
  * This method will only be called for the storage plugin that "owns"
  * the account.
  *
+ * The default implementation returns 0, i.e. no restrictions.
+ *
  * Returns: a bitmask of %TpStorageRestrictionFlags with the restrictions to
  *  account storage.
  */
@@ -846,11 +933,9 @@ mcp_account_storage_get_restrictions (const McpAccountStorage *storage,
   McpAccountStorageIface *iface = MCP_ACCOUNT_STORAGE_GET_IFACE (storage);
 
   g_return_val_if_fail (iface != NULL, 0);
+  g_return_val_if_fail (iface->get_restrictions != NULL, 0);
 
-  if (iface->get_restrictions == NULL)
-    return 0;
-  else
-    return iface->get_restrictions (storage, account);
+  return iface->get_restrictions (storage, account);
 }
 
 /**
