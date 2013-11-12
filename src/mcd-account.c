@@ -733,7 +733,7 @@ mcd_account_delete (McdAccount *account,
         return;
     }
 
-    mcd_storage_delete_account (priv->storage, name, flags);
+    mcd_storage_delete_account (priv->storage, name);
 
     data_dir_str = get_old_account_data_path (priv);
 
@@ -760,8 +760,7 @@ mcd_account_delete (McdAccount *account,
         g_free (data_dir_str);
     }
 
-    if ((flags & MCD_DBUS_PROP_SET_FLAG_ALREADY_IN_STORAGE) == 0)
-      mcd_storage_commit (priv->storage, name);
+    mcd_storage_commit (priv->storage, name);
 
     if (callback != NULL)
         callback (account, NULL, user_data);

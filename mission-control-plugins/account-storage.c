@@ -261,11 +261,8 @@ class_init (gpointer klass,
    * Emitted if an external entity deletes an account
    * in the backend the emitting plugin handles.
    *
-   * Should not be fired until mcp_account_storage_ready() has been called.
+   * Should not be fired until mcp_account_storage_ready() has been called
    *
-   * mcp_account_storage_commit() and mcp_account_storage_delete() won't be
-   * called for this account, it is assumed that the storage backend already
-   * deleted all the related information.
    */
   signals[DELETED] = g_signal_new ("deleted",
       type, G_SIGNAL_RUN_LAST, 0, NULL, NULL,

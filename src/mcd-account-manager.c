@@ -569,7 +569,7 @@ on_account_removed (McdAccount *account, McdAccountManager *account_manager)
     name = mcd_account_get_unique_name (account);
     g_hash_table_remove (priv->accounts, name);
 
-    mcd_storage_delete_account (storage, name, MCD_DBUS_PROP_SET_FLAG_NONE);
+    mcd_storage_delete_account (storage, name);
     mcd_account_manager_write_conf_async (account_manager, account, NULL,
                                           NULL);
 }

@@ -22,8 +22,6 @@
 #include <glib-object.h>
 #include <mission-control-plugins/mission-control-plugins.h>
 
-#include <src/mcd-dbusprop.h>
-
 #ifndef MCD_STORAGE_H
 #define MCD_STORAGE_H
 
@@ -99,9 +97,7 @@ gchar *mcd_storage_create_account (McdStorage *storage,
     const gchar *identification,
     GError **error);
 
-void mcd_storage_delete_account (McdStorage *storage,
-    const gchar *account,
-    McdDBusPropSetFlags flags);
+void mcd_storage_delete_account (McdStorage *storage, const gchar *account);
 
 void mcd_storage_commit (McdStorage *storage, const gchar *account);
 
