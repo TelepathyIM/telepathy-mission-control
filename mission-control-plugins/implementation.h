@@ -87,9 +87,6 @@ struct _McpAccountManagerIface {
       const gchar *protocol,
       const gchar *identification);
 
-  GStrv (* list_keys) (const McpAccountManager *ma,
-      const gchar *acct);
-
   gchar * (* escape_variant_for_keyfile) (const McpAccountManager *mcpa,
       GVariant *variant);
 

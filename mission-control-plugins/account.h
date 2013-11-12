@@ -67,9 +67,6 @@ gchar * mcp_account_manager_get_unique_name (McpAccountManager *mcpa,
     const gchar *protocol,
     const gchar *identification);
 
-GStrv mcp_account_manager_list_keys (const McpAccountManager *mcpa,
-    const gchar *account);
-
 gchar *mcp_account_manager_escape_variant_for_keyfile (
     const McpAccountManager *mcpa,
     GVariant *variant);

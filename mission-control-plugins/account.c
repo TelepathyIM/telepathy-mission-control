@@ -168,29 +168,6 @@ mcp_account_manager_set_parameter (const McpAccountManager *mcpa,
 }
 
 /**
- * mcp_account_manage_list_keys:
- * @mcpa: a #McpAccountManager instance
- * @account: the unique name of an account
- *
- * <!-- -->
- *
- * Returns: (transfer full): a list of all keys (attributes and
- *  "param-"-prefixed parameters) stored for @account by any plugin
- */
-GStrv
-mcp_account_manager_list_keys (const McpAccountManager *mcpa,
-    const gchar *account)
-{
-  McpAccountManagerIface *iface = MCP_ACCOUNT_MANAGER_GET_IFACE (mcpa);
-
-  g_return_val_if_fail (iface != NULL, NULL);
-  g_return_val_if_fail (iface->list_keys != NULL, NULL);
-  g_return_val_if_fail (account != NULL, NULL);
-
-  return iface->list_keys (mcpa, account);
-}
-
-/**
  * mcp_account_manager_get_unique_name:
  * @mcpa: an #McpAccountManager instance
  * @manager: the name of the manager

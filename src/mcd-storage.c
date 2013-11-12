@@ -423,34 +423,6 @@ set_value (const McpAccountManager *ma,
     }
 }
 
-static GStrv
-list_keys (const McpAccountManager *ma,
-           const gchar * account)
-{
-  McdStorage *self = MCD_STORAGE (ma);
-  GPtrArray *ret = g_ptr_array_new ();
-  McdStorageAccount *sa = lookup_account (self, account);
-
-  if (sa != NULL)
-    {
-      GHashTableIter iter;
-      gpointer k;
-
-      g_hash_table_iter_init (&iter, sa->attributes);
-
-      while (g_hash_table_iter_next (&iter, &k, NULL))
-        g_ptr_array_add (ret, g_strdup (k));
-
-      g_hash_table_iter_init (&iter, sa->parameters);
-
-      while (g_hash_table_iter_next (&iter, &k, NULL))
-        g_ptr_array_add (ret, g_strdup_printf ("param-%s", (gchar *) k));
-    }
-
-  g_ptr_array_add (ret, NULL);
-  return (GStrv) g_ptr_array_free (ret, FALSE);
-}
-
 static gchar *
 unique_name (const McpAccountManager *ma,
     const gchar *manager,
@@ -2134,7 +2106,6 @@ plugin_iface_init (McpAccountManagerIface *iface,
   iface->unique_name = unique_name;
   iface->identify_account_async = identify_account_async;
   iface->identify_account_finish = identify_account_finish;
-  iface->list_keys = list_keys;
   iface->escape_variant_for_keyfile = mcpa_escape_variant_for_keyfile;
 }
 
