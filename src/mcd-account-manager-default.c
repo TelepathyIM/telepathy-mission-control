@@ -215,6 +215,16 @@ set_attribute (McpAccountStorage *self,
 }
 
 static gboolean
+_set (const McpAccountStorage *self,
+    const McpAccountManager *am,
+    const gchar *account,
+    const gchar *key,
+    const gchar *val)
+{
+  return FALSE;
+}
+
+static gboolean
 get_parameter (const McpAccountStorage *self,
     const McpAccountManager *am,
     const gchar *account,
@@ -1000,6 +1010,7 @@ account_storage_iface_init (McpAccountStorageIface *iface,
   iface->priority = PLUGIN_PRIORITY;
 
   iface->get = _get;
+  iface->set = _set;
   iface->set_attribute = set_attribute;
   iface->set_parameter = set_parameter;
   iface->create = _create;

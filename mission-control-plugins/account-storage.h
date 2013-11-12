@@ -64,6 +64,12 @@ typedef gboolean (*McpAccountStorageGetFunc) (
     const McpAccountManager *am,
     const gchar *account,
     const gchar *key);
+typedef gboolean (*McpAccountStorageSetFunc) (
+    const McpAccountStorage *storage,
+    const McpAccountManager *am,
+    const gchar *account,
+    const gchar *key,
+    const gchar *val);
 typedef gchar * (*McpAccountStorageCreate) (
     const McpAccountStorage *storage,
     const McpAccountManager *am,
@@ -106,6 +112,7 @@ struct _McpAccountStorageIface
   const gchar *desc;
   const gchar *provider;
 
+  McpAccountStorageSetFunc set;
   McpAccountStorageGetFunc get;
   McpAccountStorageDeleteFunc delete;
   McpAccountStorageListFunc list;
@@ -138,6 +145,12 @@ gboolean mcp_account_storage_get (const McpAccountStorage *storage,
     McpAccountManager *am,
     const gchar *account,
     const gchar *key);
+
+gboolean mcp_account_storage_set (const McpAccountStorage *storage,
+    const McpAccountManager *am,
+    const gchar *account,
+    const gchar *key,
+    const gchar *value);
 
 gchar * mcp_account_storage_create (const McpAccountStorage *storage,
     const McpAccountManager *am,
