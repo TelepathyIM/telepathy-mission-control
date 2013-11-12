@@ -1,5 +1,5 @@
 mc_schemas = \
-	im.telepathy.MissionControl.FromEmpathy.gschema.xml \
+	im.telepathy.v1.MissionControl.FromEmpathy.gschema.xml \
 	$(NULL)
 
 gsettings_SCHEMAS =
