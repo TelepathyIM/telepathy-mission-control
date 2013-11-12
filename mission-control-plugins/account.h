@@ -62,6 +62,10 @@ void mcp_account_manager_set_parameter (const McpAccountManager *mcpa,
     GVariant *value,
     McpParameterFlags flags);
 
+gchar * mcp_account_manager_get_value (const McpAccountManager *mcpa,
+    const gchar *account,
+    const gchar *key);
+
 gchar * mcp_account_manager_get_unique_name (McpAccountManager *mcpa,
     const gchar *manager,
     const gchar *protocol,
@@ -70,9 +74,24 @@ gchar * mcp_account_manager_get_unique_name (McpAccountManager *mcpa,
 GStrv mcp_account_manager_list_keys (const McpAccountManager *mcpa,
     const gchar *account);
 
+gchar *mcp_account_manager_escape_value_for_keyfile (
+    const McpAccountManager *mcpa,
+    const GValue *value);
+
 gchar *mcp_account_manager_escape_variant_for_keyfile (
     const McpAccountManager *mcpa,
     GVariant *variant);
+
+gboolean mcp_account_manager_unescape_value_from_keyfile (
+    const McpAccountManager *mcpa,
+    const gchar *escaped,
+    GValue *value,
+    GError **error);
+
+gboolean mcp_account_manager_init_value_for_attribute (
+    const McpAccountManager *mcpa,
+    GValue *value,
+    const gchar *attribute);
 
 void mcp_account_manager_identify_account_async (McpAccountManager *mcpa,
     const gchar *manager,
