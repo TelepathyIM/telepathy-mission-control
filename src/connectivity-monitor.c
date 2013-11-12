@@ -476,7 +476,7 @@ mcd_connectivity_monitor_init (McdConnectivityMonitor *connectivity_monitor)
       connectivity_monitor);
 
 #ifdef ENABLE_CONN_SETTING
-  priv->settings = g_settings_new ("im.telepathy.MissionControl.FromEmpathy");
+  priv->settings = g_settings_new ("im.telepathy.v1.MissionControl.FromEmpathy");
   g_settings_bind (priv->settings, "use-conn",
       connectivity_monitor, "use-conn",
       G_SETTINGS_BIND_GET);
