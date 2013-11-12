@@ -206,7 +206,7 @@ _delete (const McpAccountStorage *self,
 
 
 static gboolean
-_commit (const McpAccountStorage *self,
+_commit_one (const McpAccountStorage *self,
     const McpAccountManager *am,
     const gchar *account_name)
 {
@@ -221,7 +221,6 @@ _commit (const McpAccountStorage *self,
   if (!_have_config ())
     _create_config ();
 
-  /* In this naïve implementation, we always commit all accounts together */
   data = g_key_file_to_data (adp->keyfile, &n, NULL);
   rval = g_file_set_contents (_conf_filename (), data, n, NULL);
   adp->save = !rval;
@@ -268,7 +267,7 @@ account_storage_iface_init (McpAccountStorageIface *iface,
   iface->get = _get;
   iface->set = _set;
   iface->delete = _delete;
-  iface->commit = _commit;
+  iface->commit_one = _commit_one;
   iface->list = _list;
 }
 
