@@ -909,7 +909,7 @@ mcp_account_storage_provider (const McpAccountStorage *storage)
 }
 
 /**
- * mcp_account_storage_emit_create:
+ * mcp_account_storage_emit_created:
  * @storage: an #McpAccountStorage instance
  * @account: the unique name of the created account
  *
