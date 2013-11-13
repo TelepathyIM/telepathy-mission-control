@@ -125,11 +125,29 @@ _set (McpAccountStorage *self,
   if (g_str_has_prefix (account, DONT_DIVERT))
       return FALSE;
 
-  adp->save = TRUE;
+  if (val == NULL)
+    {
+      gsize n;
+      GStrv keys;
 
-  val_str = mcp_account_manager_escape_variant_for_keyfile (am, val);
-  g_key_file_set_value (adp->keyfile, account, key, val_str);
-  g_free (val_str);
+      if (g_key_file_remove_key (adp->keyfile, account, key, NULL))
+        adp->save = TRUE;
+
+      keys = g_key_file_get_keys (adp->keyfile, account, &n, NULL);
+
+      if (keys == NULL || n == 0)
+        g_key_file_remove_group (adp->keyfile, account, NULL);
+
+      g_strfreev (keys);
+    }
+  else
+    {
+      adp->save = TRUE;
+
+      val_str = mcp_account_manager_escape_variant_for_keyfile (am, val);
+      g_key_file_set_value (adp->keyfile, account, key, val_str);
+      g_free (val_str);
+    }
 
   return TRUE;
 }
@@ -220,18 +238,7 @@ _delete (const McpAccountStorage *self,
     }
   else
     {
-      gsize n;
-      GStrv keys;
-
-      if (g_key_file_remove_key (adp->keyfile, account, key, NULL))
-        adp->save = TRUE;
-
-      keys = g_key_file_get_keys (adp->keyfile, account, &n, NULL);
-
-      if (keys == NULL || n == 0)
-        g_key_file_remove_group (adp->keyfile, account, NULL);
-
-      g_strfreev (keys);
+      g_assert_not_reached ();
     }
 
   return TRUE;

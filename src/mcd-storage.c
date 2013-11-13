@@ -1379,38 +1379,29 @@ update_storage (McdStorage *self,
     GVariant *variant)
 {
   GList *store;
-  gboolean done = FALSE;
   gboolean parameter = g_str_has_prefix (key, "param-");
   McpAccountManager *ma = MCP_ACCOUNT_MANAGER (self);
-
-  /* we're deleting, which is unconditional, no need to check if anyone *
-   * claims this setting for themselves                                 */
-  if (variant == NULL)
-    done = TRUE;
 
   for (store = stores; store != NULL; store = g_list_next (store))
     {
       McpAccountStorage *plugin = store->data;
       const gchar *pn = mcp_account_storage_name (plugin);
 
-      if (done)         /* in particular, if variant == NULL */
-        {
-          DEBUG ("MCP:%s -> delete %s.%s", pn, account, key);
-          mcp_account_storage_delete (plugin, ma, account, key);
-        }
-      else if (!parameter &&
+      if (!parameter &&
           mcp_account_storage_set_attribute (plugin, ma, account, key, variant,
             MCP_ATTRIBUTE_FLAG_NONE))
         {
-          done = TRUE;
           DEBUG ("MCP:%s -> store attribute %s.%s", pn, account, key);
+          /* set it to NULL in all lower-priority stores */
+          variant = NULL;
         }
       else if (parameter &&
           mcp_account_storage_set_parameter (plugin, ma, account, key + 6,
             variant, MCP_PARAMETER_FLAG_NONE))
         {
-          done = TRUE;
           DEBUG ("MCP:%s -> store parameter %s.%s", pn, account, key);
+          /* set it to NULL in all lower-priority stores */
+          variant = NULL;
         }
     }
 }

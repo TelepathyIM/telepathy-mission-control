@@ -374,28 +374,7 @@ _delete (const McpAccountStorage *self,
     }
   else
     {
-      if (g_str_has_prefix (key, "param-"))
-        {
-          if (g_hash_table_remove (sa->parameters, key + 6))
-            amd->save = TRUE;
-
-          if (g_hash_table_remove (sa->untyped_parameters, key + 6))
-            amd->save = TRUE;
-        }
-      else
-        {
-          if (g_hash_table_remove (sa->attributes, key))
-            amd->save = TRUE;
-        }
-
-      /* if that was the last attribute or parameter, the account is gone
-       * too */
-      if (g_hash_table_size (sa->attributes) == 0 &&
-          g_hash_table_size (sa->untyped_parameters) == 0 &&
-          g_hash_table_size (sa->parameters) == 0)
-        {
-          sa->pending_deletion = TRUE;
-        }
+      g_assert_not_reached ();
     }
 
   return TRUE;

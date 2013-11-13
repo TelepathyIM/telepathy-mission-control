@@ -504,7 +504,8 @@ mcp_account_storage_get (const McpAccountStorage *storage,
  * @am: an #McpAccountManager instance
  * @account: the unique name of the account
  * @attribute: the name of an attribute, e.g. "DisplayName"
- * @value: a value to associate with @attribute
+ * @value: (allow-none): a value to associate with @attribute,
+ *  or %NULL to delete
  * @flags: flags influencing how the attribute is to be stored
  *
  * Store an attribute.
@@ -547,7 +548,8 @@ mcp_account_storage_set_attribute (McpAccountStorage *storage,
  * @account: the unique name of the account
  * @parameter: the name of a parameter, e.g. "account" (note that there
  *  is no "param-" prefix here)
- * @value: a value to associate with @parameter
+ * @value: (allow-none): a value to associate with @parameter,
+ *  or %NULL to delete
  * @flags: flags influencing how the parameter is to be stored
  *
  * Store a parameter.

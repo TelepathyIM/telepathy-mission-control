@@ -940,28 +940,9 @@ test_dbus_account_plugin_delete (const McpAccountStorage *storage,
           "DeferringDelete", g_variant_new_parsed ("(%o,)", account->path),
           NULL);
     }
-  else if (g_str_has_prefix (key, "param-"))
-    {
-      g_hash_table_remove (account->parameters, key + 6);
-      g_hash_table_remove (account->untyped_parameters, key + 6);
-      g_hash_table_remove (account->parameter_flags, key + 6);
-      g_hash_table_add (account->uncommitted_parameters, g_strdup (key + 6));
-
-      g_dbus_connection_emit_signal (self->bus, NULL,
-          TEST_DBUS_ACCOUNT_PLUGIN_PATH, TEST_DBUS_ACCOUNT_PLUGIN_IFACE,
-          "DeferringDeleteParameter",
-          g_variant_new_parsed ("(%o, %s)", account->path, key + 6), NULL);
-    }
   else
     {
-      g_hash_table_remove (account->attributes, key);
-      g_hash_table_remove (account->attribute_flags, key);
-      g_hash_table_add (account->uncommitted_attributes, g_strdup (key));
-
-      g_dbus_connection_emit_signal (self->bus, NULL,
-          TEST_DBUS_ACCOUNT_PLUGIN_PATH, TEST_DBUS_ACCOUNT_PLUGIN_IFACE,
-          "DeferringDeleteAttribute",
-          g_variant_new_parsed ("(%o, %s)", account->path, key), NULL);
+      g_assert_not_reached ();
     }
 
   return TRUE;
@@ -1099,14 +1080,26 @@ test_dbus_account_plugin_set_attribute (McpAccountStorage *storage,
 
   g_return_val_if_fail (account_name != NULL, FALSE);
   g_return_val_if_fail (attribute != NULL, FALSE);
-  /* for deletions, MC would call delete() instead */
-  g_return_val_if_fail (value != NULL, FALSE);
 
   DEBUG ("%s of %s", attribute, account_name);
 
   if (!self->active || account == NULL ||
       (account->flags & UNCOMMITTED_DELETION))
     return FALSE;
+
+  if (value == NULL)
+    {
+      g_hash_table_remove (account->attributes, attribute);
+      g_hash_table_remove (account->attribute_flags, attribute);
+      g_hash_table_add (account->uncommitted_attributes, g_strdup (attribute));
+
+      g_dbus_connection_emit_signal (self->bus, NULL,
+          TEST_DBUS_ACCOUNT_PLUGIN_PATH, TEST_DBUS_ACCOUNT_PLUGIN_IFACE,
+          "DeferringDeleteAttribute",
+          g_variant_new_parsed ("(%o, %s)", account->path, attribute), NULL);
+
+      return TRUE;
+    }
 
   g_hash_table_insert (account->attributes, g_strdup (attribute),
       g_variant_ref (value));
@@ -1136,14 +1129,27 @@ test_dbus_account_plugin_set_parameter (McpAccountStorage *storage,
 
   g_return_val_if_fail (account_name != NULL, FALSE);
   g_return_val_if_fail (parameter != NULL, FALSE);
-  /* for deletions, MC would call delete() instead */
-  g_return_val_if_fail (value != NULL, FALSE);
 
   DEBUG ("%s of %s", parameter, account_name);
 
   if (!self->active || account == NULL ||
       (account->flags & UNCOMMITTED_DELETION))
     return FALSE;
+
+  if (value == NULL)
+    {
+      g_hash_table_remove (account->parameters, parameter);
+      g_hash_table_remove (account->untyped_parameters, parameter);
+      g_hash_table_remove (account->parameter_flags, parameter);
+      g_hash_table_add (account->uncommitted_parameters, g_strdup (parameter));
+
+      g_dbus_connection_emit_signal (self->bus, NULL,
+          TEST_DBUS_ACCOUNT_PLUGIN_PATH, TEST_DBUS_ACCOUNT_PLUGIN_IFACE,
+          "DeferringDeleteParameter",
+          g_variant_new_parsed ("(%o, %s)", account->path, parameter), NULL);
+
+      return TRUE;
+    }
 
   g_hash_table_remove (account->untyped_parameters, parameter);
   g_hash_table_insert (account->parameters, g_strdup (parameter),
