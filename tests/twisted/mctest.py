@@ -1018,12 +1018,11 @@ class SimulatedConnectionManager(object):
 
         for protocol_name in protocol_names:
             assert '-' not in protocol_name
-            q.add_dbus_method_impl(self.IdentifyAccount,
-                    path=self.object_path + '/' + protocol_name,
-                    interface=cs.PROTOCOL, method='IdentifyAccount')
-            q.add_dbus_method_impl(self.NormalizeContact,
-                    path=self.object_path + '/' + protocol_name,
-                    interface=cs.PROTOCOL, method='NormalizeContact')
+
+        q.add_dbus_method_impl(self.IdentifyAccount,
+                interface=cs.PROTOCOL, method='IdentifyAccount')
+        q.add_dbus_method_impl(self.NormalizeContact,
+                interface=cs.PROTOCOL, method='NormalizeContact')
 
     def release_name(self):
         del self._bus_name_ref
@@ -1132,11 +1131,32 @@ class SimulatedConnectionManager(object):
             }, signature='a{sv}', bus=self.bus)
 
     def IdentifyAccount(self, e):
+        if e.path.startswith(self.object_path + '/'):
+            protocol = e.path[len(self.object_path + '/'):]
+
+            if protocol not in self.protocol_names:
+                self.q.dbus_raise(e.message, cs.DBUS_ERROR_UNKNOWN_METHOD,
+                        'Not my protocol')
+                return
+        else:
+            self.q.dbus_raise(e.message, cs.DBUS_ERROR_UNKNOWN_METHOD,
+                    'Not even my object path')
+            return
+
+        if protocol in ('serializable', 'defaults') and 's' in e.args[0]:
+            ret = e.args[0]['s'].lower()
+            if ret:
+                self.q.dbus_return(e.message, ret, signature='s')
+                return
+
         if 'account' in e.args[0]:
             ret = e.args[0]['account'].lower()
-        else:
-            ret = 'account'
-        self.q.dbus_return(e.message, ret, signature='s')
+            if ret:
+                self.q.dbus_return(e.message, ret, signature='s')
+                return
+
+        self.q.dbus_raise(e.message, cs.INVALID_HANDLE,
+                'Invalid account name %r' % e.args[0].get('account'))
 
     def NormalizeContact(self, e):
         self.q.dbus_return(e.message, e.args[0].lower(), signature='s')
