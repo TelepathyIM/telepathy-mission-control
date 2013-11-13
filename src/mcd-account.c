@@ -762,18 +762,15 @@ mcd_account_delete (McdAccount *account,
 
     mcd_storage_commit (priv->storage, name);
 
-    if (callback != NULL)
-        callback (account, NULL, user_data);
-
-    /* If the account was not removed via the DBus Account interface code     *
-     * path and something is holding a ref to it so it does not get disposed, *
-     * then this signal may not get fired, so we make sure it _does_ here     */
     if (!priv->removed)
     {
-        DEBUG ("Forcing Account.Removed for %s", name);
+        DEBUG ("emitting Account.Removed for %s", name);
         priv->removed = TRUE;
         tp_svc_account_emit_removed (account);
     }
+
+    if (callback != NULL)
+        callback (account, NULL, user_data);
 }
 
 void
@@ -2438,11 +2435,8 @@ account_remove_delete_cb (McdAccount *account, const GError *error,
         return;
     }
 
-    if (!data->self->priv->removed)
-    {
-        data->self->priv->removed = TRUE;
-        tp_svc_account_emit_removed (data->self);
-    }
+    /* mcd_account_delete() is meant to have deleted it */
+    g_warn_if_fail (data->self->priv->removed);
 
     tp_svc_account_return_from_remove (data->context);
 
@@ -3502,6 +3496,9 @@ _mcd_account_dispose (GObject *object)
 
     if (!self->priv->removed)
     {
+        /* this can happen in certain account-creation error paths,
+         * as far as I can see */
+        DEBUG ("Account never emitted Removed, emitting it now");
         self->priv->removed = TRUE;
         tp_svc_account_emit_removed (self);
     }
