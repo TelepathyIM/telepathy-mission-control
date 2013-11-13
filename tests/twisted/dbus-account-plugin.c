@@ -158,7 +158,7 @@ ensure_account (TestDBusAccountPlugin *self,
 
   if (account == NULL)
     {
-      account = g_slice_new (Account);
+      account = g_slice_new0 (Account);
       account->path = g_strdup_printf ("%s%s", TP_ACCOUNT_OBJECT_PATH_BASE,
           account_name);
 
