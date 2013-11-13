@@ -65,7 +65,6 @@
  *   iface->get_additional_info = foo_plugin_get_additional_info;
  *   iface->get_restrictions = foo_plugin_get_restrictions;
  *   iface->create = foo_plugin_create;
- *   iface->owns = foo_plugin_owns;
  *   iface->set_attribute = foo_plugin_set_attribute;
  *   iface->set_parameter = foo_plugin_set_parameter;
  * }
@@ -219,19 +218,6 @@ default_set_parameter (McpAccountStorage *storage,
   return FALSE;
 }
 
-static gboolean
-default_owns (McpAccountStorage *storage,
-    McpAccountManager *am,
-    const gchar *account)
-{
-  /* This has the side-effect of pushing the "manager" key back into @am,
-   * but that should be a no-op in practice: we always call this
-   * method in priority order and stop at the first one that says "yes",
-   * and @am's idea of what "manager" is should have come from that same
-   * plugin anyway. */
-  return mcp_account_storage_get (storage, am, account, "manager");
-}
-
 static void
 class_init (gpointer klass,
     gpointer data)
@@ -249,7 +235,6 @@ class_init (gpointer klass,
   iface->get_identifier = default_get_identifier;
   iface->get_additional_info = default_get_additional_info;
   iface->get_restrictions = default_get_restrictions;
-  iface->owns = default_owns;
   iface->set_attribute = default_set_attribute;
   iface->set_parameter = default_set_parameter;
 
@@ -1085,34 +1070,4 @@ mcp_account_storage_emit_reconnect (McpAccountStorage *storage,
     const gchar *account)
 {
   g_signal_emit (storage, signals[RECONNECT], 0, account);
-}
-
-/**
- * mcp_account_storage_owns:
- * @storage: an #McpAccountStorage instance
- * @am: an #McpAccountManager instance
- * @account: the unique name (object-path tail) of an account
- *
- * Check whether @account is stored in @storage. The highest-priority
- * plugin for which this function returns %TRUE is considered to be
- * responsible for @account.
- *
- * There is a default implementation, which calls mcp_account_storage_get()
- * for the well-known key "manager".
- *
- * Returns: %TRUE if @account is stored in @storage
- *
- * Since: 5.15.0
- */
-gboolean
-mcp_account_storage_owns (McpAccountStorage *storage,
-    McpAccountManager *am,
-    const gchar *account)
-{
-  McpAccountStorageIface *iface = MCP_ACCOUNT_STORAGE_GET_IFACE (storage);
-
-  g_return_val_if_fail (iface != NULL, FALSE);
-  g_return_val_if_fail (iface->owns != NULL, FALSE);
-
-  return iface->owns (storage, am, account);
 }

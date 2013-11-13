@@ -1552,22 +1552,6 @@ test_dbus_account_plugin_get_restrictions (const McpAccountStorage *storage,
   return account->restrictions;
 }
 
-static gboolean
-test_dbus_account_plugin_owns (McpAccountStorage *storage,
-    McpAccountManager *am,
-    const gchar *account_name)
-{
-  TestDBusAccountPlugin *self = TEST_DBUS_ACCOUNT_PLUGIN (storage);
-  Account *account = lookup_account (self, account_name);
-
-  DEBUG ("%s", account_name);
-
-  if (!self->active || account == NULL)
-    return FALSE;
-
-  return TRUE;
-}
-
 static void
 account_storage_iface_init (McpAccountStorageIface *iface)
 {
@@ -1588,5 +1572,4 @@ account_storage_iface_init (McpAccountStorageIface *iface)
   iface->get_additional_info = test_dbus_account_plugin_get_additional_info;
   iface->get_restrictions = test_dbus_account_plugin_get_restrictions;
   iface->create = test_dbus_account_plugin_create;
-  iface->owns = test_dbus_account_plugin_owns;
 }

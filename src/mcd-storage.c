@@ -727,22 +727,15 @@ McpAccountStorage *
 mcd_storage_get_plugin (McdStorage *self,
     const gchar *account)
 {
-  GList *store = stores;
-  McpAccountManager *ma = MCP_ACCOUNT_MANAGER (self);
-  McpAccountStorage *owner = NULL;
+  McdStorageAccount *sa;
 
   g_return_val_if_fail (MCD_IS_STORAGE (self), NULL);
   g_return_val_if_fail (account != NULL, NULL);
 
-  for (; store != NULL && owner == NULL; store = g_list_next (store))
-    {
-      McpAccountStorage *plugin = store->data;
+  sa = lookup_account (self, account);
+  g_return_val_if_fail (account != NULL, NULL);
 
-      if (mcp_account_storage_owns (plugin, ma, account))
-        owner = plugin;
-    }
-
-  return owner;
+  return sa->plugin;
 }
 
 /*

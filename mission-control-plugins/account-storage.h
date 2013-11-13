@@ -124,9 +124,6 @@ struct _McpAccountStorageIface
   McpAccountStorageCreate create;
 
   /* Since 5.15.0 */
-  gboolean (*owns) (McpAccountStorage *storage,
-      McpAccountManager *am,
-      const gchar *account);
   gboolean (*set_attribute) (McpAccountStorage *storage,
       McpAccountManager *am,
       const gchar *account,
@@ -192,10 +189,6 @@ const gchar *mcp_account_storage_name (const McpAccountStorage *storage);
 
 const gchar *mcp_account_storage_description (const McpAccountStorage *storage);
 const gchar *mcp_account_storage_provider (const McpAccountStorage *storage);
-
-gboolean mcp_account_storage_owns (McpAccountStorage *storage,
-    McpAccountManager *am,
-    const gchar *account);
 
 gboolean mcp_account_storage_set_attribute (McpAccountStorage *storage,
     McpAccountManager *am,
