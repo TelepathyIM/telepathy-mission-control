@@ -66,10 +66,6 @@ void mcd_storage_load (McdStorage *storage);
 
 GStrv mcd_storage_dup_accounts (McdStorage *storage, gsize *n);
 
-GStrv mcd_storage_dup_attributes (McdStorage *storage,
-    const gchar *account,
-    gsize *n);
-
 gboolean mcd_storage_set_string (McdStorage *storage,
     const gchar *account,
     const gchar *attribute,

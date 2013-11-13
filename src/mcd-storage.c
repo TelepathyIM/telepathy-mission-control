@@ -688,39 +688,6 @@ mcd_storage_dup_accounts (McdStorage *self,
 }
 
 /*
- * mcd_storage_dup_attributes:
- * @storage: An object implementing the #McdStorage interface
- * @account: unique name of the account
- * @n: place for the number of attributes to be written to (or %NULL)
- *
- * Returns: a newly allocated GStrv containing the names of all the
- * attributes or parameters currently stored for @account. Must be
- * freed by the caller with g_strfreev().
- */
-GStrv
-mcd_storage_dup_attributes (McdStorage *self,
-    const gchar *account,
-    gsize *n)
-{
-  GPtrArray *ret = g_ptr_array_new ();
-  McdStorageAccount *sa = lookup_account (self, account);
-
-  if (sa != NULL)
-    {
-      GHashTableIter iter;
-      gpointer k;
-
-      g_hash_table_iter_init (&iter, sa->attributes);
-
-      while (g_hash_table_iter_next (&iter, &k, NULL))
-        g_ptr_array_add (ret, g_strdup (k));
-    }
-
-  g_ptr_array_add (ret, NULL);
-  return (GStrv) g_ptr_array_free (ret, FALSE);
-}
-
-/*
  * mcd_storage_get_plugin:
  * @storage: An object implementing the #McdStorage interface
  * @account: unique name of the account
