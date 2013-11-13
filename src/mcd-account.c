@@ -674,16 +674,19 @@ static TpStorageRestrictionFlags mcd_account_get_storage_restrictions (
     McdAccount *account);
 
 void
-mcd_account_delete (McdAccount *account,
-                    McdDBusPropSetFlags flags,
-                     McdAccountDeleteCb callback,
-                     gpointer user_data)
+mcd_account_delete_async (McdAccount *account,
+    McdDBusPropSetFlags flags,
+    GAsyncReadyCallback callback,
+    gpointer user_data)
 {
     McdAccountPrivate *priv = account->priv;
     gchar *data_dir_str;
     GError *error = NULL;
     const gchar *name = mcd_account_get_unique_name (account);
     TpConnectionManager *cm = mcd_account_get_cm (account);
+    GTask *task;
+
+    task = g_task_new (account, NULL, callback, user_data);
 
     /* We don't really have a flag for "cannot delete accounts" yet, but
      * it seems reasonable that if you can't disable it or put it
@@ -694,16 +697,18 @@ mcd_account_delete (McdAccount *account,
           (TP_STORAGE_RESTRICTION_FLAG_CANNOT_SET_ENABLED |
            TP_STORAGE_RESTRICTION_FLAG_CANNOT_SET_PRESENCE)) != 0)
     {
-        g_set_error (&error, TP_ERROR, TP_ERROR_PERMISSION_DENIED,
+        g_task_return_new_error (task, TP_ERROR, TP_ERROR_PERMISSION_DENIED,
                      "Storage plugin for %s does not allow deleting it",
                      name);
-        callback (account, error, user_data);
-        g_error_free (error);
+        g_object_unref (task);
         return;
     }
 
-    /* if the CM implements CM.I.AccountStorage, we need to tell the CM
-     * to forget any account credentials it knows */
+    /* If the CM implements CM.I.AccountStorage, we need to tell the CM
+     * to forget any account credentials it knows.
+     *
+     * FIXME: put this in the main flow rather than doing it async and
+     * throwing away its result? */
     if (tp_proxy_has_interface_by_id (cm,
             MC_IFACE_QUARK_CONNECTION_MANAGER_INTERFACE_ACCOUNT_STORAGE))
     {
@@ -728,8 +733,8 @@ mcd_account_delete (McdAccount *account,
                                    flags, &error))
     {
         g_warning ("could not disable account %s (%s)", name, error->message);
-        callback (account, error, user_data);
-        g_error_free (error);
+        g_task_return_error (task, error);
+        g_object_unref (task);
         return;
     }
 
@@ -769,8 +774,18 @@ mcd_account_delete (McdAccount *account,
         tp_svc_account_emit_removed (account);
     }
 
-    if (callback != NULL)
-        callback (account, NULL, user_data);
+    g_task_return_boolean (task, TRUE);
+    g_object_unref (task);
+}
+
+gboolean
+mcd_account_delete_finish (McdAccount *self,
+    GAsyncResult *result,
+    GError **error)
+{
+  g_return_val_if_fail (g_task_is_valid (result, self), NULL);
+
+  return g_task_propagate_boolean (G_TASK (result), error);
 }
 
 void
@@ -2424,14 +2439,17 @@ typedef struct
 } RemoveMethodData;
 
 static void
-account_remove_delete_cb (McdAccount *account, const GError *error,
+account_remove_delete_cb (GObject *source,
+                          GAsyncResult *res,
                           gpointer user_data)
 {
     RemoveMethodData *data = (RemoveMethodData *) user_data;
+    GError *error = NULL;
 
-    if (error != NULL)
+    if (!mcd_account_delete_finish (MCD_ACCOUNT (source), res, &error))
     {
         dbus_g_method_return_error (data->context, (GError *) error);
+        g_error_free (error);
         return;
     }
 
@@ -2439,7 +2457,6 @@ account_remove_delete_cb (McdAccount *account, const GError *error,
     g_warn_if_fail (data->self->priv->removed);
 
     tp_svc_account_return_from_remove (data->context);
-
     g_slice_free (RemoveMethodData, data);
 }
 
@@ -2454,8 +2471,8 @@ account_remove (TpSvcAccount *svc, DBusGMethodInvocation *context)
     data->context = context;
 
     DEBUG ("called");
-    mcd_account_delete (self, MCD_DBUS_PROP_SET_FLAG_NONE,
-                        account_remove_delete_cb, data);
+    mcd_account_delete_async (self, MCD_DBUS_PROP_SET_FLAG_NONE,
+                              account_remove_delete_cb, data);
 }
 
 /*

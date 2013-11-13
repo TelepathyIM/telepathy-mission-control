@@ -381,11 +381,27 @@ reconnect_cb (GObject *plugin, const gchar *name, gpointer data)
 }
 
 static void
-_mcd_account_delete_cb (McdAccount *account, const GError *error, gpointer data)
+mcd_account_delete_debug_cb (GObject *source,
+    GAsyncResult *res,
+    gpointer user_data)
 {
-    /* no need to do anything other than release the account ref, which *
-     * should be the last ref we hold by the time this rolls arouns:    */
-    g_object_unref (account);
+    McdAccount *account = MCD_ACCOUNT (source);
+    GError *error = NULL;
+
+    if (mcd_account_delete_finish (account, res, &error))
+    {
+        DEBUG ("successfully deleted account %s (%s)",
+               mcd_account_get_unique_name (account),
+               (const gchar *) user_data);
+    }
+    else
+    {
+        WARNING ("could not delete account %s (%s): %s #%d: %s",
+               mcd_account_get_unique_name (account),
+               (const gchar *) user_data,
+               g_quark_to_string (error->domain), error->code, error->message);
+        g_clear_error (&error);
+    }
 }
 
 /* a backend plugin notified us that an account was vaporised: remove it */
@@ -409,9 +425,11 @@ deleted_cb (GObject *plugin, const gchar *name, gpointer data)
         /* this unhooks the account's signal handlers */
         g_hash_table_remove (manager->priv->accounts, name);
         tp_svc_account_manager_emit_account_removed (manager, object_path);
-        mcd_account_delete (account,
-                            MCD_DBUS_PROP_SET_FLAG_ALREADY_IN_STORAGE,
-                            _mcd_account_delete_cb, NULL);
+        mcd_account_delete_async (account,
+                                  MCD_DBUS_PROP_SET_FLAG_ALREADY_IN_STORAGE,
+                                  mcd_account_delete_debug_cb,
+                                  "in response to McpAccountStorage::deleted");
+        g_object_unref (account);
     }
 }
 
@@ -722,8 +740,10 @@ complete_account_creation_finish (McdAccount *account,
 
     if (!cad->ok)
     {
-        mcd_account_delete (account, MCD_DBUS_PROP_SET_FLAG_NONE,
-                            NULL, NULL);
+        mcd_account_delete_async (account,
+                                  MCD_DBUS_PROP_SET_FLAG_NONE,
+                                  mcd_account_delete_debug_cb,
+                                  "while recovering from failure to create");
         tp_clear_object (&account);
     }
 
@@ -1176,12 +1196,13 @@ migrate_ctx_free (MigrateCtx *ctx)
 
 
 static void
-migrate_delete_account_cb (McdAccount *account,
-                           const GError *error,
-                           gpointer user_data)
+migrate_delete_account_cb (GObject *source,
+    GAsyncResult *res,
+    gpointer user_data)
 {
     MigrateCtx *ctx = user_data;
 
+    mcd_account_delete_debug_cb (source, res, "after migrating it");
     migrate_ctx_free (ctx);
 }
 
@@ -1205,8 +1226,8 @@ migrate_create_account_cb (McdAccountManager *account_manager,
     DEBUG ("Account %s migrated, removing it",
            mcd_account_get_unique_name (ctx->account));
 
-    mcd_account_delete (ctx->account, MCD_DBUS_PROP_SET_FLAG_NONE,
-                        migrate_delete_account_cb, ctx);
+    mcd_account_delete_async (ctx->account, MCD_DBUS_PROP_SET_FLAG_NONE,
+                              migrate_delete_account_cb, ctx);
 }
 
 static void

@@ -61,9 +61,6 @@ GQuark mcd_account_error_quark (void);
 typedef void (*McdAccountLoadCb) (McdAccount *account,
                                   const GError *error,
                                   gpointer user_data);
-typedef void (*McdAccountDeleteCb) (McdAccount *account,
-                                    const GError *error,
-                                    gpointer user_data);
 
 struct _McdAccountClass
 {
@@ -85,10 +82,13 @@ McdAccount *mcd_account_new (McdAccountManager *account_manager,
     const gchar *name,
     McdConnectivityMonitor *minotaur);
 
-void mcd_account_delete (McdAccount *account,
-                         McdDBusPropSetFlags flags,
-                         McdAccountDeleteCb callback,
-                         gpointer user_data);
+void mcd_account_delete_async (McdAccount *account,
+    McdDBusPropSetFlags flags,
+    GAsyncReadyCallback callback,
+    gpointer user_data);
+gboolean mcd_account_delete_finish (McdAccount *account,
+    GAsyncResult *result,
+    GError **error);
 
 const gchar *mcd_account_get_unique_name (McdAccount *account);
 const gchar *mcd_account_get_object_path (McdAccount *account);
