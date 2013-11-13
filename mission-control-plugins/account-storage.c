@@ -119,13 +119,24 @@ default_get (const McpAccountStorage *storage,
   return FALSE;
 }
 
-static gboolean
-default_delete (const McpAccountStorage *storage,
-    const McpAccountManager *am,
+static void
+default_delete_async (McpAccountStorage *storage,
+    McpAccountManager *am,
     const gchar *account,
-    const gchar *key)
+    GAsyncReadyCallback callback,
+    gpointer user_data)
 {
-  return FALSE;
+  g_task_report_new_error (storage, callback, user_data,
+      default_delete_async, TP_ERROR, TP_ERROR_NOT_IMPLEMENTED,
+      "This storage plugin cannot delete accounts");
+}
+
+static gboolean
+default_delete_finish (McpAccountStorage *storage,
+    GAsyncResult *res,
+    GError **error)
+{
+  return g_task_propagate_boolean (G_TASK (res), error);
 }
 
 static gboolean
@@ -230,7 +241,8 @@ class_init (gpointer klass,
 
   iface->get = default_get;
   iface->create = default_create;
-  iface->delete = default_delete;
+  iface->delete_async = default_delete_async;
+  iface->delete_finish = default_delete_finish;
   iface->commit = default_commit;
   iface->list = default_list;
   iface->ready = default_ready;
@@ -646,61 +658,62 @@ mcp_account_storage_create (const McpAccountStorage *storage,
 }
 
 /**
- * McpAccountStorageDeleteFunc:
+ * mcp_account_storage_delete_async:
  * @storage: an #McpAccountStorage instance
  * @am: an #McpAccountManager instance
  * @account: the unique name of the account
- * @key: (allow-none): the setting whose value we wish to store - either an
- *  attribute like "DisplayName", or "param-" plus a parameter like
- *  "account" - or %NULL to delete the entire account
+ * @callback: called on success or failure
+ * @user_data: data for @callback
  *
- * An implementation of mcp_account_storage_delete().
+ * Delete the account @account, and commit the change,
+ * emitting #McpAccountStorage::deleted afterwards.
  *
- * Returns: %TRUE if the setting or settings are not
- * the plugin's cache after this operation, %FALSE otherwise.
+ * Unlike the 'delete' virtual method in earlier MC versions, this
+ * function is expected to commit the change to long-term storage,
+ * is expected to emit #McpAccountStorage::deleted, and is
+ * not called for the deletion of individual attributes or parameters.
+ *
+ * The default implementation just returns failure (asynchronously),
+ * and is appropriate for read-only storage.
  */
+void
+mcp_account_storage_delete_async (McpAccountStorage *storage,
+    McpAccountManager *am,
+    const gchar *account,
+    GAsyncReadyCallback callback,
+    gpointer user_data)
+{
+  McpAccountStorageIface *iface = MCP_ACCOUNT_STORAGE_GET_IFACE (storage);
+
+  SDEBUG (storage, "");
+  g_return_if_fail (iface != NULL);
+  g_return_if_fail (iface->delete_async != NULL);
+
+  iface->delete_async (storage, am, account, callback, user_data);
+}
 
 /**
- * mcp_account_storage_delete:
+ * mcp_account_storage_delete_finish:
  * @storage: an #McpAccountStorage instance
- * @am: an #McpAccountManager instance
- * @account: the unique name of the account
- * @key: (allow-none): the setting whose value we wish to store - either an
- *  attribute like "DisplayName", or "param-" plus a parameter like
- *  "account" - or %NULL to delete the entire account
+ * @res: the result of mcp_account_storage_delete_async()
+ * @error: used to raise an error if %FALSE is returned
  *
- * The plugin is expected to remove the setting for @key from its
- * internal cache and to remember that its state has changed, so
- * that it can delete said setting from its long term storage if
- * its long term storage method makes this necessary.
+ * Process the result of mcp_account_storage_delete_async().
  *
- * If @key is %NULL, the plugin should forget all its settings for
- * @account,and remember to delete the entire account from its storage later.
- *
- * The plugin is not expected to update its long term storage at
- * this point.
- *
- * The default implementation just returns %FALSE, and is appropriate for
- * read-only storage.
- *
- * Returns: %TRUE if the setting or settings are not
- * the plugin's cache after this operation, %FALSE otherwise.
- * This is very unlikely to ever be %FALSE, as a plugin is always
- * expected to be able to manipulate its own cache.
+ * Returns: %TRUE on success, %FALSE if the account could not be deleted
  */
 gboolean
-mcp_account_storage_delete (const McpAccountStorage *storage,
-    const McpAccountManager *am,
-    const gchar *account,
-    const gchar *key)
+mcp_account_storage_delete_finish (McpAccountStorage *storage,
+    GAsyncResult *result,
+    GError **error)
 {
   McpAccountStorageIface *iface = MCP_ACCOUNT_STORAGE_GET_IFACE (storage);
 
   SDEBUG (storage, "");
   g_return_val_if_fail (iface != NULL, FALSE);
-  g_return_val_if_fail (iface->delete != NULL, FALSE);
+  g_return_val_if_fail (iface->delete_finish != NULL, FALSE);
 
-  return iface->delete (storage, am, account, key);
+  return iface->delete_finish (storage, result, error);
 }
 
 /**

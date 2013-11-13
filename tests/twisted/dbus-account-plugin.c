@@ -54,7 +54,7 @@ typedef struct {
     GHashTable *parameter_flags;
     /* set of strings */
     GHashTable *uncommitted_parameters;
-    enum { UNCOMMITTED_CREATION, UNCOMMITTED_DELETION } flags;
+    enum { UNCOMMITTED_CREATION = 1 } flags;
     TpStorageRestrictionFlags restrictions;
 } Account;
 
@@ -183,7 +183,6 @@ ensure_account (TestDBusAccountPlugin *self,
       g_hash_table_insert (self->accounts, g_strdup (account_name), account);
     }
 
-  account->flags &= ~UNCOMMITTED_DELETION;
   return account;
 }
 
@@ -211,18 +210,14 @@ service_vanished_cb (GDBusConnection *bus,
 {
   TestDBusAccountPlugin *self = TEST_DBUS_ACCOUNT_PLUGIN (user_data);
   GHashTableIter iter;
-  gpointer k, v;
+  gpointer k;
 
   self->active = FALSE;
   g_hash_table_iter_init (&iter, self->accounts);
 
-  while (g_hash_table_iter_next (&iter, &k, &v))
+  while (g_hash_table_iter_next (&iter, &k, NULL))
     {
-      Account *account = v;
-
-      if ((account->flags & UNCOMMITTED_DELETION) == 0)
-        mcp_account_storage_emit_deleted (MCP_ACCOUNT_STORAGE (self), k);
-
+      mcp_account_storage_emit_deleted (MCP_ACCOUNT_STORAGE (self), k);
       g_hash_table_iter_remove (&iter);
     }
 
@@ -908,44 +903,64 @@ test_dbus_account_plugin_create (const McpAccountStorage *storage,
   return name;
 }
 
-static gboolean
-test_dbus_account_plugin_delete (const McpAccountStorage *storage,
-    const McpAccountManager *am,
+static void delete_account_cb (GObject *source_object,
+    GAsyncResult *res,
+    gpointer user_data);
+
+static void
+test_dbus_account_plugin_delete_async (McpAccountStorage *storage,
+    McpAccountManager *am,
     const gchar *account_name,
-    const gchar *key)
+    GAsyncReadyCallback callback,
+    gpointer user_data)
 {
   TestDBusAccountPlugin *self = TEST_DBUS_ACCOUNT_PLUGIN (storage);
   Account *account = lookup_account (self, account_name);
+  GTask *task = g_task_new (self, NULL, callback, user_data);
+
+  g_task_set_task_data (task, g_strdup (user_data), g_free);
 
   DEBUG ("called");
 
   if (account == NULL || !self->active)
-    return FALSE;
-
-  if (key == NULL)
     {
-      account->flags |= UNCOMMITTED_DELETION;
-      g_hash_table_remove_all (account->attributes);
-      g_hash_table_remove_all (account->parameters);
-      g_hash_table_remove_all (account->untyped_parameters);
-      g_hash_table_remove_all (account->attribute_flags);
-      g_hash_table_remove_all (account->parameter_flags);
-
-      account->flags &= ~UNCOMMITTED_CREATION;
-      g_hash_table_remove_all (account->uncommitted_attributes);
-      g_hash_table_remove_all (account->uncommitted_parameters);
-
-      g_dbus_connection_emit_signal (self->bus, NULL,
-          TEST_DBUS_ACCOUNT_PLUGIN_PATH, TEST_DBUS_ACCOUNT_PLUGIN_IFACE,
-          "DeferringDelete", g_variant_new_parsed ("(%o,)", account->path),
-          NULL);
-    }
-  else
-    {
-      g_assert_not_reached ();
+      /* We were asked to delete an account we don't have. It's
+       * a bit like success. */
+      g_task_return_boolean (task, TRUE);
+      g_object_unref (task);
+      return;
     }
 
-  return TRUE;
+  /* deletion used to be delayed, so the regression tests will expect this
+   * to happen - leave them unmodified for now */
+  g_dbus_connection_emit_signal (self->bus, NULL,
+      TEST_DBUS_ACCOUNT_PLUGIN_PATH, TEST_DBUS_ACCOUNT_PLUGIN_IFACE,
+      "DeferringDelete", g_variant_new_parsed ("(%o,)", account->path),
+      NULL);
+  g_dbus_connection_emit_signal (self->bus, NULL,
+      TEST_DBUS_ACCOUNT_PLUGIN_PATH, TEST_DBUS_ACCOUNT_PLUGIN_IFACE,
+      "CommittingOne", g_variant_new_parsed ("(%o,)", account->path), NULL);
+
+  g_dbus_connection_call (self->bus,
+      TEST_DBUS_ACCOUNT_SERVICE,
+      TEST_DBUS_ACCOUNT_SERVICE_PATH,
+      TEST_DBUS_ACCOUNT_SERVICE_IFACE,
+      "DeleteAccount",
+      g_variant_new_parsed ("(%s,)", account_name),
+      G_VARIANT_TYPE_UNIT,
+      G_DBUS_CALL_FLAGS_NONE,
+      -1,
+      NULL, /* no cancellable */
+      delete_account_cb,
+      task);
+}
+
+static gboolean
+test_dbus_account_plugin_delete_finish (McpAccountStorage *storage,
+    GAsyncResult *res,
+    GError **error)
+{
+  return g_task_propagate_boolean (G_TASK (res), error);
 }
 
 static gboolean
@@ -957,7 +972,7 @@ test_dbus_account_plugin_get (const McpAccountStorage *storage,
   TestDBusAccountPlugin *self = TEST_DBUS_ACCOUNT_PLUGIN (storage);
   Account *account = lookup_account (self, account_name);
 
-  if (!self->active || account == NULL || (account->flags & UNCOMMITTED_DELETION))
+  if (!self->active || account == NULL)
     return FALSE;
 
   if (key == NULL)
@@ -1083,8 +1098,7 @@ test_dbus_account_plugin_set_attribute (McpAccountStorage *storage,
 
   DEBUG ("%s of %s", attribute, account_name);
 
-  if (!self->active || account == NULL ||
-      (account->flags & UNCOMMITTED_DELETION))
+  if (!self->active || account == NULL)
     return FALSE;
 
   if (value == NULL)
@@ -1132,8 +1146,7 @@ test_dbus_account_plugin_set_parameter (McpAccountStorage *storage,
 
   DEBUG ("%s of %s", parameter, account_name);
 
-  if (!self->active || account == NULL ||
-      (account->flags & UNCOMMITTED_DELETION))
+  if (!self->active || account == NULL)
     return FALSE;
 
   if (value == NULL)
@@ -1202,27 +1215,31 @@ delete_account_cb (GObject *source_object,
     GAsyncResult *res,
     gpointer user_data)
 {
-  AsyncData *ad = user_data;
+  GTask *task = user_data;
   GVariant *tuple;
   GError *error = NULL;
+  TestDBusAccountPlugin *self = g_task_get_source_object (task);
+  const gchar *account_name = g_task_get_task_data (task);
 
-  tuple = g_dbus_connection_call_finish (ad->self->bus, res, &error);
+  tuple = g_dbus_connection_call_finish (self->bus, res, &error);
 
   if (tuple != NULL)
     {
-      g_hash_table_remove (ad->self->accounts, ad->account_name);
+      /* we'll emit ::deleted when we see the signal, which probably
+       * already happened */
+      g_hash_table_remove (self->accounts, account_name);
       g_variant_unref (tuple);
+      g_task_return_boolean (task, TRUE);
     }
   else
     {
-      g_warning ("Unable to delete account %s: %s", ad->account_name,
-          error->message);
-      g_clear_error (&error);
-      /* FIXME: we could roll back the deletion by claiming that
-       * the service re-created the account? */
+      g_prefix_error (&error, "Unable to delete account %s: ",
+          account_name);
+      g_warning ("%s", error->message);
+      g_task_return_error (task, error);
     }
 
-  async_data_free (ad);
+  g_object_unref (task);
 }
 
 static void
@@ -1354,25 +1371,6 @@ test_dbus_account_plugin_commit (const McpAccountStorage *storage,
   g_dbus_connection_emit_signal (self->bus, NULL,
       TEST_DBUS_ACCOUNT_PLUGIN_PATH, TEST_DBUS_ACCOUNT_PLUGIN_IFACE,
       "CommittingOne", g_variant_new_parsed ("(%o,)", account->path), NULL);
-
-  if (account->flags & UNCOMMITTED_DELETION)
-    {
-      g_dbus_connection_call (self->bus,
-          TEST_DBUS_ACCOUNT_SERVICE,
-          TEST_DBUS_ACCOUNT_SERVICE_PATH,
-          TEST_DBUS_ACCOUNT_SERVICE_IFACE,
-          "DeleteAccount",
-          g_variant_new_parsed ("(%s,)", account_name),
-          G_VARIANT_TYPE_UNIT,
-          G_DBUS_CALL_FLAGS_NONE,
-          -1,
-          NULL, /* no cancellable */
-          delete_account_cb,
-          async_data_new (self, account_name));
-
-      /* this doesn't mean we succeeded: it means we tried */
-      return TRUE;
-    }
 
   if (account->flags & UNCOMMITTED_CREATION)
     {
@@ -1509,7 +1507,7 @@ test_dbus_account_plugin_get_identifier (const McpAccountStorage *storage,
 
   DEBUG ("%s", account_name);
 
-  if (!self->active || account == NULL || (account->flags & UNCOMMITTED_DELETION))
+  if (!self->active || account == NULL)
     return;
 
   /* Our "library-specific unique identifier" is just the object-path
@@ -1528,7 +1526,7 @@ test_dbus_account_plugin_get_additional_info (const McpAccountStorage *storage,
 
   DEBUG ("%s", account_name);
 
-  if (!self->active || account == NULL || (account->flags & UNCOMMITTED_DELETION))
+  if (!self->active || account == NULL)
     return NULL;
 
   ret = g_hash_table_new_full (g_str_hash, g_str_equal,
@@ -1548,7 +1546,7 @@ test_dbus_account_plugin_get_restrictions (const McpAccountStorage *storage,
 
   DEBUG ("%s", account_name);
 
-  if (!self->active || account == NULL || (account->flags & UNCOMMITTED_DELETION))
+  if (!self->active || account == NULL)
     return 0;
 
   return account->restrictions;
@@ -1564,7 +1562,7 @@ test_dbus_account_plugin_owns (McpAccountStorage *storage,
 
   DEBUG ("%s", account_name);
 
-  if (!self->active || account == NULL || (account->flags & UNCOMMITTED_DELETION))
+  if (!self->active || account == NULL)
     return FALSE;
 
   return TRUE;
@@ -1583,7 +1581,8 @@ account_storage_iface_init (McpAccountStorageIface *iface)
   iface->set_parameter = test_dbus_account_plugin_set_parameter;
   iface->list = test_dbus_account_plugin_list;
   iface->ready = test_dbus_account_plugin_ready;
-  iface->delete = test_dbus_account_plugin_delete;
+  iface->delete_async = test_dbus_account_plugin_delete_async;
+  iface->delete_finish = test_dbus_account_plugin_delete_finish;
   iface->commit = test_dbus_account_plugin_commit;
   iface->get_identifier = test_dbus_account_plugin_get_identifier;
   iface->get_additional_info = test_dbus_account_plugin_get_additional_info;

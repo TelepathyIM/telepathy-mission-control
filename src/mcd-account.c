@@ -765,8 +765,6 @@ mcd_account_delete_async (McdAccount *account,
         g_free (data_dir_str);
     }
 
-    mcd_storage_commit (priv->storage, name);
-
     if (!priv->removed)
     {
         DEBUG ("emitting Account.Removed for %s", name);

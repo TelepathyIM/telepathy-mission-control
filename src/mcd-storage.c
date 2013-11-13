@@ -1942,6 +1942,28 @@ mcd_storage_create_account (McdStorage *self,
   return NULL;
 }
 
+static void
+delete_cb (GObject *source,
+    GAsyncResult *res,
+    gpointer user_data)
+{
+  GError *error = NULL;
+
+  if (mcp_account_storage_delete_finish (MCP_ACCOUNT_STORAGE (source),
+        res, &error))
+    {
+      DEBUG ("deleted account %s", (const gchar *) user_data);
+    }
+  else
+    {
+      DEBUG ("could not delete account %s (but no way to signal that): "
+          "%s #%d: %s", (const gchar *) user_data,
+          g_quark_to_string (error->domain), error->code, error->message);
+      g_error_free (error);
+    }
+
+  g_free (user_data);
+}
 
 /*
  * mcd_storage_delete_account:
@@ -1969,7 +1991,11 @@ mcd_storage_delete_account (McdStorage *self,
     {
       McpAccountStorage *plugin = store->data;
 
-      mcp_account_storage_delete (plugin, ma, account, NULL);
+      /* FIXME: when we know which plugin owns the account, we can stop
+       * ignoring the error (if any), and make this method async
+       * in order to pass the error up to McdAccount */
+      mcp_account_storage_delete_async (plugin, ma, account,
+          delete_cb, g_strdup (account));
     }
 }
 

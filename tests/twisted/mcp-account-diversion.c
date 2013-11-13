@@ -223,27 +223,45 @@ _get (const McpAccountStorage *self,
   return TRUE;
 }
 
-static gboolean
-_delete (const McpAccountStorage *self,
-      const McpAccountManager *am,
-      const gchar *account,
-      const gchar *key)
+static gboolean _commit (const McpAccountStorage *self,
+    const McpAccountManager *am,
+    const gchar *account_name);
+
+static void
+delete_async (McpAccountStorage *self,
+    McpAccountManager *am,
+    const gchar *account,
+    GAsyncReadyCallback callback,
+    gpointer user_data)
 {
   AccountDiversionPlugin *adp = ACCOUNT_DIVERSION_PLUGIN (self);
+  GTask *task = g_task_new (adp, NULL, callback, user_data);
 
-  if (key == NULL)
+  if (g_key_file_remove_group (adp->keyfile, account, NULL))
+    adp->save = TRUE;
+
+  if (_commit (self, am, account))
     {
-      if (g_key_file_remove_group (adp->keyfile, account, NULL))
-        adp->save = TRUE;
+      mcp_account_storage_emit_deleted (self, account);
+      g_task_return_boolean (task, TRUE);
     }
   else
     {
-      g_assert_not_reached ();
+      g_task_return_new_error (task, TP_ERROR, TP_ERROR_NOT_AVAILABLE,
+          "_commit()'s error handling is not good enough to know why "
+          "I couldn't commit the deletion of %s", account);
     }
 
-  return TRUE;
+  g_object_unref (task);
 }
 
+static gboolean
+delete_finish (McpAccountStorage *storage,
+    GAsyncResult *res,
+    GError **error)
+{
+  return g_task_propagate_boolean (G_TASK (res), error);
+}
 
 static gboolean
 _commit (const McpAccountStorage *self,
@@ -310,7 +328,8 @@ account_storage_iface_init (McpAccountStorageIface *iface,
   iface->get = _get;
   iface->set_attribute = _set_attribute;
   iface->set_parameter = _set_parameter;
-  iface->delete = _delete;
+  iface->delete_async = delete_async;
+  iface->delete_finish = delete_finish;
   iface->commit = _commit;
   iface->list = _list;
 }

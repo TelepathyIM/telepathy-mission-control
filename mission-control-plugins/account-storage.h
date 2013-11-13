@@ -107,7 +107,14 @@ struct _McpAccountStorageIface
   const gchar *provider;
 
   McpAccountStorageGetFunc get;
-  McpAccountStorageDeleteFunc delete;
+  void (*delete_async) (McpAccountStorage *storage,
+      McpAccountManager *am,
+      const gchar *account,
+      GAsyncReadyCallback callback,
+      gpointer user_data);
+  gboolean (*delete_finish) (McpAccountStorage *storage,
+      GAsyncResult *res,
+      GError **error);
   McpAccountStorageCommitFunc commit;
   McpAccountStorageListFunc list;
   McpAccountStorageReadyFunc ready;
@@ -149,10 +156,14 @@ gchar * mcp_account_storage_create (const McpAccountStorage *storage,
     const gchar *identification,
     GError **error);
 
-gboolean mcp_account_storage_delete (const McpAccountStorage *storage,
-    const McpAccountManager *am,
+void mcp_account_storage_delete_async (McpAccountStorage *storage,
+    McpAccountManager *am,
     const gchar *account,
-    const gchar *key);
+    GAsyncReadyCallback callback,
+    gpointer user_data);
+gboolean mcp_account_storage_delete_finish (McpAccountStorage *storage,
+    GAsyncResult *result,
+    GError **error);
 
 void mcp_account_storage_ready (const McpAccountStorage *storage,
     const McpAccountManager *am);

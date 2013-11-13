@@ -47,8 +47,6 @@ typedef struct {
     /* owned string, parameter (without "param-") => owned string, value
      * parameters of unknwn type to be stored in the variant-file */
     GHashTable *untyped_parameters;
-    /* TRUE if the entire account is pending deletion */
-    gboolean pending_deletion;
     /* TRUE if the account doesn't really exist, but is here to stop us
      * loading it from a lower-priority file */
     gboolean absent;
@@ -79,7 +77,6 @@ ensure_stored_account (McdAccountManagerDefault *self,
       g_hash_table_insert (self->accounts, g_strdup (account), sa);
     }
 
-  sa->pending_deletion = FALSE;
   sa->absent = FALSE;
   return sa;
 }
@@ -346,38 +343,96 @@ _create (const McpAccountStorage *self,
   return unique_name;
 }
 
-static gboolean
-_delete (const McpAccountStorage *self,
-      const McpAccountManager *am,
-      const gchar *account,
-      const gchar *key)
+static void
+delete_async (McpAccountStorage *self,
+    McpAccountManager *am,
+    const gchar *account,
+    GAsyncReadyCallback callback,
+    gpointer user_data)
 {
   McdAccountManagerDefault *amd = MCD_ACCOUNT_MANAGER_DEFAULT (self);
   McdDefaultStoredAccount *sa = lookup_stored_account (amd, account);
+  GTask *task;
+  gchar *filename = NULL;
+  const gchar * const *iter;
+
+  task = g_task_new (amd, NULL, callback, user_data);
 
   if (sa == NULL || sa->absent)
     {
       /* Apparently we never had this account anyway. The plugin API
        * considers this to be "success". */
-      return TRUE;
+      g_task_return_boolean (task, TRUE);
+      goto finally;
     }
 
-  if (key == NULL)
+  filename = account_file_in (g_get_user_data_dir (), account);
+
+  DEBUG ("Deleting account %s from %s", account, filename);
+
+  if (g_unlink (filename) != 0)
     {
-      amd->save = TRUE;
+      int e = errno;
 
-      /* flag the whole account as purged */
-      sa->pending_deletion = TRUE;
-      g_hash_table_remove_all (sa->attributes);
-      g_hash_table_remove_all (sa->parameters);
-      g_hash_table_remove_all (sa->untyped_parameters);
+      /* ENOENT is OK, anything else is more upsetting */
+      if (e != ENOENT)
+        {
+          WARNING ("Unable to delete %s: %s", filename,
+              g_strerror (e));
+          g_task_return_new_error (task, G_IO_ERROR, g_io_error_from_errno (e),
+              "Unable to delete %s: %s", filename, g_strerror (e));
+          goto finally;
+        }
     }
-  else
+
+  for (iter = g_get_system_data_dirs ();
+      iter != NULL && *iter != NULL;
+      iter++)
     {
-      g_assert_not_reached ();
+      gchar *other = account_file_in (*iter, account);
+      gboolean other_exists = g_file_test (other, G_FILE_TEST_EXISTS);
+
+      g_free (other);
+
+      if (other_exists)
+        {
+          GError *error = NULL;
+
+          /* There is a lower-priority file that would provide this
+           * account. We can't delete a file from XDG_DATA_DIRS which
+           * are conceptually read-only, but we can mask it with an
+           * empty file (prior art: systemd) */
+          if (!g_file_set_contents (filename, "", 0, &error))
+            {
+              g_prefix_error (&error,
+                  "Unable to save empty account file to %s: ", filename);
+              WARNING ("%s", error->message);
+              g_task_return_error (task, error);
+              g_free (filename);
+              goto finally;
+            }
+
+          break;
+        }
     }
 
-  return TRUE;
+  /* clean up the mess */
+  g_hash_table_remove (amd->accounts, account);
+  mcp_account_storage_emit_deleted (self, account);
+
+  g_task_return_boolean (task, TRUE);
+
+finally:
+  g_free (filename);
+  g_object_unref (task);
+}
+
+static gboolean
+delete_finish (McpAccountStorage *storage,
+    GAsyncResult *res,
+    GError **error)
+{
+  return g_task_propagate_boolean (G_TASK (res), error);
 }
 
 static gboolean
@@ -396,58 +451,6 @@ am_default_commit_one (McdAccountManagerDefault *self,
   GError *error = NULL;
 
   filename = account_file_in (g_get_user_data_dir (), account_name);
-
-  if (sa->pending_deletion)
-    {
-      const gchar * const *iter;
-
-      DEBUG ("Deleting account %s from %s", account_name, filename);
-
-      if (g_unlink (filename) != 0)
-        {
-          int e = errno;
-
-          /* ENOENT is OK, anything else is more upsetting */
-          if (e != ENOENT)
-            {
-              WARNING ("Unable to delete %s: %s", filename,
-                  g_strerror (e));
-              g_free (filename);
-              return FALSE;
-            }
-        }
-
-      for (iter = g_get_system_data_dirs ();
-          iter != NULL && *iter != NULL;
-          iter++)
-        {
-          gchar *other = account_file_in (*iter, account_name);
-          gboolean other_exists = g_file_test (other, G_FILE_TEST_EXISTS);
-
-          g_free (other);
-
-          if (other_exists)
-            {
-              /* There is a lower-priority file that would provide this
-               * account. We can't delete a file from XDG_DATA_DIRS which
-               * are conceptually read-only, but we can mask it with an
-               * empty file (prior art: systemd) */
-              if (!g_file_set_contents (filename, "", 0, &error))
-                {
-                  WARNING ("Unable to save empty account file to %s: %s",
-                      filename, error->message);
-                  g_clear_error (&error);
-                  g_free (filename);
-                  return FALSE;
-                }
-
-              break;
-            }
-        }
-
-      g_free (filename);
-      return TRUE;
-    }
 
   DEBUG ("Saving account %s to %s", account_name, filename);
 
@@ -542,17 +545,6 @@ _commit (const McpAccountStorage *self,
   if (all_succeeded)
     {
       amd->save = FALSE;
-    }
-
-  g_hash_table_iter_init (&outer, amd->accounts);
-
-  /* forget about any entirely removed accounts */
-  while (g_hash_table_iter_next (&outer, NULL, &sa_p))
-    {
-      McdDefaultStoredAccount *sa = sa_p;
-
-      if (sa->pending_deletion)
-        g_hash_table_iter_remove (&outer);
     }
 
   return all_succeeded;
@@ -982,7 +974,8 @@ account_storage_iface_init (McpAccountStorageIface *iface,
   iface->set_attribute = set_attribute;
   iface->set_parameter = set_parameter;
   iface->create = _create;
-  iface->delete = _delete;
+  iface->delete_async = delete_async;
+  iface->delete_finish = delete_finish;
   iface->commit = _commit;
   iface->list = _list;
 
