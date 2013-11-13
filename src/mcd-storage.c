@@ -469,17 +469,26 @@ identify_account_cb (TpProxy *proxy,
 {
   if (error == NULL)
     {
+      DEBUG ("identified account: %s", identification);
       g_task_return_pointer (task, g_strdup (identification), g_free);
     }
-  else if (g_error_matches (error, TP_ERROR, TP_ERROR_NOT_IMPLEMENTED) ||
-      g_error_matches (error, DBUS_GERROR, DBUS_GERROR_SERVICE_UNKNOWN))
+  else if (g_error_matches (error, TP_ERROR, TP_ERROR_INVALID_HANDLE) ||
+      g_error_matches (error, TP_ERROR, TP_ERROR_INVALID_ARGUMENT))
     {
-      g_task_return_pointer (task, g_strdup (g_task_get_task_data (task)),
-          g_free);
+      /* The connection manager didn't like our account parameters.
+       * Give up now. */
+      DEBUG ("failed to identify account: %s #%d: %s",
+          g_quark_to_string (error->domain), error->code, error->message);
+      g_task_return_error (task, g_error_copy (error));
     }
   else
     {
-      g_task_return_error (task, g_error_copy (error));
+      /* We weren't able to identify the account, but carry on and hope
+       * for the best... */
+      DEBUG ("ignoring failure to identify account: %s #%d: %s",
+          g_quark_to_string (error->domain), error->code, error->message);
+      g_task_return_pointer (task, g_strdup (g_task_get_task_data (task)),
+          g_free);
     }
 }
 
