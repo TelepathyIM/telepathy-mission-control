@@ -154,6 +154,7 @@ main (int argc, char **argv)
 {
     GError *error = NULL;
     GDBusConnection *gdbus = NULL;
+    GDBusConnection *gdbus_system = NULL;
     DBusConnection *connection = NULL;
     int ret = 1;
     GMainLoop *teardown_loop;
@@ -184,6 +185,18 @@ main (int argc, char **argv)
     }
 
     g_dbus_connection_set_exit_on_close (gdbus, FALSE);
+
+    gdbus_system = g_bus_get_sync (G_BUS_TYPE_SYSTEM, NULL, &error);
+
+    if (gdbus_system == NULL)
+    {
+        g_warning ("%s", error->message);
+        g_error_free (error);
+        error = NULL;
+        goto out;
+    }
+
+    g_dbus_connection_set_exit_on_close (gdbus_system, FALSE);
 
     bus_daemon = tp_dbus_daemon_dup (&error);
 
@@ -238,6 +251,7 @@ out:
     }
 
     tp_clear_object (&gdbus);
+    tp_clear_object (&gdbus_system);
     tp_clear_object (&bus_daemon);
 
     dbus_shutdown ();
