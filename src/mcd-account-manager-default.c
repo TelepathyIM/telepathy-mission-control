@@ -163,7 +163,7 @@ mcd_account_manager_default_class_init (McdAccountManagerDefaultClass *cls)
   DEBUG ("mcd_account_manager_default_class_init");
 }
 
-static gboolean
+static McpAccountStorageSetResult
 set_parameter (McpAccountStorage *self,
     McpAccountManager *am,
     const gchar *account,
@@ -174,22 +174,61 @@ set_parameter (McpAccountStorage *self,
   McdAccountManagerDefault *amd = MCD_ACCOUNT_MANAGER_DEFAULT (self);
   McdDefaultStoredAccount *sa;
 
-  sa = ensure_stored_account (amd, account);
+  if (val == NULL)
+    {
+      gboolean changed = FALSE;
+
+      sa = lookup_stored_account (amd, account);
+
+      if (sa == NULL)
+        return MCP_ACCOUNT_STORAGE_SET_RESULT_UNCHANGED;
+
+      changed = g_hash_table_remove (sa->parameters, parameter);
+      /* deliberately not ||= - if we removed it from parameters, we
+       * still want to remove it from untyped_parameters if it was there */
+      changed |= g_hash_table_remove (sa->untyped_parameters, parameter);
+
+      if (!changed)
+        return MCP_ACCOUNT_STORAGE_SET_RESULT_UNCHANGED;
+    }
+  else
+    {
+      GVariant *old;
+
+      sa = ensure_stored_account (amd, account);
+      old = g_hash_table_lookup (sa->parameters, parameter);
+
+      if (old == NULL)
+        {
+          /* it might still be in untyped_parameters? */
+          const gchar *escaped = g_hash_table_lookup (sa->untyped_parameters,
+              parameter);
+          gchar *new = mcp_account_manager_escape_variant_for_keyfile (
+              am, val);
+
+          if (!tp_strdiff (escaped, new))
+            {
+              g_free (new);
+              return MCP_ACCOUNT_STORAGE_SET_RESULT_UNCHANGED;
+            }
+
+          g_free (new);
+        }
+      else if (g_variant_equal (old, val))
+        {
+          return MCP_ACCOUNT_STORAGE_SET_RESULT_UNCHANGED;
+        }
+
+      g_hash_table_remove (sa->untyped_parameters, parameter);
+      g_hash_table_insert (sa->parameters, g_strdup (parameter),
+          g_variant_ref (val));
+    }
+
   amd->save = TRUE;
-
-  /* remove it from all sets, then re-add it to the right one if
-   * non-null */
-  g_hash_table_remove (sa->parameters, parameter);
-  g_hash_table_remove (sa->untyped_parameters, parameter);
-
-  if (val != NULL)
-    g_hash_table_insert (sa->parameters, g_strdup (parameter),
-        g_variant_ref (val));
-
-  return TRUE;
+  return MCP_ACCOUNT_STORAGE_SET_RESULT_CHANGED;
 }
 
-static gboolean
+static McpAccountStorageSetResult
 set_attribute (McpAccountStorage *self,
     McpAccountManager *am,
     const gchar *account,
@@ -198,17 +237,34 @@ set_attribute (McpAccountStorage *self,
     McpAttributeFlags flags)
 {
   McdAccountManagerDefault *amd = MCD_ACCOUNT_MANAGER_DEFAULT (self);
-  McdDefaultStoredAccount *sa = ensure_stored_account (amd, account);
+  McdDefaultStoredAccount *sa;
+
+  if (val == NULL)
+    {
+      sa = lookup_stored_account (amd, account);
+
+      if (sa == NULL)
+        return MCP_ACCOUNT_STORAGE_SET_RESULT_UNCHANGED;
+
+      if (!g_hash_table_remove (sa->attributes, attribute))
+        return MCP_ACCOUNT_STORAGE_SET_RESULT_UNCHANGED;
+    }
+  else
+    {
+      GVariant *old;
+
+      sa = ensure_stored_account (amd, account);
+      old = g_hash_table_lookup (sa->attributes, attribute);
+
+      if (old != NULL && g_variant_equal (old, val))
+        return MCP_ACCOUNT_STORAGE_SET_RESULT_UNCHANGED;
+
+      g_hash_table_insert (sa->attributes, g_strdup (attribute),
+          g_variant_ref (val));
+    }
 
   amd->save = TRUE;
-
-  if (val != NULL)
-    g_hash_table_insert (sa->attributes, g_strdup (attribute),
-        g_variant_ref (val));
-  else
-    g_hash_table_remove (sa->attributes, attribute);
-
-  return TRUE;
+  return MCP_ACCOUNT_STORAGE_SET_RESULT_CHANGED;
 }
 
 static gboolean

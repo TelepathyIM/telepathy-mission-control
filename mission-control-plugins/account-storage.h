@@ -32,6 +32,12 @@ G_BEGIN_DECLS
 #define MCP_ACCOUNT_STORAGE_PLUGIN_PRIO_NORMAL    100
 #define MCP_ACCOUNT_STORAGE_PLUGIN_PRIO_KEYRING   10000
 
+typedef enum {
+    MCP_ACCOUNT_STORAGE_SET_RESULT_FAILED = 0,
+    MCP_ACCOUNT_STORAGE_SET_RESULT_CHANGED,
+    MCP_ACCOUNT_STORAGE_SET_RESULT_UNCHANGED
+} McpAccountStorageSetResult;
+
 /* API for plugins to implement */
 typedef struct _McpAccountStorage McpAccountStorage;
 typedef struct _McpAccountStorageIface McpAccountStorageIface;
@@ -124,13 +130,13 @@ struct _McpAccountStorageIface
   McpAccountStorageCreate create;
 
   /* Since 5.15.0 */
-  gboolean (*set_attribute) (McpAccountStorage *storage,
+  McpAccountStorageSetResult (*set_attribute) (McpAccountStorage *storage,
       McpAccountManager *am,
       const gchar *account,
       const gchar *attribute,
       GVariant *val,
       McpAttributeFlags flags);
-  gboolean (*set_parameter) (McpAccountStorage *storage,
+  McpAccountStorageSetResult (*set_parameter) (McpAccountStorage *storage,
       McpAccountManager *am,
       const gchar *account,
       const gchar *parameter,
@@ -190,13 +196,15 @@ const gchar *mcp_account_storage_name (const McpAccountStorage *storage);
 const gchar *mcp_account_storage_description (const McpAccountStorage *storage);
 const gchar *mcp_account_storage_provider (const McpAccountStorage *storage);
 
-gboolean mcp_account_storage_set_attribute (McpAccountStorage *storage,
+McpAccountStorageSetResult mcp_account_storage_set_attribute (
+    McpAccountStorage *storage,
     McpAccountManager *am,
     const gchar *account,
     const gchar *attribute,
     GVariant *value,
     McpAttributeFlags flags);
-gboolean mcp_account_storage_set_parameter (McpAccountStorage *storage,
+McpAccountStorageSetResult mcp_account_storage_set_parameter (
+    McpAccountStorage *storage,
     McpAccountManager *am,
     const gchar *account,
     const gchar *parameter,

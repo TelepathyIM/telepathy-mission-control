@@ -111,7 +111,7 @@ _create_config (void)
   DEBUG ("created %s", file);
 }
 
-static gboolean
+static McpAccountStorageSetResult
 _set (McpAccountStorage *self,
       McpAccountManager *am,
       const gchar *account,
@@ -121,9 +121,10 @@ _set (McpAccountStorage *self,
 {
   AccountDiversionPlugin *adp = ACCOUNT_DIVERSION_PLUGIN (self);
   gchar *val_str;
+  gboolean changed;
 
   if (g_str_has_prefix (account, DONT_DIVERT))
-      return FALSE;
+    return MCP_ACCOUNT_STORAGE_SET_RESULT_FAILED;
 
   if (val == NULL)
     {
@@ -131,7 +132,10 @@ _set (McpAccountStorage *self,
       GStrv keys;
 
       if (g_key_file_remove_key (adp->keyfile, account, key, NULL))
-        adp->save = TRUE;
+        {
+          adp->save = TRUE;
+          changed = TRUE;
+        }
 
       keys = g_key_file_get_keys (adp->keyfile, account, &n, NULL);
 
@@ -142,17 +146,30 @@ _set (McpAccountStorage *self,
     }
   else
     {
-      adp->save = TRUE;
+      gchar *old;
 
       val_str = mcp_account_manager_escape_variant_for_keyfile (am, val);
-      g_key_file_set_value (adp->keyfile, account, key, val_str);
+
+      old = g_key_file_get_value (adp->keyfile, account, key, NULL);
+
+      if (tp_strdiff (old, val_str))
+        {
+          g_key_file_set_value (adp->keyfile, account, key, val_str);
+          adp->save = TRUE;
+          changed = TRUE;
+        }
+
       g_free (val_str);
+      g_free (old);
     }
 
-  return TRUE;
+  if (changed)
+    return MCP_ACCOUNT_STORAGE_SET_RESULT_CHANGED;
+  else
+    return MCP_ACCOUNT_STORAGE_SET_RESULT_UNCHANGED;
 }
 
-static gboolean
+static McpAccountStorageSetResult
 _set_attribute (McpAccountStorage *self,
       McpAccountManager *am,
       const gchar *account,
@@ -163,7 +180,7 @@ _set_attribute (McpAccountStorage *self,
   return _set (self, am, account, attribute, val, flags);
 }
 
-static gboolean
+static McpAccountStorageSetResult
 _set_parameter (McpAccountStorage *self,
       McpAccountManager *am,
       const gchar *account,

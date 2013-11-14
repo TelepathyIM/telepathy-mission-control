@@ -1379,38 +1379,56 @@ mcd_storage_get_integer (McdStorage *self,
   return g_value_get_int (&tmp);
 }
 
-static void
+static gboolean
 update_storage (McdStorage *self,
     const gchar *account,
+    gboolean parameter,
     const gchar *key,
     GVariant *variant)
 {
   GList *store;
-  gboolean parameter = g_str_has_prefix (key, "param-");
   McpAccountManager *ma = MCP_ACCOUNT_MANAGER (self);
+  gboolean updated = FALSE;
 
   for (store = stores; store != NULL; store = g_list_next (store))
     {
       McpAccountStorage *plugin = store->data;
       const gchar *pn = mcp_account_storage_name (plugin);
+      McpAccountStorageSetResult res;
 
-      if (!parameter &&
-          mcp_account_storage_set_attribute (plugin, ma, account, key, variant,
-            MCP_ATTRIBUTE_FLAG_NONE))
+      if (parameter)
+        res = mcp_account_storage_set_parameter (plugin, ma, account,
+            key, variant, MCP_PARAMETER_FLAG_NONE);
+      else
+        res = mcp_account_storage_set_attribute (plugin, ma, account,
+            key, variant, MCP_ATTRIBUTE_FLAG_NONE);
+
+      switch (res)
         {
-          DEBUG ("MCP:%s -> store attribute %s.%s", pn, account, key);
-          /* set it to NULL in all lower-priority stores */
-          variant = NULL;
-        }
-      else if (parameter &&
-          mcp_account_storage_set_parameter (plugin, ma, account, key + 6,
-            variant, MCP_PARAMETER_FLAG_NONE))
-        {
-          DEBUG ("MCP:%s -> store parameter %s.%s", pn, account, key);
-          /* set it to NULL in all lower-priority stores */
-          variant = NULL;
+          case MCP_ACCOUNT_STORAGE_SET_RESULT_CHANGED:
+            DEBUG ("MCP:%s -> store %s %s.%s", pn,
+                parameter ? "parameter" : "attribute", account, key);
+            updated = TRUE;
+            /* set it to NULL in all lower-priority stores */
+            variant = NULL;
+            break;
+
+          case MCP_ACCOUNT_STORAGE_SET_RESULT_FAILED:
+            DEBUG ("MCP:%s -> failed to store %s %s.%s",
+                pn, parameter ? "parameter" : "attribute", account, key);
+            break;
+
+          case MCP_ACCOUNT_STORAGE_SET_RESULT_UNCHANGED:
+            DEBUG ("MCP:%s -> no change to %s %s.%s",
+                pn, parameter ? "parameter" : "attribute", account, key);
+            break;
+
+          default:
+            g_warn_if_reached ();
         }
     }
+
+  return updated;
 }
 
 /*
@@ -1482,7 +1500,6 @@ mcd_storage_set_attribute (McdStorage *self,
     const GValue *value)
 {
   McdStorageAccount *sa;
-  GVariant *old_v;
   GVariant *new_v;
   gboolean updated = FALSE;
 
@@ -1499,21 +1516,13 @@ mcd_storage_set_attribute (McdStorage *self,
   else
     new_v = NULL;
 
-  old_v = g_hash_table_lookup (sa->attributes, attribute);
+  if (new_v != NULL)
+    g_hash_table_insert (sa->attributes, g_strdup (attribute),
+        g_variant_ref (new_v));
+  else
+    g_hash_table_remove (sa->attributes, attribute);
 
-  if (!mcd_nullable_variant_equal (old_v, new_v))
-    {
-      /* First put it in the attributes hash table. (Watch out, this might
-       * invalidate old_v.) */
-      if (new_v == NULL)
-        g_hash_table_remove (sa->attributes, attribute);
-      else
-        g_hash_table_insert (sa->attributes, g_strdup (attribute),
-            g_variant_ref (new_v));
-
-      update_storage (self, account, attribute, new_v);
-      updated = TRUE;
-    }
+  updated = update_storage (self, account, FALSE, attribute, new_v);
 
   tp_clear_pointer (&new_v, g_variant_unref);
   return updated;
@@ -1541,10 +1550,7 @@ mcd_storage_set_parameter (McdStorage *self,
     const gchar *parameter,
     const GValue *value)
 {
-  GVariant *old_v;
   GVariant *new_v = NULL;
-  const gchar *old_escaped;
-  gchar *new_escaped = NULL;
   McdStorageAccount *sa;
   gboolean updated = FALSE;
 
@@ -1557,37 +1563,19 @@ mcd_storage_set_parameter (McdStorage *self,
 
   if (value != NULL)
     {
-      new_escaped = mcd_keyfile_escape_value (value);
       new_v = g_variant_ref_sink (dbus_g_value_build_g_variant (value));
     }
 
-  old_v = g_hash_table_lookup (sa->parameters, parameter);
-  old_escaped = g_hash_table_lookup (sa->escaped_parameters, parameter);
+  g_hash_table_remove (sa->escaped_parameters, parameter);
 
-  if (old_v != NULL)
-    updated = !mcd_nullable_variant_equal (old_v, new_v);
-  else if (old_escaped != NULL)
-    updated = tp_strdiff (old_escaped, new_escaped);
+  if (new_v != NULL)
+    g_hash_table_insert (sa->parameters, g_strdup (parameter),
+        g_variant_ref (new_v));
   else
-    updated = (value != NULL);
+    g_hash_table_remove (sa->parameters, parameter);
 
-  if (updated)
-    {
-      gchar key[MAX_KEY_LENGTH];
+  updated = update_storage (self, account, TRUE, parameter, new_v);
 
-      g_hash_table_remove (sa->parameters, parameter);
-      g_hash_table_remove (sa->escaped_parameters, parameter);
-
-      if (new_v != NULL)
-        g_hash_table_insert (sa->parameters, g_strdup (parameter),
-            g_variant_ref (new_v));
-
-      g_snprintf (key, sizeof (key), "param-%s", parameter);
-      update_storage (self, account, key, new_v);
-      return TRUE;
-    }
-
-  g_free (new_escaped);
   tp_clear_pointer (&new_v, g_variant_unref);
   return updated;
 }

@@ -1082,7 +1082,7 @@ test_dbus_account_plugin_get (const McpAccountStorage *storage,
   return TRUE;
 }
 
-static gboolean
+static McpAccountStorageSetResult
 test_dbus_account_plugin_set_attribute (McpAccountStorage *storage,
     McpAccountManager *am,
     const gchar *account_name,
@@ -1092,6 +1092,8 @@ test_dbus_account_plugin_set_attribute (McpAccountStorage *storage,
 {
   TestDBusAccountPlugin *self = TEST_DBUS_ACCOUNT_PLUGIN (storage);
   Account *account = lookup_account (self, account_name);
+  GVariant *old;
+  guint old_flags;
 
   g_return_val_if_fail (account_name != NULL, FALSE);
   g_return_val_if_fail (attribute != NULL, FALSE);
@@ -1099,10 +1101,13 @@ test_dbus_account_plugin_set_attribute (McpAccountStorage *storage,
   DEBUG ("%s of %s", attribute, account_name);
 
   if (!self->active || account == NULL)
-    return FALSE;
+    return MCP_ACCOUNT_STORAGE_SET_RESULT_FAILED;
 
   if (value == NULL)
     {
+      if (!g_hash_table_contains (account->attributes, attribute))
+        return MCP_ACCOUNT_STORAGE_SET_RESULT_UNCHANGED;
+
       g_hash_table_remove (account->attributes, attribute);
       g_hash_table_remove (account->attribute_flags, attribute);
       g_hash_table_add (account->uncommitted_attributes, g_strdup (attribute));
@@ -1112,8 +1117,15 @@ test_dbus_account_plugin_set_attribute (McpAccountStorage *storage,
           "DeferringDeleteAttribute",
           g_variant_new_parsed ("(%o, %s)", account->path, attribute), NULL);
 
-      return TRUE;
+      return MCP_ACCOUNT_STORAGE_SET_RESULT_CHANGED;
     }
+
+  old = g_hash_table_lookup (account->attributes, attribute);
+  old_flags = GPOINTER_TO_UINT (g_hash_table_lookup (
+        account->attribute_flags, attribute));
+
+  if (old != NULL && g_variant_equal (old, value) && old_flags == flags)
+    return MCP_ACCOUNT_STORAGE_SET_RESULT_UNCHANGED;
 
   g_hash_table_insert (account->attributes, g_strdup (attribute),
       g_variant_ref (value));
@@ -1127,10 +1139,10 @@ test_dbus_account_plugin_set_attribute (McpAccountStorage *storage,
       g_variant_new_parsed ("(%o, %s, %v)", account->path, attribute, value),
       NULL);
 
-  return TRUE;
+  return MCP_ACCOUNT_STORAGE_SET_RESULT_CHANGED;
 }
 
-static gboolean
+static McpAccountStorageSetResult
 test_dbus_account_plugin_set_parameter (McpAccountStorage *storage,
     McpAccountManager *am,
     const gchar *account_name,
@@ -1140,6 +1152,8 @@ test_dbus_account_plugin_set_parameter (McpAccountStorage *storage,
 {
   TestDBusAccountPlugin *self = TEST_DBUS_ACCOUNT_PLUGIN (storage);
   Account *account = lookup_account (self, account_name);
+  GVariant *old;
+  guint old_flags;
 
   g_return_val_if_fail (account_name != NULL, FALSE);
   g_return_val_if_fail (parameter != NULL, FALSE);
@@ -1147,10 +1161,14 @@ test_dbus_account_plugin_set_parameter (McpAccountStorage *storage,
   DEBUG ("%s of %s", parameter, account_name);
 
   if (!self->active || account == NULL)
-    return FALSE;
+    return MCP_ACCOUNT_STORAGE_SET_RESULT_FAILED;
 
   if (value == NULL)
     {
+      if (!g_hash_table_contains (account->parameters, parameter) &&
+          !g_hash_table_contains (account->untyped_parameters, parameter))
+        return MCP_ACCOUNT_STORAGE_SET_RESULT_UNCHANGED;
+
       g_hash_table_remove (account->parameters, parameter);
       g_hash_table_remove (account->untyped_parameters, parameter);
       g_hash_table_remove (account->parameter_flags, parameter);
@@ -1163,6 +1181,13 @@ test_dbus_account_plugin_set_parameter (McpAccountStorage *storage,
 
       return TRUE;
     }
+
+  old = g_hash_table_lookup (account->parameters, parameter);
+  old_flags = GPOINTER_TO_UINT (g_hash_table_lookup (
+        account->parameter_flags, parameter));
+
+  if (old != NULL && g_variant_equal (old, value) && old_flags == flags)
+    return MCP_ACCOUNT_STORAGE_SET_RESULT_UNCHANGED;
 
   g_hash_table_remove (account->untyped_parameters, parameter);
   g_hash_table_insert (account->parameters, g_strdup (parameter),
@@ -1177,7 +1202,7 @@ test_dbus_account_plugin_set_parameter (McpAccountStorage *storage,
       g_variant_new_parsed ("(%o, %s, %v)", account->path, parameter, value),
       NULL);
 
-  return TRUE;
+  return MCP_ACCOUNT_STORAGE_SET_RESULT_CHANGED;
 }
 
 static gboolean

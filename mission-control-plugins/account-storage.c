@@ -196,7 +196,7 @@ default_get_restrictions (const McpAccountStorage *storage,
   return 0;
 }
 
-static gboolean
+static McpAccountStorageSetResult
 default_set_attribute (McpAccountStorage *storage,
     McpAccountManager *am,
     const gchar *account,
@@ -204,10 +204,10 @@ default_set_attribute (McpAccountStorage *storage,
     GVariant *value,
     McpAttributeFlags flags)
 {
-  return FALSE;
+  return MCP_ACCOUNT_STORAGE_SET_RESULT_FAILED;
 }
 
-static gboolean
+static McpAccountStorageSetResult
 default_set_parameter (McpAccountStorage *storage,
     McpAccountManager *am,
     const gchar *account,
@@ -215,7 +215,7 @@ default_set_parameter (McpAccountStorage *storage,
     GVariant *value,
     McpParameterFlags flags)
 {
-  return FALSE;
+  return MCP_ACCOUNT_STORAGE_SET_RESULT_FAILED;
 }
 
 static void
@@ -521,7 +521,7 @@ mcp_account_storage_get (const McpAccountStorage *storage,
  *
  * Since: 5.15.0
  */
-gboolean
+McpAccountStorageSetResult
 mcp_account_storage_set_attribute (McpAccountStorage *storage,
     McpAccountManager *am,
     const gchar *account,
@@ -532,8 +532,10 @@ mcp_account_storage_set_attribute (McpAccountStorage *storage,
   McpAccountStorageIface *iface = MCP_ACCOUNT_STORAGE_GET_IFACE (storage);
 
   SDEBUG (storage, "");
-  g_return_val_if_fail (iface != NULL, FALSE);
-  g_return_val_if_fail (iface->set_attribute != NULL, FALSE);
+  g_return_val_if_fail (iface != NULL,
+      MCP_ACCOUNT_STORAGE_SET_RESULT_FAILED);
+  g_return_val_if_fail (iface->set_attribute != NULL,
+      MCP_ACCOUNT_STORAGE_SET_RESULT_FAILED);
 
   return iface->set_attribute (storage, am, account, attribute, value, flags);
 }
@@ -565,7 +567,7 @@ mcp_account_storage_set_attribute (McpAccountStorage *storage,
  *
  * Since: 5.15.0
  */
-gboolean
+McpAccountStorageSetResult
 mcp_account_storage_set_parameter (McpAccountStorage *storage,
     McpAccountManager *am,
     const gchar *account,
@@ -577,7 +579,10 @@ mcp_account_storage_set_parameter (McpAccountStorage *storage,
 
   SDEBUG (storage, "");
   g_return_val_if_fail (iface != NULL, FALSE);
-  g_return_val_if_fail (iface->set_parameter != NULL, FALSE);
+  g_return_val_if_fail (iface != NULL,
+      MCP_ACCOUNT_STORAGE_SET_RESULT_FAILED);
+  g_return_val_if_fail (iface->set_parameter != NULL,
+      MCP_ACCOUNT_STORAGE_SET_RESULT_FAILED);
 
   return iface->set_parameter (storage, am, account, parameter, value, flags);
 }
