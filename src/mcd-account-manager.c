@@ -177,7 +177,7 @@ async_altered_one_manager_cb (McdManager *cm,
 
 
 static void
-altered_one_cb (GObject *storage,
+altered_one_cb (McpAccountStorage *storage,
                 const gchar *account_name,
                 const gchar *key,
                 gpointer data)
@@ -187,12 +187,25 @@ altered_one_cb (GObject *storage,
     McdAccount *account = NULL;
     McdManager *cm = NULL;
     const gchar *cm_name = NULL;
+    McpAccountStorage *its_plugin;
 
     account = mcd_account_manager_lookup_account (am, account_name);
 
     if (G_UNLIKELY (!account))
     {
         g_warning ("%s: account %s does not exist", G_STRFUNC, account_name);
+        return;
+    }
+
+    its_plugin = mcd_account_get_storage_plugin (account);
+
+    if (storage != its_plugin)
+    {
+        DEBUG ("Ignoring altered-one from plugin %s because account %s "
+            "belongs to %s",
+            mcp_account_storage_name (storage),
+            account_name,
+            mcp_account_storage_name (its_plugin));
         return;
     }
 
@@ -335,6 +348,7 @@ toggled_cb (GObject *plugin, const gchar *name, gboolean on, gpointer data)
   McdAccountManager *manager = MCD_ACCOUNT_MANAGER (data);
   McdAccount *account = NULL;
   GError *error = NULL;
+  McpAccountStorage *its_plugin;
 
   account = mcd_account_manager_lookup_account (manager, name);
 
@@ -345,6 +359,18 @@ toggled_cb (GObject *plugin, const gchar *name, gboolean on, gpointer data)
     {
       g_warning ("%s: Unknown account %s from %s plugin",
           G_STRFUNC, name, mcp_account_storage_name (storage_plugin));
+      return;
+    }
+
+  its_plugin = mcd_account_get_storage_plugin (account);
+
+  if (storage_plugin != its_plugin)
+    {
+      DEBUG ("Ignoring toggled signal from plugin %s because account %s "
+          "belongs to %s",
+          mcp_account_storage_name (storage_plugin),
+          name,
+          mcp_account_storage_name (its_plugin));
       return;
     }
 
@@ -422,6 +448,18 @@ deleted_cb (GObject *plugin, const gchar *name, gpointer data)
     if (account != NULL)
     {
         const gchar * object_path = mcd_account_get_object_path (account);
+        McpAccountStorage *its_plugin = mcd_account_get_storage_plugin (
+            account);
+
+        if (storage_plugin != its_plugin)
+        {
+            DEBUG ("Ignoring altered-one from plugin %s because account %s "
+                "belongs to %s",
+                mcp_account_storage_name (storage_plugin),
+                name,
+                mcp_account_storage_name (its_plugin));
+            return;
+        }
 
         g_object_ref (account);
         /* this unhooks the account's signal handlers */
