@@ -317,6 +317,35 @@ _list (const McpAccountStorage *self,
   return rval;
 }
 
+static gchar *
+create (const McpAccountStorage *self,
+    const McpAccountManager *am,
+    const gchar *manager,
+    const gchar *protocol,
+    const gchar *identification,
+    GError **error)
+{
+  gchar *unique_name;
+
+  unique_name = mcp_account_manager_get_unique_name (MCP_ACCOUNT_MANAGER (am),
+                                                     manager, protocol,
+                                                     identification);
+
+  g_return_val_if_fail (unique_name != NULL, NULL);
+
+  if (g_str_has_prefix (unique_name, DONT_DIVERT))
+    {
+      g_free (unique_name);
+      return NULL;
+    }
+
+  /* No need to actually create anything: we'll happily return values
+   * from get(., ., ., NULL) regardless of whether we have that account
+   * in our list */
+
+  return unique_name;
+}
+
 static void
 account_storage_iface_init (McpAccountStorageIface *iface,
     gpointer unused G_GNUC_UNUSED)
@@ -332,6 +361,7 @@ account_storage_iface_init (McpAccountStorageIface *iface,
   iface->delete_finish = delete_finish;
   iface->commit = _commit;
   iface->list = _list;
+  iface->create = create;
 }
 
 

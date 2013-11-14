@@ -128,7 +128,8 @@ G_GNUC_INTERNAL void _mcd_storage_store_connections (McdStorage *storage);
 
 gboolean mcd_storage_add_account_from_plugin (McdStorage *storage,
     McpAccountStorage *plugin,
-    const gchar *account);
+    const gchar *account,
+    GError **error);
 
 GVariant *mcd_keyfile_get_variant (GKeyFile *keyfile,
     const gchar *group,

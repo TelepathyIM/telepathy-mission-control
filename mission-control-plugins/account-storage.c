@@ -637,6 +637,10 @@ mcp_account_storage_set_parameter (McpAccountStorage *storage,
  * The default implementation just returns %NULL, and is appropriate for
  * read-only storage.
  *
+ * Since Mission Control 5.17, all storage plugins in which new accounts
+ * can be created by Mission Control must implement this method.
+ * Previously, it was not mandatory.
+ *
  * Returns: (transfer full): the newly allocated account name, which should
  *  be freed once the caller is done with it, or %NULL if that couldn't
  *  be done.

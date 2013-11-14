@@ -331,15 +331,15 @@ _create (const McpAccountStorage *self,
     const gchar *identification,
     GError **error)
 {
+  McdAccountManagerDefault *amd = MCD_ACCOUNT_MANAGER_DEFAULT (self);
   gchar *unique_name;
 
-  /* See comment in plugin-account.c::_storage_create_account() before changing
-   * this implementation, it's more subtle than it looks */
   unique_name = mcp_account_manager_get_unique_name (MCP_ACCOUNT_MANAGER (am),
                                                      manager, protocol,
                                                      identification);
   g_return_val_if_fail (unique_name != NULL, NULL);
 
+  ensure_stored_account (amd, unique_name);
   return unique_name;
 }
 

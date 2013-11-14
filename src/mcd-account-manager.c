@@ -277,9 +277,10 @@ created_cb (GObject *storage_plugin_obj,
     McdMaster *master = mcd_master_get_default ();
     McdManager *cm = NULL;
     const gchar *cm_name = NULL;
+    GError *error = NULL;
 
     /* actually fetch the data into our cache from the plugin: */
-    if (mcd_storage_add_account_from_plugin (storage, plugin, name))
+    if (mcd_storage_add_account_from_plugin (storage, plugin, name, &error))
     {
         account = mcd_account_new (am, name, priv->minotaur);
         g_assert (MCD_IS_ACCOUNT (account));
@@ -292,7 +293,7 @@ created_cb (GObject *storage_plugin_obj,
     }
     else
     {
-        /* that function already warned about it */
+        WARNING ("%s", error->message);
         goto finish;
     }
 
