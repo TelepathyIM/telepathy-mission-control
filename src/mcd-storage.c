@@ -2081,6 +2081,37 @@ mcd_storage_ready (McdStorage *self)
     }
 }
 
+static GVariant *
+mcd_keyfile_unescape_variant (const gchar *escaped,
+    const GVariantType *type,
+    GError **error)
+{
+  GKeyFile *keyfile;
+  GVariant *ret;
+
+  g_return_val_if_fail (escaped != NULL, NULL);
+  g_return_val_if_fail (type != NULL, NULL);
+
+  keyfile = g_key_file_new ();
+  g_key_file_set_value (keyfile, "g", "k", escaped);
+  ret = mcd_keyfile_get_variant (keyfile, "g", "k", type, error);
+  g_key_file_free (keyfile);
+
+  if (ret != NULL)
+    g_variant_ref_sink (ret);
+
+  return ret;
+}
+
+static GVariant *
+mcpa_unescape_variant_from_keyfile (const McpAccountManager *mcpa,
+    const gchar *escaped,
+    const GVariantType *type,
+    GError **error)
+{
+  return mcd_keyfile_unescape_variant (escaped, type, error);
+}
+
 static void
 plugin_iface_init (McpAccountManagerIface *iface,
     gpointer unused G_GNUC_UNUSED)
@@ -2094,6 +2125,7 @@ plugin_iface_init (McpAccountManagerIface *iface,
   iface->identify_account_async = identify_account_async;
   iface->identify_account_finish = identify_account_finish;
   iface->escape_variant_for_keyfile = mcpa_escape_variant_for_keyfile;
+  iface->unescape_variant_from_keyfile = mcpa_unescape_variant_from_keyfile;
 }
 
 gboolean

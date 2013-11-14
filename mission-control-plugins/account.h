@@ -71,6 +71,12 @@ gchar *mcp_account_manager_escape_variant_for_keyfile (
     const McpAccountManager *mcpa,
     GVariant *variant);
 
+GVariant *mcp_account_manager_unescape_variant_from_keyfile (
+    const McpAccountManager *mcpa,
+    const gchar *escaped,
+    const GVariantType *type,
+    GError **error);
+
 void mcp_account_manager_identify_account_async (McpAccountManager *mcpa,
     const gchar *manager,
     const gchar *protocol,

@@ -89,6 +89,10 @@ struct _McpAccountManagerIface {
 
   gchar * (* escape_variant_for_keyfile) (const McpAccountManager *mcpa,
       GVariant *variant);
+  GVariant *(* unescape_variant_from_keyfile) (const McpAccountManager *mcpa,
+      const gchar *escaped,
+      const GVariantType *type,
+      GError **error);
 
   void (* set_attribute) (const McpAccountManager *mcpa,
       const gchar *account,

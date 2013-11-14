@@ -272,3 +272,32 @@ mcp_account_manager_escape_variant_for_keyfile (const McpAccountManager *mcpa,
 
   return iface->escape_variant_for_keyfile (mcpa, variant);
 }
+
+/**
+ * mcp_account_manager_unescape_variant_from_keyfile:
+ * @mcpa: a #McpAccountManager
+ * @escaped: a string that could have come from g_key_file_get_value()
+ * @type: the type of the variant to which to unescape
+ *
+ * Unescape @escaped as if it had appeared in a #GKeyFile, with syntax
+ * appropriate for @type.
+ *
+ * It is a programming error to use an unsupported type.
+ *
+ * Returns: (transfer full): the unescaped form of @escaped
+ *  (*not* a floating reference)
+ */
+GVariant *
+mcp_account_manager_unescape_variant_from_keyfile (
+    const McpAccountManager *mcpa,
+    const gchar *escaped,
+    const GVariantType *type,
+    GError **error)
+{
+  McpAccountManagerIface *iface = MCP_ACCOUNT_MANAGER_GET_IFACE (mcpa);
+
+  g_return_val_if_fail (iface != NULL, NULL);
+  g_return_val_if_fail (iface->unescape_variant_from_keyfile != NULL, NULL);
+
+  return iface->unescape_variant_from_keyfile (mcpa, escaped, type, error);
+}
