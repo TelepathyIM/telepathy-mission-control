@@ -45,23 +45,6 @@ typedef struct _McpAccountManagerIface McpAccountManagerIface;
 
 GType mcp_account_manager_get_type (void) G_GNUC_CONST;
 
-void mcp_account_manager_set_value (const McpAccountManager *mcpa,
-    const gchar *account,
-    const gchar *key,
-    const gchar *value);
-
-void mcp_account_manager_set_attribute (const McpAccountManager *mcpa,
-    const gchar *account,
-    const gchar *attribute,
-    GVariant *value,
-    McpAttributeFlags flags);
-
-void mcp_account_manager_set_parameter (const McpAccountManager *mcpa,
-    const gchar *account,
-    const gchar *parameter,
-    GVariant *value,
-    McpParameterFlags flags);
-
 gchar * mcp_account_manager_get_unique_name (McpAccountManager *mcpa,
     const gchar *manager,
     const gchar *protocol,

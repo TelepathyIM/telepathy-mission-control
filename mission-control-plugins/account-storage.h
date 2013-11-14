@@ -65,11 +65,6 @@ struct _McpAccountStorage { };
 GType mcp_account_storage_get_type (void);
 
 /* Virtual method implementation signatures */
-typedef gboolean (*McpAccountStorageGetFunc) (
-    const McpAccountStorage *storage,
-    const McpAccountManager *am,
-    const gchar *account,
-    const gchar *key);
 typedef gchar * (*McpAccountStorageCreate) (
     const McpAccountStorage *storage,
     const McpAccountManager *am,
@@ -112,7 +107,6 @@ struct _McpAccountStorageIface
   const gchar *desc;
   const gchar *provider;
 
-  McpAccountStorageGetFunc get;
   void (*delete_async) (McpAccountStorage *storage,
       McpAccountManager *am,
       const gchar *account,
@@ -130,6 +124,18 @@ struct _McpAccountStorageIface
   McpAccountStorageCreate create;
 
   /* Since 5.15.0 */
+  GVariant *(*get_attribute) (McpAccountStorage *storage,
+      McpAccountManager *am,
+      const gchar *account,
+      const gchar *attribute,
+      const GVariantType *type,
+      McpAttributeFlags *flags);
+  GVariant *(*get_parameter) (McpAccountStorage *storage,
+      McpAccountManager *am,
+      const gchar *account,
+      const gchar *parameter,
+      const GVariantType *type,
+      McpParameterFlags *flags);
   McpAccountStorageSetResult (*set_attribute) (McpAccountStorage *storage,
       McpAccountManager *am,
       const gchar *account,
@@ -146,11 +152,6 @@ struct _McpAccountStorageIface
 
 /* virtual methods */
 gint mcp_account_storage_priority (const McpAccountStorage *storage);
-
-gboolean mcp_account_storage_get (const McpAccountStorage *storage,
-    McpAccountManager *am,
-    const gchar *account,
-    const gchar *key);
 
 gchar * mcp_account_storage_create (const McpAccountStorage *storage,
     const McpAccountManager *am,
@@ -195,6 +196,19 @@ const gchar *mcp_account_storage_name (const McpAccountStorage *storage);
 
 const gchar *mcp_account_storage_description (const McpAccountStorage *storage);
 const gchar *mcp_account_storage_provider (const McpAccountStorage *storage);
+
+GVariant *mcp_account_storage_get_attribute (McpAccountStorage *storage,
+      McpAccountManager *am,
+      const gchar *account,
+      const gchar *attribute,
+      const GVariantType *type,
+      McpAttributeFlags *flags);
+GVariant *mcp_account_storage_get_parameter (McpAccountStorage *storage,
+      McpAccountManager *am,
+      const gchar *account,
+      const gchar *parameter,
+      const GVariantType *type,
+      McpParameterFlags *flags);
 
 McpAccountStorageSetResult mcp_account_storage_set_attribute (
     McpAccountStorage *storage,

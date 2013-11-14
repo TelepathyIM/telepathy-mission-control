@@ -443,8 +443,6 @@ test_dbus_account_plugin_process_attributes (TestDBusAccountPlugin *self,
 
               g_hash_table_insert (account->attributes,
                   g_strdup (attr), g_variant_ref (value));
-              mcp_account_manager_set_attribute (self->feedback,
-                  account_name, attr, value, flags);
               mcp_account_storage_emit_altered_one (
                   MCP_ACCOUNT_STORAGE (self), account_name, attr);
 
@@ -468,8 +466,6 @@ test_dbus_account_plugin_process_attributes (TestDBusAccountPlugin *self,
               DEBUG ("%s deleted", attr);
 
               g_hash_table_remove (account->attributes, attr);
-              mcp_account_manager_set_attribute (self->feedback,
-                  account_name, attr, NULL, 0);
               mcp_account_storage_emit_altered_one (
                   MCP_ACCOUNT_STORAGE (self), account_name, attr);
 
@@ -552,8 +548,6 @@ test_dbus_account_plugin_process_parameters (TestDBusAccountPlugin *self,
               g_hash_table_insert (account->parameters,
                   g_strdup (param), g_variant_ref (value));
               key = g_strdup_printf ("param-%s", param);
-              mcp_account_manager_set_parameter (self->feedback,
-                  account_name, param, value, flags);
               mcp_account_storage_emit_altered_one (
                   MCP_ACCOUNT_STORAGE (self), account_name, key);
               g_free (key);
@@ -585,8 +579,6 @@ test_dbus_account_plugin_process_parameters (TestDBusAccountPlugin *self,
               g_hash_table_insert (account->untyped_parameters,
                   g_strdup (param), g_strdup (escaped));
               key = g_strdup_printf ("param-%s", param);
-              mcp_account_manager_set_value (self->feedback,
-                  account_name, key, escaped);
               mcp_account_storage_emit_altered_one (
                   MCP_ACCOUNT_STORAGE (self), account_name, key);
               g_free (key);
@@ -616,8 +608,6 @@ test_dbus_account_plugin_process_parameters (TestDBusAccountPlugin *self,
               g_hash_table_remove (account->untyped_parameters,
                   param);
               key = g_strdup_printf ("param-%s", param);
-              mcp_account_manager_set_parameter (self->feedback,
-                  account_name, param, NULL, 0);
               mcp_account_storage_emit_altered_one (
                   MCP_ACCOUNT_STORAGE (self), account_name, key);
               g_free (key);
@@ -964,123 +954,81 @@ test_dbus_account_plugin_delete_finish (McpAccountStorage *storage,
   return g_task_propagate_boolean (G_TASK (res), error);
 }
 
-static gboolean
-test_dbus_account_plugin_get (const McpAccountStorage *storage,
-    const McpAccountManager *am,
+static GVariant *
+test_dbus_account_plugin_get_attribute (McpAccountStorage *storage,
+    McpAccountManager *am,
     const gchar *account_name,
-    const gchar *key)
+    const gchar *attribute,
+    const GVariantType *type,
+    McpAttributeFlags *flags)
 {
   TestDBusAccountPlugin *self = TEST_DBUS_ACCOUNT_PLUGIN (storage);
   Account *account = lookup_account (self, account_name);
+  GVariant *v;
+
+  if (flags != NULL)
+    *flags = 0;
 
   if (!self->active || account == NULL)
-    return FALSE;
+    return NULL;
 
-  if (key == NULL)
+  v = g_hash_table_lookup (account->attributes, attribute);
+
+  g_dbus_connection_emit_signal (self->bus, NULL,
+      TEST_DBUS_ACCOUNT_PLUGIN_PATH, TEST_DBUS_ACCOUNT_PLUGIN_IFACE,
+      "GetAttribute",
+      g_variant_new_parsed ("(%o, %s)", account->path, attribute), NULL);
+
+  if (v != NULL)
     {
-      GHashTableIter iter;
-      gpointer k, v;
-
-      /* get everything */
-      g_dbus_connection_emit_signal (self->bus, NULL,
-          TEST_DBUS_ACCOUNT_PLUGIN_PATH, TEST_DBUS_ACCOUNT_PLUGIN_IFACE,
-          "GetAllKeys",
-          g_variant_new_parsed ("(%o,)", account->path), NULL);
-
-      g_hash_table_iter_init (&iter, account->attributes);
-
-      while (g_hash_table_iter_next (&iter, &k, &v))
-        {
-          gchar *escaped = mcp_account_manager_escape_variant_for_keyfile (am,
-              v);
-
-          mcp_account_manager_set_value (am, account_name, k, escaped);
-          g_free (escaped);
-        }
-
-      g_hash_table_iter_init (&iter, account->untyped_parameters);
-
-      while (g_hash_table_iter_next (&iter, &k, &v))
-        {
-          gchar *param_foo;
-
-          param_foo = g_strdup_printf ("param-%s", (const gchar *) k);
-          mcp_account_manager_set_value (am, account_name, param_foo, v);
-
-          g_free (param_foo);
-        }
-
-      g_hash_table_iter_init (&iter, account->parameters);
-
-      while (g_hash_table_iter_next (&iter, &k, &v))
-        {
-          gchar *param_foo;
-          gchar *escaped = mcp_account_manager_escape_variant_for_keyfile (am,
-              v);
-
-          param_foo = g_strdup_printf ("param-%s", (const gchar *) k);
-          mcp_account_manager_set_value (am, account_name, param_foo, escaped);
-          g_free (escaped);
-
-          g_free (param_foo);
-        }
-
-      return TRUE;
-    }
-
-  /* get one parameter */
-
-  if (g_str_has_prefix (key, "param-"))
-    {
-      GVariant *v = g_hash_table_lookup (account->parameters, key + 6);
-      const gchar *s = g_hash_table_lookup (account->untyped_parameters, key + 6);
-
-      g_dbus_connection_emit_signal (self->bus, NULL,
-          TEST_DBUS_ACCOUNT_PLUGIN_PATH, TEST_DBUS_ACCOUNT_PLUGIN_IFACE,
-          "GetParameter",
-          g_variant_new_parsed ("(%o, %s)", account->path, key + 6), NULL);
-
-      if (v != NULL)
-        {
-          gchar *escaped = mcp_account_manager_escape_variant_for_keyfile (am,
-              v);
-
-          mcp_account_manager_set_value (am, account_name, key, escaped);
-          g_free (escaped);
-        }
-      else if (s != NULL)
-        {
-          mcp_account_manager_set_value (am, account_name, key, s);
-        }
-      else
-        {
-          return FALSE;
-        }
+      return g_variant_ref (v);
     }
   else
     {
-      GVariant *v = g_hash_table_lookup (account->attributes, key);
-
-      g_dbus_connection_emit_signal (self->bus, NULL,
-          TEST_DBUS_ACCOUNT_PLUGIN_PATH, TEST_DBUS_ACCOUNT_PLUGIN_IFACE,
-          "GetAttribute",
-          g_variant_new_parsed ("(%o, %s)", account->path, key), NULL);
-
-      if (v != NULL)
-        {
-          gchar *escaped = mcp_account_manager_escape_variant_for_keyfile (am,
-              v);
-
-          mcp_account_manager_set_value (am, account_name, key, escaped);
-          g_free (escaped);
-        }
-      else
-        {
-          return FALSE;
-        }
+      return NULL;
     }
+}
 
-  return TRUE;
+static GVariant *
+test_dbus_account_plugin_get_parameter (McpAccountStorage *storage,
+    McpAccountManager *am,
+    const gchar *account_name,
+    const gchar *parameter,
+    const GVariantType *type,
+    McpParameterFlags *flags)
+{
+  TestDBusAccountPlugin *self = TEST_DBUS_ACCOUNT_PLUGIN (storage);
+  Account *account = lookup_account (self, account_name);
+  GVariant *v;
+  const gchar *s;
+
+  if (flags != NULL)
+    *flags = 0;
+
+  if (!self->active || account == NULL)
+    return NULL;
+
+  g_dbus_connection_emit_signal (self->bus, NULL,
+      TEST_DBUS_ACCOUNT_PLUGIN_PATH, TEST_DBUS_ACCOUNT_PLUGIN_IFACE,
+      "GetParameter",
+      g_variant_new_parsed ("(%o, %s)", account->path, parameter), NULL);
+
+  v = g_hash_table_lookup (account->parameters, parameter);
+  s = g_hash_table_lookup (account->untyped_parameters, parameter);
+
+  if (v != NULL)
+    {
+      return g_variant_ref (v);
+    }
+  else if (s != NULL)
+    {
+      return mcp_account_manager_unescape_variant_from_keyfile (am,
+          s, type, NULL);
+    }
+  else
+    {
+      return NULL;
+    }
 }
 
 static McpAccountStorageSetResult
@@ -1586,7 +1534,8 @@ account_storage_iface_init (McpAccountStorageIface *iface)
   /* this should be higher priority than the diverted-keyfile one */
   iface->priority = MCP_ACCOUNT_STORAGE_PLUGIN_PRIO_NORMAL + 100;
 
-  iface->get = test_dbus_account_plugin_get;
+  iface->get_attribute = test_dbus_account_plugin_get_attribute;
+  iface->get_parameter = test_dbus_account_plugin_get_parameter;
   iface->set_attribute = test_dbus_account_plugin_set_attribute;
   iface->set_parameter = test_dbus_account_plugin_set_parameter;
   iface->list = test_dbus_account_plugin_list;

@@ -197,47 +197,57 @@ _set_parameter (McpAccountStorage *self,
   return ret;
 }
 
-static gboolean
-_get (const McpAccountStorage *self,
-    const McpAccountManager *am,
+static GVariant *
+_get_attribute (McpAccountStorage *self,
+    McpAccountManager *am,
     const gchar *account,
-    const gchar *key)
+    const gchar *attribute,
+    const GVariantType *type,
+    McpAttributeFlags *flags)
 {
   AccountDiversionPlugin *adp = ACCOUNT_DIVERSION_PLUGIN (self);
+  gchar *v;
+  GVariant *ret;
 
-  if (key != NULL)
-    {
-      gchar *v = g_key_file_get_value (adp->keyfile, account, key, NULL);
+  if (flags != NULL)
+    *flags = 0;
 
-      if (v == NULL)
-        return FALSE;
+  v = g_key_file_get_value (adp->keyfile, account, attribute, NULL);
 
-      mcp_account_manager_set_value (am, account, key, v);
-      g_free (v);
-    }
-  else
-    {
-      gsize i;
-      gsize n;
-      GStrv keys = g_key_file_get_keys (adp->keyfile, account, &n, NULL);
+  if (v == NULL)
+    return NULL;
 
-      if (keys == NULL)
-        n = 0;
+  ret = mcp_account_manager_unescape_variant_from_keyfile (am, v, type, NULL);
+  g_free (v);
+  return ret;
+}
 
-      for (i = 0; i < n; i++)
-        {
-          gchar *v = g_key_file_get_value (adp->keyfile, account, keys[i], NULL);
+static GVariant *
+_get_parameter (McpAccountStorage *self,
+    McpAccountManager *am,
+    const gchar *account,
+    const gchar *parameter,
+    const GVariantType *type,
+    McpParameterFlags *flags)
+{
+  AccountDiversionPlugin *adp = ACCOUNT_DIVERSION_PLUGIN (self);
+  gchar *key;
+  gchar *v;
+  GVariant *ret;
 
-          if (v != NULL)
-            mcp_account_manager_set_value (am, account, keys[i], v);
+  if (flags != NULL)
+    *flags = 0;
 
-          g_free (v);
-        }
+  key = g_strdup_printf ("param-%s", parameter);
+  v = g_key_file_get_value (adp->keyfile, account, key, NULL);
+  g_free (key);
 
-      g_strfreev (keys);
-    }
+  if (v == NULL)
+    return NULL;
 
-  return TRUE;
+  ret = mcp_account_manager_unescape_variant_from_keyfile (am, v, type, NULL);
+  g_free (v);
+  return ret;
 }
 
 static gboolean _commit (const McpAccountStorage *self,
@@ -371,7 +381,8 @@ account_storage_iface_init (McpAccountStorageIface *iface,
   iface->desc = PLUGIN_DESCRIPTION;
   iface->priority = PLUGIN_PRIORITY;
 
-  iface->get = _get;
+  iface->get_attribute = _get_attribute;
+  iface->get_parameter = _get_parameter;
   iface->set_attribute = _set_attribute;
   iface->set_parameter = _set_parameter;
   iface->delete_async = delete_async;

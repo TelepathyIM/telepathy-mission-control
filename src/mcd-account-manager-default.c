@@ -52,6 +52,12 @@ typedef struct {
     gboolean absent;
 } McdDefaultStoredAccount;
 
+static GVariant *
+variant_ref0 (GVariant *v)
+{
+  return (v == NULL ? NULL : g_variant_ref (v));
+}
+
 static McdDefaultStoredAccount *
 lookup_stored_account (McdAccountManagerDefault *self,
     const gchar *account)
@@ -267,116 +273,59 @@ set_attribute (McpAccountStorage *self,
   return MCP_ACCOUNT_STORAGE_SET_RESULT_CHANGED;
 }
 
-static gboolean
-get_parameter (const McpAccountStorage *self,
-    const McpAccountManager *am,
+static GVariant *
+get_attribute (McpAccountStorage *self,
+    McpAccountManager *am,
     const gchar *account,
-    const gchar *prefixed,
-    const gchar *parameter)
+    const gchar *attribute,
+    const GVariantType *type,
+    McpAttributeFlags *flags)
 {
   McdAccountManagerDefault *amd = MCD_ACCOUNT_MANAGER_DEFAULT (self);
   McdDefaultStoredAccount *sa = lookup_stored_account (amd, account);
 
-  if (parameter != NULL)
-    {
-      gchar *v = NULL;
-      GVariant *variant = NULL;
-
-      if (sa == NULL || sa->absent)
-        return FALSE;
-
-      variant = g_hash_table_lookup (sa->parameters, parameter);
-
-      if (variant != NULL)
-        {
-          mcp_account_manager_set_parameter (am, account, parameter,
-              variant, MCP_PARAMETER_FLAG_NONE);
-          return TRUE;
-        }
-
-      v = g_hash_table_lookup (sa->untyped_parameters, parameter);
-
-      if (v == NULL)
-        return FALSE;
-
-      mcp_account_manager_set_value (am, account, prefixed, v);
-    }
-  else
-    {
-      g_assert_not_reached ();
-    }
-
-  return TRUE;
-}
-
-static gboolean
-_get (const McpAccountStorage *self,
-    const McpAccountManager *am,
-    const gchar *account,
-    const gchar *key)
-{
-  McdAccountManagerDefault *amd = MCD_ACCOUNT_MANAGER_DEFAULT (self);
-  McdDefaultStoredAccount *sa = lookup_stored_account (amd, account);
+  if (flags != NULL)
+    *flags = 0;
 
   if (sa == NULL || sa->absent)
     return FALSE;
 
-  if (key != NULL)
-    {
-      GVariant *v = NULL;
+  /* ignore @type, we store every attribute with its type anyway; MC will
+   * coerce values to an appropriate type if needed */
+  return variant_ref0 (g_hash_table_lookup (sa->attributes, attribute));
+}
 
-      if (g_str_has_prefix (key, "param-"))
-        {
-          return get_parameter (self, am, account, key, key + 6);
-        }
+static GVariant *
+get_parameter (McpAccountStorage *self,
+    McpAccountManager *am,
+    const gchar *account,
+    const gchar *parameter,
+    const GVariantType *type,
+    McpParameterFlags *flags)
+{
+  McdAccountManagerDefault *amd = MCD_ACCOUNT_MANAGER_DEFAULT (self);
+  McdDefaultStoredAccount *sa = lookup_stored_account (amd, account);
+  GVariant *variant;
+  gchar *str;
 
-      v = g_hash_table_lookup (sa->attributes, key);
+  if (flags != NULL)
+    *flags = 0;
 
-      if (v == NULL)
-        return FALSE;
+  if (sa == NULL || sa->absent)
+    return FALSE;
 
-      mcp_account_manager_set_attribute (am, account, key, v,
-          MCP_ATTRIBUTE_FLAG_NONE);
-    }
-  else
-    {
-      GHashTableIter iter;
-      gpointer k, v;
+  variant = g_hash_table_lookup (sa->parameters, parameter);
 
-      g_hash_table_iter_init (&iter, sa->attributes);
+  if (variant != NULL)
+    return g_variant_ref (variant);
 
-      while (g_hash_table_iter_next (&iter, &k, &v))
-        {
-          if (v != NULL)
-            mcp_account_manager_set_attribute (am, account, k,
-                v, MCP_ATTRIBUTE_FLAG_NONE);
-        }
+  str = g_hash_table_lookup (sa->untyped_parameters, parameter);
 
-      g_hash_table_iter_init (&iter, sa->parameters);
+  if (str == NULL)
+    return NULL;
 
-      while (g_hash_table_iter_next (&iter, &k, &v))
-        {
-          if (v != NULL)
-            mcp_account_manager_set_parameter (am, account, k, v,
-                MCP_PARAMETER_FLAG_NONE);
-        }
-
-      g_hash_table_iter_init (&iter, sa->untyped_parameters);
-
-      while (g_hash_table_iter_next (&iter, &k, &v))
-        {
-          if (v != NULL)
-            {
-              gchar *prefixed = g_strdup_printf ("param-%s",
-                  (const gchar *) k);
-
-              mcp_account_manager_set_value (am, account, prefixed, v);
-              g_free (prefixed);
-            }
-        }
-    }
-
-  return TRUE;
+  return mcp_account_manager_unescape_variant_from_keyfile (am,
+      str, type, NULL);
 }
 
 static gchar *
@@ -1026,7 +975,8 @@ account_storage_iface_init (McpAccountStorageIface *iface,
   iface->desc = PLUGIN_DESCRIPTION;
   iface->priority = PLUGIN_PRIORITY;
 
-  iface->get = _get;
+  iface->get_attribute = get_attribute;
+  iface->get_parameter = get_parameter;
   iface->set_attribute = set_attribute;
   iface->set_parameter = set_parameter;
   iface->create = _create;

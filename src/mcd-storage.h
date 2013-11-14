@@ -30,7 +30,7 @@ G_BEGIN_DECLS
 typedef struct {
   GObject parent;
   TpDBusDaemon *dbusd;
-  /* owned string => owned McdStorageAccount */
+  /* owned string => owned McpAccountStorage */
   GHashTable *accounts;
 } McdStorage;
 

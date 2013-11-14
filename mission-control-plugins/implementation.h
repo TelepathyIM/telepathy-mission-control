@@ -77,11 +77,6 @@ struct _McpDispatchOperationIface {
 struct _McpAccountManagerIface {
   GTypeInterface parent;
 
-  void (*set_value) (const McpAccountManager *ma,
-      const gchar *acct,
-      const gchar *key,
-      const gchar *value);
-
   gchar * (* unique_name) (const McpAccountManager *ma,
       const gchar *manager,
       const gchar *protocol,
@@ -93,18 +88,6 @@ struct _McpAccountManagerIface {
       const gchar *escaped,
       const GVariantType *type,
       GError **error);
-
-  void (* set_attribute) (const McpAccountManager *mcpa,
-      const gchar *account,
-      const gchar *attribute,
-      GVariant *value,
-      McpAttributeFlags flags);
-
-  void (* set_parameter) (const McpAccountManager *mcpa,
-      const gchar *account,
-      const gchar *parameter,
-      GVariant *value,
-      McpParameterFlags flags);
 
   void (* identify_account_async) (McpAccountManager *mcpa,
       const gchar *manager,
