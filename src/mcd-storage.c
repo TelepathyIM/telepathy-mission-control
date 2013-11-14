@@ -1245,13 +1245,14 @@ update_storage (McdStorage *self,
     const gchar *key,
     GVariant *variant)
 {
-  GList *store;
   McpAccountManager *ma = MCP_ACCOUNT_MANAGER (self);
   gboolean updated = FALSE;
+  McpAccountStorage *plugin;
 
-  for (store = stores; store != NULL; store = g_list_next (store))
+  plugin = g_hash_table_lookup (self->accounts, account);
+
+  if (plugin != NULL)
     {
-      McpAccountStorage *plugin = store->data;
       const gchar *pn = mcp_account_storage_name (plugin);
       McpAccountStorageSetResult res;
 
@@ -1268,8 +1269,6 @@ update_storage (McdStorage *self,
             DEBUG ("MCP:%s -> store %s %s.%s", pn,
                 parameter ? "parameter" : "attribute", account, key);
             updated = TRUE;
-            /* set it to NULL in all lower-priority stores */
-            variant = NULL;
             break;
 
           case MCP_ACCOUNT_STORAGE_SET_RESULT_FAILED:
@@ -1285,6 +1284,10 @@ update_storage (McdStorage *self,
           default:
             g_warn_if_reached ();
         }
+    }
+  else
+    {
+      g_assert_not_reached ();
     }
 
   return updated;
@@ -1809,24 +1812,29 @@ void
 mcd_storage_delete_account (McdStorage *self,
     const gchar *account)
 {
-  GList *store;
   McpAccountManager *ma = MCP_ACCOUNT_MANAGER (self);
+  McpAccountStorage *plugin;
 
   g_return_if_fail (MCD_IS_STORAGE (self));
   g_return_if_fail (account != NULL);
 
+  plugin = g_hash_table_lookup (self->accounts, account);
+
+  if (plugin == NULL)
+    {
+      /* we wanted no account, we got no account, I call that success! */
+      return;
+    }
+
+  g_object_ref (plugin);
   g_hash_table_remove (self->accounts, account);
 
-  for (store = stores; store != NULL; store = g_list_next (store))
-    {
-      McpAccountStorage *plugin = store->data;
+  /* FIXME: stop ignoring the error (if any), and make this method async
+   * in order to pass the error up to McdAccount */
+  mcp_account_storage_delete_async (plugin, ma, account,
+      delete_cb, g_strdup (account));
 
-      /* FIXME: when we know which plugin owns the account, we can stop
-       * ignoring the error (if any), and make this method async
-       * in order to pass the error up to McdAccount */
-      mcp_account_storage_delete_async (plugin, ma, account,
-          delete_cb, g_strdup (account));
-    }
+  g_object_unref (plugin);
 }
 
 /*
@@ -1842,24 +1850,30 @@ mcd_storage_commit (McdStorage *self, const gchar *account)
 {
   GList *store;
   McpAccountManager *ma = MCP_ACCOUNT_MANAGER (self);
+  McpAccountStorage *plugin;
+  const gchar *pname;
 
   g_return_if_fail (MCD_IS_STORAGE (self));
 
+  if (account != NULL)
+    {
+      plugin = g_hash_table_lookup (self->accounts, account);
+      g_return_val_if_fail (plugin != NULL, FALSE);
+
+      pname = mcp_account_storage_name (plugin);
+
+      DEBUG ("flushing plugin %s %s to long term storage", pname, account);
+      mcp_account_storage_commit (plugin, ma, account);
+      return;
+    }
+
   for (store = stores; store != NULL; store = g_list_next (store))
     {
-      McpAccountStorage *plugin = store->data;
-      const gchar *pname = mcp_account_storage_name (plugin);
+      plugin = store->data;
+      pname = mcp_account_storage_name (plugin);
 
-      if (account != NULL)
-        {
-          DEBUG ("flushing plugin %s %s to long term storage", pname, account);
-          mcp_account_storage_commit (plugin, ma, account);
-        }
-      else
-        {
-          DEBUG ("flushing plugin %s to long term storage", pname);
-          mcp_account_storage_commit (plugin, ma, NULL);
-        }
+      DEBUG ("flushing plugin %s to long term storage", pname);
+      mcp_account_storage_commit (plugin, ma, NULL);
     }
 }
 
