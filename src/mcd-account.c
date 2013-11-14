@@ -382,7 +382,8 @@ _mcd_account_set_parameter (McdAccount *account, const gchar *name,
     mcd_storage_set_parameter (storage, account_name, name, value);
 }
 
-static GType mc_param_type (const TpConnectionManagerParam *param);
+static GType mc_param_type (const TpConnectionManagerParam *param,
+                            const GVariantType **variant_type_out);
 
 /**
  * mcd_account_get_parameter:
@@ -405,18 +406,22 @@ mcd_account_get_parameter (McdAccount *account, const gchar *name,
     McdAccountPrivate *priv = account->priv;
     const TpConnectionManagerParam *param;
     GType type;
+    const GVariantType *variant_type;
+    gboolean ret;
 
     param = mcd_manager_get_protocol_param (priv->manager,
                                             priv->protocol_name, name);
-    type = mc_param_type (param);
+    type = mc_param_type (param, &variant_type);
 
-    return mcd_account_get_parameter_of_known_type (account, name,
-                                                    type, parameter, error);
+    ret = mcd_account_get_parameter_of_known_type (account, name,
+        variant_type, type, parameter, error);
+    return ret;
 }
 
 gboolean
 mcd_account_get_parameter_of_known_type (McdAccount *account,
                                          const gchar *name,
+                                         const GVariantType *variant_type,
                                          GType type,
                                          GValue *parameter,
                                          GError **error)
@@ -427,7 +432,8 @@ mcd_account_get_parameter_of_known_type (McdAccount *account,
 
     g_value_init (&tmp, type);
 
-    if (mcd_storage_get_parameter (storage, account_name, name, &tmp, error))
+    if (mcd_storage_get_parameter (storage, account_name, name, variant_type,
+                                   &tmp, error))
     {
         if (parameter != NULL)
         {
@@ -1090,7 +1096,8 @@ mcd_account_get_string_val (McdAccount *account, const gchar *key,
 
     g_value_init (value, G_TYPE_STRING);
 
-    if (!mcd_storage_get_attribute (priv->storage, name, key, value, NULL))
+    if (!mcd_storage_get_attribute (priv->storage, name, key,
+                                    G_VARIANT_TYPE_STRING, value, NULL))
     {
         g_value_set_static_string (value, NULL);
     }
@@ -2375,9 +2382,12 @@ properties_iface_init (TpSvcDBusPropertiesClass *iface, gpointer iface_data)
 }
 
 static GType
-mc_param_type (const TpConnectionManagerParam *param)
+mc_param_type (const TpConnectionManagerParam *param,
+               const GVariantType **variant_type_out)
 {
     const gchar *dbus_signature;
+
+    *variant_type_out = NULL;
 
     if (G_UNLIKELY (param == NULL))
         return G_TYPE_INVALID;
@@ -2390,37 +2400,49 @@ mc_param_type (const TpConnectionManagerParam *param)
     switch (dbus_signature[0])
     {
     case DBUS_TYPE_STRING:
+        *variant_type_out = G_VARIANT_TYPE_STRING;
 	return G_TYPE_STRING;
 
     case DBUS_TYPE_BYTE:
+        *variant_type_out = G_VARIANT_TYPE_BYTE;
         return G_TYPE_UCHAR;
 
     case DBUS_TYPE_INT16:
     case DBUS_TYPE_INT32:
+        *variant_type_out = G_VARIANT_TYPE_INT32;
 	return G_TYPE_INT;
 
     case DBUS_TYPE_UINT16:
     case DBUS_TYPE_UINT32:
+        *variant_type_out = G_VARIANT_TYPE_UINT32;
 	return G_TYPE_UINT;
 
     case DBUS_TYPE_BOOLEAN:
+        *variant_type_out = G_VARIANT_TYPE_BOOLEAN;
 	return G_TYPE_BOOLEAN;
 
     case DBUS_TYPE_DOUBLE:
+        *variant_type_out = G_VARIANT_TYPE_DOUBLE;
         return G_TYPE_DOUBLE;
 
     case DBUS_TYPE_OBJECT_PATH:
+        *variant_type_out = G_VARIANT_TYPE_OBJECT_PATH;
         return DBUS_TYPE_G_OBJECT_PATH;
 
     case DBUS_TYPE_INT64:
+        *variant_type_out = G_VARIANT_TYPE_INT64;
         return G_TYPE_INT64;
 
     case DBUS_TYPE_UINT64:
+        *variant_type_out = G_VARIANT_TYPE_UINT64;
         return G_TYPE_UINT64;
 
     case DBUS_TYPE_ARRAY:
         if (dbus_signature[1] == DBUS_TYPE_STRING)
+        {
+            *variant_type_out = G_VARIANT_TYPE_STRING_ARRAY;
             return G_TYPE_STRV;
+        }
         /* other array types are not supported:
          * fall through the default case */
     default:
@@ -2497,11 +2519,13 @@ mcd_account_altered_by_plugin (McdAccount *account,
         const McdDBusProp *prop = NULL;
         GValue value = G_VALUE_INIT;
         GError *error = NULL;
+        const GVariantType *variant_type = NULL;
 
         DEBUG ("%s", name);
 
         if (tp_strdiff (name, "Parameters") &&
-            !mcd_storage_init_value_for_attribute (&value, name))
+            !mcd_storage_init_value_for_attribute (&value, name,
+                                                   &variant_type))
         {
             WARNING ("plugin wants to alter %s but I don't know what "
                      "type that ought to be", name);
@@ -2514,7 +2538,8 @@ mcd_account_altered_by_plugin (McdAccount *account,
         }
         else if (!mcd_storage_get_attribute (account->priv->storage,
                                              account->priv->unique_name,
-                                             name, &value, &error))
+                                             name, variant_type, &value,
+                                             &error))
         {
             WARNING ("cannot get new value of %s: %s", name, error->message);
             g_error_free (error);
@@ -2703,6 +2728,7 @@ check_one_parameter_update (McdAccount *account,
     const TpConnectionManagerParam *param =
         tp_protocol_get_param (protocol, name);
     GType type;
+    const GVariantType *variant_type;
 
     if (param == NULL)
     {
@@ -2712,15 +2738,18 @@ check_one_parameter_update (McdAccount *account,
         return FALSE;
     }
 
-    type = mc_param_type (param);
+    type = mc_param_type (param, &variant_type);
 
     if (G_VALUE_TYPE (new_value) != type)
     {
         /* FIXME: use D-Bus type names, not GType names. */
         g_set_error (error, TP_ERROR, TP_ERROR_INVALID_ARGUMENT,
-                     "parameter '%s' must be of type %s, not %s",
+                     "parameter '%s' must be of type %s ('%.*s'), not %s",
                      tp_connection_manager_param_get_name (param),
-                     g_type_name (type), G_VALUE_TYPE_NAME (new_value));
+                     g_type_name (type),
+                     (int) g_variant_type_get_string_length (variant_type),
+                     g_variant_type_peek_string (variant_type),
+                     G_VALUE_TYPE_NAME (new_value));
         return FALSE;
     }
 
@@ -3305,7 +3334,8 @@ mcd_account_setup (McdAccount *account)
     g_free (priv->auto_presence_message);
 
     if (mcd_storage_get_attribute (storage, name,
-                                   MC_ACCOUNTS_KEY_AUTOMATIC_PRESENCE, &value,
+                                   MC_ACCOUNTS_KEY_AUTOMATIC_PRESENCE,
+                                   G_VARIANT_TYPE ("(uss)"), &value,
                                    NULL))
     {
         GValueArray *va = g_value_get_boxed (&value);
@@ -3377,7 +3407,9 @@ mcd_account_setup (McdAccount *account)
         g_ptr_array_unref (priv->supersedes);
 
     if (mcd_storage_get_attribute (storage, name,
-                                   MC_ACCOUNTS_KEY_SUPERSEDES, &value, NULL))
+                                   MC_ACCOUNTS_KEY_SUPERSEDES,
+                                   G_VARIANT_TYPE_OBJECT_PATH_ARRAY,
+                                   &value, NULL))
     {
         priv->supersedes = g_value_dup_boxed (&value);
     }

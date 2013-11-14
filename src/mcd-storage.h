@@ -104,12 +104,14 @@ gchar *mcd_storage_dup_string (McdStorage *storage,
 gboolean mcd_storage_get_attribute (McdStorage *storage,
     const gchar *account,
     const gchar *attribute,
+    const GVariantType *type,
     GValue *value,
     GError **error);
 
 gboolean mcd_storage_get_parameter (McdStorage *storage,
     const gchar *account,
     const gchar *parameter,
+    const GVariantType *type,
     GValue *value,
     GError **error);
 
@@ -155,9 +157,10 @@ gboolean mcd_keyfile_unescape_value (const gchar *escaped,
     GValue *value,
     GError **error);
 
-const gchar *mcd_storage_get_attribute_type (const gchar *attribute);
+const GVariantType *mcd_storage_get_attribute_type (const gchar *attribute);
 gboolean mcd_storage_init_value_for_attribute (GValue *value,
-    const gchar *attribute);
+    const gchar *attribute,
+    const GVariantType **variant_type);
 
 G_END_DECLS
 

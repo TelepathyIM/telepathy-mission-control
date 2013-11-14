@@ -264,7 +264,7 @@ static struct {
       { NULL, NULL }
 };
 
-const gchar *
+const GVariantType *
 mcd_storage_get_attribute_type (const gchar *attribute)
 {
   guint i;
@@ -272,7 +272,7 @@ mcd_storage_get_attribute_type (const gchar *attribute)
   for (i = 0; known_attributes[i].type != NULL; i++)
     {
       if (!tp_strdiff (attribute, known_attributes[i].name))
-        return known_attributes[i].type;
+        return G_VARIANT_TYPE (known_attributes[i].type);
     }
 
   return NULL;
@@ -280,14 +280,18 @@ mcd_storage_get_attribute_type (const gchar *attribute)
 
 gboolean
 mcd_storage_init_value_for_attribute (GValue *value,
-    const gchar *attribute)
+    const gchar *attribute,
+    const GVariantType **variant_type)
 {
-  const gchar *s = mcd_storage_get_attribute_type (attribute);
+  const GVariantType *s = mcd_storage_get_attribute_type (attribute);
 
   if (s == NULL)
     return FALSE;
 
-  switch (s[0])
+  if (variant_type != NULL)
+    *variant_type = s;
+
+  switch (g_variant_type_peek_string (s)[0])
     {
       case 's':
         g_value_init (value, G_TYPE_STRING);
@@ -304,7 +308,7 @@ mcd_storage_init_value_for_attribute (GValue *value,
 
       case 'a':
           {
-            switch (s[1])
+            switch (g_variant_type_peek_string (s)[1])
               {
                 case 'o':
                   g_value_init (value, TP_ARRAY_TYPE_OBJECT_PATH_LIST);
@@ -319,7 +323,7 @@ mcd_storage_init_value_for_attribute (GValue *value,
 
       case '(':
           {
-            if (!tp_strdiff (s, "(uss)"))
+            if (g_variant_type_equal (s, G_VARIANT_TYPE ("(uss)")))
               {
                 g_value_init (value, TP_STRUCT_TYPE_SIMPLE_PRESENCE);
                 return TRUE;
@@ -401,7 +405,7 @@ set_value (const McpAccountManager *ma,
           GValue tmp = G_VALUE_INIT;
           GError *error = NULL;
 
-          if (!mcd_storage_init_value_for_attribute (&tmp, key))
+          if (!mcd_storage_init_value_for_attribute (&tmp, key, NULL))
             {
               g_warning ("Not sure what the type of '%s' is, assuming string",
                   key);
@@ -762,7 +766,8 @@ mcd_storage_dup_string (McdStorage *self,
 
   g_value_init (&tmp, G_TYPE_STRING);
 
-  if (!mcd_storage_get_attribute (self, account, attribute, &tmp, NULL))
+  if (!mcd_storage_get_attribute (self, account, attribute,
+        G_VARIANT_TYPE_STRING, &tmp, NULL))
     return NULL;
 
   ret = g_value_dup_string (&tmp);
@@ -809,6 +814,7 @@ gboolean
 mcd_storage_get_attribute (McdStorage *self,
     const gchar *account,
     const gchar *attribute,
+    const GVariantType *type,
     GValue *value,
     GError **error)
 {
@@ -853,6 +859,7 @@ gboolean
 mcd_storage_get_parameter (McdStorage *self,
     const gchar *account,
     const gchar *parameter,
+    const GVariantType *type,
     GValue *value,
     GError **error)
 {
@@ -1345,7 +1352,8 @@ mcd_storage_get_boolean (McdStorage *self,
 
   g_value_init (&tmp, G_TYPE_BOOLEAN);
 
-  if (!mcd_storage_get_attribute (self, account, attribute, &tmp, NULL))
+  if (!mcd_storage_get_attribute (self, account, attribute,
+        G_VARIANT_TYPE_BOOLEAN, &tmp, NULL))
     return FALSE;
 
   return g_value_get_boolean (&tmp);
@@ -1373,7 +1381,8 @@ mcd_storage_get_integer (McdStorage *self,
 
   g_value_init (&tmp, G_TYPE_INT);
 
-  if (!mcd_storage_get_attribute (self, account, attribute, &tmp, NULL))
+  if (!mcd_storage_get_attribute (self, account, attribute,
+        G_VARIANT_TYPE_INT32, &tmp, NULL))
     return FALSE;
 
   return g_value_get_int (&tmp);

@@ -666,7 +666,7 @@ am_default_load_keyfile (McdAccountManagerDefault *self,
             }
           else
             {
-              const gchar *type = mcd_storage_get_attribute_type (key);
+              const GVariantType *type = mcd_storage_get_attribute_type (key);
               GVariant *variant = NULL;
 
               if (type == NULL)
@@ -678,7 +678,7 @@ am_default_load_keyfile (McdAccountManagerDefault *self,
               else
                 {
                   variant = mcd_keyfile_get_variant (keyfile,
-                      account, key, G_VARIANT_TYPE (type), &error);
+                      account, key, type, &error);
                 }
 
               if (variant == NULL)

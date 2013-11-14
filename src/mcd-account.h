@@ -139,6 +139,7 @@ gboolean mcd_account_get_parameter (McdAccount *account, const gchar *name,
 
 gboolean mcd_account_get_parameter_of_known_type (McdAccount *account,
                                                   const gchar *name,
+                                                  const GVariantType *variant_type,
                                                   GType type,
                                                   GValue *parameter,
                                                   GError **error);
