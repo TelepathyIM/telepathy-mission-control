@@ -581,6 +581,7 @@ test_dbus_account_plugin_process_parameters (TestDBusAccountPlugin *self,
               (stored == NULL ||
                !g_variant_equal (value, stored)))
             {
+              g_hash_table_remove (account->parameters, param);
               g_hash_table_insert (account->untyped_parameters,
                   g_strdup (param), g_strdup (escaped));
               key = g_strdup_printf ("param-%s", param);
