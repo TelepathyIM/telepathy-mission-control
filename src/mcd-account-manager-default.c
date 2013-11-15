@@ -50,6 +50,8 @@ typedef struct {
     /* TRUE if the account doesn't really exist, but is here to stop us
      * loading it from a lower-priority file */
     gboolean absent;
+    /* TRUE if this account needs saving */
+    gboolean dirty;
 } McdDefaultStoredAccount;
 
 static GVariant *
@@ -159,7 +161,6 @@ mcd_account_manager_default_init (McdAccountManagerDefault *self)
   self->directory = account_directory_in (g_get_user_data_dir ());
   self->accounts = g_hash_table_new_full (g_str_hash, g_str_equal, g_free,
       stored_account_free);
-  self->save = FALSE;
   self->loaded = FALSE;
 }
 
@@ -230,7 +231,7 @@ set_parameter (McpAccountStorage *self,
           g_variant_ref (val));
     }
 
-  amd->save = TRUE;
+  sa->dirty = TRUE;
   return MCP_ACCOUNT_STORAGE_SET_RESULT_CHANGED;
 }
 
@@ -269,7 +270,7 @@ set_attribute (McpAccountStorage *self,
           g_variant_ref (val));
     }
 
-  amd->save = TRUE;
+  sa->dirty = TRUE;
   return MCP_ACCOUNT_STORAGE_SET_RESULT_CHANGED;
 }
 
@@ -456,6 +457,9 @@ am_default_commit_one (McdAccountManagerDefault *self,
   gboolean ret;
   GError *error = NULL;
 
+  if (!sa->dirty)
+    return TRUE;
+
   filename = account_file_in (g_get_user_data_dir (), account_name);
 
   DEBUG ("Saving account %s to %s", account_name, filename);
@@ -498,6 +502,7 @@ am_default_commit_one (McdAccountManagerDefault *self,
 
   if (g_file_set_contents (filename, content_text, -1, &error))
     {
+      sa->dirty = FALSE;
       ret = TRUE;
     }
   else
@@ -524,9 +529,6 @@ _commit (const McpAccountStorage *self,
   GHashTableIter outer;
   gpointer account_p, sa_p;
 
-  if (!amd->save)
-    return TRUE;
-
   DEBUG ("Saving accounts to %s", amd->directory);
 
   if (!mcd_ensure_directory (amd->directory, &error))
@@ -551,11 +553,6 @@ _commit (const McpAccountStorage *self,
           if (!am_default_commit_one (amd, account_p, sa_p))
             all_succeeded = FALSE;
         }
-    }
-
-  if (all_succeeded)
-    {
-      amd->save = FALSE;
     }
 
   return all_succeeded;
@@ -605,7 +602,7 @@ am_default_load_keyfile (McdAccountManagerDefault *self,
       GStrv keys = g_key_file_get_keys (keyfile, account, &m, NULL);
 
       /* We're going to need to migrate this account. */
-      self->save = TRUE;
+      sa->dirty = TRUE;
 
       for (j = 0; j < m; j++)
         {
@@ -853,6 +850,7 @@ _list (const McpAccountStorage *self,
   GHashTableIter hash_iter;
   gchar *migrate_from = NULL;
   gpointer k, v;
+  gboolean save = FALSE;
 
   if (!amd->loaded)
     {
@@ -928,7 +926,7 @@ _list (const McpAccountStorage *self,
           if (!am_default_load_keyfile (amd, migrate_from))
             tp_clear_pointer (&migrate_from, g_free);
           amd->loaded = TRUE;
-          amd->save = TRUE;
+          save = TRUE;
         }
       else
         {
@@ -940,10 +938,26 @@ _list (const McpAccountStorage *self,
     {
       DEBUG ("Creating initial account data");
       amd->loaded = TRUE;
-      amd->save = TRUE;
+      save = TRUE;
     }
 
-  if (amd->save)
+  if (!save)
+    {
+      g_hash_table_iter_init (&hash_iter, amd->accounts);
+
+      while (g_hash_table_iter_next (&hash_iter, NULL, &v))
+        {
+          McdDefaultStoredAccount *sa = v;
+
+          if (sa->dirty)
+            {
+              save = TRUE;
+              break;
+            }
+        }
+    }
+
+  if (save)
     {
       DEBUG ("Saving initial or migrated account data");
 
