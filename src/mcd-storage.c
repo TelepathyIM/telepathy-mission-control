@@ -498,11 +498,9 @@ mcd_storage_load (McdStorage *self)
 
   sort_and_cache_plugins ();
 
-  store = stores;
-
   /* fetch accounts stored in plugins, highest priority first, so that
    * low priority plugins can be overidden by high priority */
-  while (store != NULL)
+  for (store = stores; store != NULL; store = store->next)
     {
       GList *account;
       McpAccountStorage *plugin = store->data;
@@ -530,7 +528,6 @@ mcd_storage_load (McdStorage *self)
 
       /* already freed the contents, just need to free the list itself */
       g_list_free (stored);
-      store = store->next;
     }
 }
 
