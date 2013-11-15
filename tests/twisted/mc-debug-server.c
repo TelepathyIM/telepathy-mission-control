@@ -175,38 +175,18 @@ main (int argc, char **argv)
         G_LOG_FATAL_MASK | G_LOG_LEVEL_CRITICAL | G_LOG_LEVEL_WARNING);
 
     gdbus = g_bus_get_sync (G_BUS_TYPE_SESSION, NULL, &error);
-
-    if (gdbus == NULL)
-    {
-        g_warning ("%s", error->message);
-        g_error_free (error);
-        error = NULL;
-        goto out;
-    }
-
+    g_assert_no_error (error);
+    g_assert (gdbus != NULL);
     g_dbus_connection_set_exit_on_close (gdbus, FALSE);
 
     gdbus_system = g_bus_get_sync (G_BUS_TYPE_SYSTEM, NULL, &error);
-
-    if (gdbus_system == NULL)
-    {
-        g_warning ("%s", error->message);
-        g_error_free (error);
-        error = NULL;
-        goto out;
-    }
-
+    g_assert_no_error (error);
+    g_assert (gdbus_system != NULL);
     g_dbus_connection_set_exit_on_close (gdbus_system, FALSE);
 
     bus_daemon = tp_dbus_daemon_dup (&error);
-
-    if (bus_daemon == NULL)
-    {
-        g_warning ("%s", error->message);
-        g_error_free (error);
-        error = NULL;
-        goto out;
-    }
+    g_assert_no_error (error);
+    g_assert (bus_daemon != NULL);
 
     /* It appears that dbus-glib registers a filter that wrongly returns
      * DBUS_HANDLER_RESULT_HANDLED for signals, so for *our* filter to have any
@@ -242,8 +222,6 @@ main (int argc, char **argv)
         teardown_loop, (GDestroyNotify) g_main_loop_unref);
 
     g_main_loop_run (teardown_loop);
-
-out:
 
     if (connection != NULL)
     {
