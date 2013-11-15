@@ -1232,46 +1232,40 @@ update_storage (McdStorage *self,
   McpAccountManager *ma = MCP_ACCOUNT_MANAGER (self);
   gboolean updated = FALSE;
   McpAccountStorage *plugin;
+  const gchar *pn;
+  McpAccountStorageSetResult res;
 
   plugin = g_hash_table_lookup (self->accounts, account);
+  g_return_val_if_fail (plugin != NULL, FALSE);
+  pn = mcp_account_storage_name (plugin);
 
-  if (plugin != NULL)
-    {
-      const gchar *pn = mcp_account_storage_name (plugin);
-      McpAccountStorageSetResult res;
-
-      if (parameter)
-        res = mcp_account_storage_set_parameter (plugin, ma, account,
-            key, variant, MCP_PARAMETER_FLAG_NONE);
-      else
-        res = mcp_account_storage_set_attribute (plugin, ma, account,
-            key, variant, MCP_ATTRIBUTE_FLAG_NONE);
-
-      switch (res)
-        {
-          case MCP_ACCOUNT_STORAGE_SET_RESULT_CHANGED:
-            DEBUG ("MCP:%s -> store %s %s.%s", pn,
-                parameter ? "parameter" : "attribute", account, key);
-            updated = TRUE;
-            break;
-
-          case MCP_ACCOUNT_STORAGE_SET_RESULT_FAILED:
-            DEBUG ("MCP:%s -> failed to store %s %s.%s",
-                pn, parameter ? "parameter" : "attribute", account, key);
-            break;
-
-          case MCP_ACCOUNT_STORAGE_SET_RESULT_UNCHANGED:
-            DEBUG ("MCP:%s -> no change to %s %s.%s",
-                pn, parameter ? "parameter" : "attribute", account, key);
-            break;
-
-          default:
-            g_warn_if_reached ();
-        }
-    }
+  if (parameter)
+    res = mcp_account_storage_set_parameter (plugin, ma, account,
+        key, variant, MCP_PARAMETER_FLAG_NONE);
   else
+    res = mcp_account_storage_set_attribute (plugin, ma, account,
+        key, variant, MCP_ATTRIBUTE_FLAG_NONE);
+
+  switch (res)
     {
-      g_assert_not_reached ();
+      case MCP_ACCOUNT_STORAGE_SET_RESULT_CHANGED:
+        DEBUG ("MCP:%s -> store %s %s.%s", pn,
+            parameter ? "parameter" : "attribute", account, key);
+        updated = TRUE;
+        break;
+
+      case MCP_ACCOUNT_STORAGE_SET_RESULT_FAILED:
+        DEBUG ("MCP:%s -> failed to store %s %s.%s",
+            pn, parameter ? "parameter" : "attribute", account, key);
+        break;
+
+      case MCP_ACCOUNT_STORAGE_SET_RESULT_UNCHANGED:
+        DEBUG ("MCP:%s -> no change to %s %s.%s",
+            pn, parameter ? "parameter" : "attribute", account, key);
+        break;
+
+      default:
+        g_warn_if_reached ();
     }
 
   return updated;
