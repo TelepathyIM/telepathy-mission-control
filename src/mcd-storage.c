@@ -1922,7 +1922,8 @@ mcd_storage_ready (McdStorage *self)
 }
 
 static GVariant *
-mcd_keyfile_unescape_variant (const gchar *escaped,
+mcpa_unescape_variant_from_keyfile (const McpAccountManager *mcpa,
+    const gchar *escaped,
     const GVariantType *type,
     GError **error)
 {
@@ -1941,15 +1942,6 @@ mcd_keyfile_unescape_variant (const gchar *escaped,
     g_variant_ref_sink (ret);
 
   return ret;
-}
-
-static GVariant *
-mcpa_unescape_variant_from_keyfile (const McpAccountManager *mcpa,
-    const gchar *escaped,
-    const GVariantType *type,
-    GError **error)
-{
-  return mcd_keyfile_unescape_variant (escaped, type, error);
 }
 
 static void
