@@ -536,13 +536,13 @@ mcd_storage_load (McdStorage *self)
  * @storage: An object implementing the #McdStorage interface
  * @n: place for the number of accounts to be written to (or %NULL)
  *
- * Returns: (transfer container) (element-type utf8 Mcp.AccountStorage): a
+ * Returns: (transfer none) (element-type utf8 Mcp.AccountStorage): a
  *  map from account object path tail to plugin
  */
 GHashTable *
 mcd_storage_get_accounts (McdStorage *self)
 {
-  return g_hash_table_ref (self->accounts);
+  return self->accounts;
 }
 
 /*

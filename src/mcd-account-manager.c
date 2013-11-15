@@ -1528,8 +1528,6 @@ _mcd_account_manager_setup (McdAccountManager *account_manager)
         g_object_unref (account);
     }
 
-    g_hash_table_unref (accounts);
-
     uncork_storage_plugins (account_manager);
 
     migrate_accounts (account_manager);
