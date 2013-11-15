@@ -454,7 +454,7 @@ deleted_cb (GObject *plugin, const gchar *name, gpointer data)
 
         if (storage_plugin != its_plugin)
         {
-            DEBUG ("Ignoring altered-one from plugin %s because account %s "
+            DEBUG ("Ignoring deleted signal from plugin %s because account %s "
                 "belongs to %s",
                 mcp_account_storage_name (storage_plugin),
                 name,
