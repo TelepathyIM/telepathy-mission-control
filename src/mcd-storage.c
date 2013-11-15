@@ -1770,16 +1770,17 @@ delete_cb (GObject *source,
     gpointer user_data)
 {
   GError *error = NULL;
+  const gchar *account_name = user_data;
 
   if (mcp_account_storage_delete_finish (MCP_ACCOUNT_STORAGE (source),
         res, &error))
     {
-      DEBUG ("deleted account %s", (const gchar *) user_data);
+      DEBUG ("deleted account %s", account_name);
     }
   else
     {
       DEBUG ("could not delete account %s (but no way to signal that): "
-          "%s #%d: %s", (const gchar *) user_data,
+          "%s #%d: %s", account_name,
           g_quark_to_string (error->domain), error->code, error->message);
       g_error_free (error);
     }
