@@ -543,6 +543,11 @@ _commit (const McpAccountStorage *self,
     {
       if (account == NULL || !tp_strdiff (account, account_p))
         {
+          McdDefaultStoredAccount *sa = sa_p;
+
+          if (sa->absent)
+            continue;
+
           if (!am_default_commit_one (amd, account_p, sa_p))
             all_succeeded = FALSE;
         }
