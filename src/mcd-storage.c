@@ -1809,13 +1809,7 @@ mcd_storage_delete_account (McdStorage *self,
   g_return_if_fail (account != NULL);
 
   plugin = g_hash_table_lookup (self->accounts, account);
-
-  if (plugin == NULL)
-    {
-      /* we wanted no account, we got no account, I call that success! */
-      return;
-    }
-
+  g_return_if_fail (plugin != NULL);
 
   /* FIXME: stop ignoring the error (if any), and make this method async
    * in order to pass the error up to McdAccount */
