@@ -459,7 +459,10 @@ mcp_account_storage_get_attribute (McpAccountStorage *storage,
 {
   McpAccountStorageIface *iface = MCP_ACCOUNT_STORAGE_GET_IFACE (storage);
 
-  SDEBUG (storage, "");
+  SDEBUG (storage, "%s.%s (type '%.*s')", account, attribute,
+      (int) g_variant_type_get_string_length (type),
+      g_variant_type_peek_string (type));
+
   g_return_val_if_fail (iface != NULL, FALSE);
   g_return_val_if_fail (iface->get_attribute != NULL, FALSE);
 
@@ -499,7 +502,10 @@ mcp_account_storage_get_parameter (McpAccountStorage *storage,
 {
   McpAccountStorageIface *iface = MCP_ACCOUNT_STORAGE_GET_IFACE (storage);
 
-  SDEBUG (storage, "");
+  SDEBUG (storage, "%s.%s (type '%.*s')", account, parameter,
+      (int) g_variant_type_get_string_length (type),
+      g_variant_type_peek_string (type));
+
   g_return_val_if_fail (iface != NULL, FALSE);
   g_return_val_if_fail (iface->get_parameter != NULL, FALSE);
 
@@ -542,7 +548,9 @@ mcp_account_storage_set_attribute (McpAccountStorage *storage,
 {
   McpAccountStorageIface *iface = MCP_ACCOUNT_STORAGE_GET_IFACE (storage);
 
-  SDEBUG (storage, "");
+  SDEBUG (storage, "%s.%s (type '%s')", account, attribute,
+      value == NULL ? "null" : g_variant_get_type_string (value));
+
   g_return_val_if_fail (iface != NULL,
       MCP_ACCOUNT_STORAGE_SET_RESULT_FAILED);
   g_return_val_if_fail (iface->set_attribute != NULL,
@@ -588,7 +596,9 @@ mcp_account_storage_set_parameter (McpAccountStorage *storage,
 {
   McpAccountStorageIface *iface = MCP_ACCOUNT_STORAGE_GET_IFACE (storage);
 
-  SDEBUG (storage, "");
+  SDEBUG (storage, "%s.%s (type '%s')", account, parameter,
+      value == NULL ? "null" : g_variant_get_type_string (value));
+
   g_return_val_if_fail (iface != NULL, FALSE);
   g_return_val_if_fail (iface != NULL,
       MCP_ACCOUNT_STORAGE_SET_RESULT_FAILED);
@@ -656,6 +666,8 @@ mcp_account_storage_create (const McpAccountStorage *storage,
 {
   McpAccountStorageIface *iface = MCP_ACCOUNT_STORAGE_GET_IFACE (storage);
 
+  SDEBUG (storage, "%s/%s \"%s\"", manager, protocol, identification);
+
   g_return_val_if_fail (iface != NULL, NULL);
   g_return_val_if_fail (iface->create != NULL, NULL);
 
@@ -695,7 +707,8 @@ mcp_account_storage_delete_async (McpAccountStorage *storage,
 {
   McpAccountStorageIface *iface = MCP_ACCOUNT_STORAGE_GET_IFACE (storage);
 
-  SDEBUG (storage, "");
+  SDEBUG (storage, "%s", account);
+
   g_return_if_fail (iface != NULL);
   g_return_if_fail (iface->delete_async != NULL);
 
@@ -842,6 +855,7 @@ mcp_account_storage_ready (const McpAccountStorage *storage,
 {
   McpAccountStorageIface *iface = MCP_ACCOUNT_STORAGE_GET_IFACE (storage);
 
+  SDEBUG (storage, "");
   g_return_if_fail (iface != NULL);
   g_return_if_fail (iface->ready != NULL);
 
@@ -880,7 +894,7 @@ mcp_account_storage_get_identifier (const McpAccountStorage *storage,
 {
   McpAccountStorageIface *iface = MCP_ACCOUNT_STORAGE_GET_IFACE (storage);
 
-  SDEBUG (storage, "");
+  SDEBUG (storage, "%s", account);
   g_return_if_fail (iface != NULL);
   g_return_if_fail (iface->get_identifier != NULL);
   g_return_if_fail (identifier != NULL);
@@ -922,7 +936,7 @@ mcp_account_storage_get_additional_info (const McpAccountStorage *storage,
 {
   McpAccountStorageIface *iface = MCP_ACCOUNT_STORAGE_GET_IFACE (storage);
 
-  SDEBUG (storage, "");
+  SDEBUG (storage, "%s", account);
   g_return_val_if_fail (iface != NULL, FALSE);
   g_return_val_if_fail (iface->get_additional_info != NULL, FALSE);
 
@@ -958,6 +972,7 @@ mcp_account_storage_get_restrictions (const McpAccountStorage *storage,
 {
   McpAccountStorageIface *iface = MCP_ACCOUNT_STORAGE_GET_IFACE (storage);
 
+  SDEBUG (storage, "%s", account);
   g_return_val_if_fail (iface != NULL, 0);
   g_return_val_if_fail (iface->get_restrictions != NULL, 0);
 
@@ -1030,6 +1045,7 @@ void
 mcp_account_storage_emit_created (McpAccountStorage *storage,
     const gchar *account)
 {
+  SDEBUG (storage, "%s", account);
   g_signal_emit (storage, signals[CREATED], 0, account);
 }
 
@@ -1047,6 +1063,7 @@ mcp_account_storage_emit_altered_one (McpAccountStorage *storage,
     const gchar *account,
     const gchar *key)
 {
+  SDEBUG (storage, "%s", account);
   g_signal_emit (storage, signals[ALTERED_ONE], 0, account, key);
 }
 
@@ -1061,6 +1078,7 @@ void
 mcp_account_storage_emit_deleted (McpAccountStorage *storage,
     const gchar *account)
 {
+  SDEBUG (storage, "%s", account);
   g_signal_emit (storage, signals[DELETED], 0, account);
 }
 
@@ -1077,6 +1095,7 @@ mcp_account_storage_emit_toggled (McpAccountStorage *storage,
     const gchar *account,
     gboolean enabled)
 {
+  SDEBUG (storage, "%s: Enabled=%s", account, enabled ? "True" : "False");
   g_signal_emit (storage, signals[TOGGLED], 0, account, enabled);
 }
 
@@ -1091,5 +1110,6 @@ void
 mcp_account_storage_emit_reconnect (McpAccountStorage *storage,
     const gchar *account)
 {
+  SDEBUG (storage, "%s", account);
   g_signal_emit (storage, signals[RECONNECT], 0, account);
 }
