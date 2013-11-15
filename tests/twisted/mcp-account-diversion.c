@@ -258,11 +258,12 @@ static void
 delete_async (McpAccountStorage *self,
     McpAccountManager *am,
     const gchar *account,
+    GCancellable *cancellable,
     GAsyncReadyCallback callback,
     gpointer user_data)
 {
   AccountDiversionPlugin *adp = ACCOUNT_DIVERSION_PLUGIN (self);
-  GTask *task = g_task_new (adp, NULL, callback, user_data);
+  GTask *task = g_task_new (adp, cancellable, callback, user_data);
 
   if (g_key_file_remove_group (adp->keyfile, account, NULL))
     adp->save = TRUE;

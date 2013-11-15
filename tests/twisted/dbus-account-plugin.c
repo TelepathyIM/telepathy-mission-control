@@ -902,12 +902,13 @@ static void
 test_dbus_account_plugin_delete_async (McpAccountStorage *storage,
     McpAccountManager *am,
     const gchar *account_name,
+    GCancellable *cancellable,
     GAsyncReadyCallback callback,
     gpointer user_data)
 {
   TestDBusAccountPlugin *self = TEST_DBUS_ACCOUNT_PLUGIN (storage);
   Account *account = lookup_account (self, account_name);
-  GTask *task = g_task_new (self, NULL, callback, user_data);
+  GTask *task = g_task_new (self, cancellable, callback, user_data);
 
   g_task_set_task_data (task, g_strdup (user_data), g_free);
 

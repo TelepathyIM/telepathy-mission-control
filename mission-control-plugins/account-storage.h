@@ -110,6 +110,7 @@ struct _McpAccountStorageIface
   void (*delete_async) (McpAccountStorage *storage,
       McpAccountManager *am,
       const gchar *account,
+      GCancellable *cancellable,
       GAsyncReadyCallback callback,
       gpointer user_data);
   gboolean (*delete_finish) (McpAccountStorage *storage,
@@ -163,6 +164,7 @@ gchar * mcp_account_storage_create (const McpAccountStorage *storage,
 void mcp_account_storage_delete_async (McpAccountStorage *storage,
     McpAccountManager *am,
     const gchar *account,
+    GCancellable *cancellable,
     GAsyncReadyCallback callback,
     gpointer user_data);
 gboolean mcp_account_storage_delete_finish (McpAccountStorage *storage,

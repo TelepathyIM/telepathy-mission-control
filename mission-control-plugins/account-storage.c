@@ -115,6 +115,7 @@ static void
 default_delete_async (McpAccountStorage *storage,
     McpAccountManager *am,
     const gchar *account,
+    GCancellable *cancellable,
     GAsyncReadyCallback callback,
     gpointer user_data)
 {
@@ -666,6 +667,7 @@ mcp_account_storage_create (const McpAccountStorage *storage,
  * @storage: an #McpAccountStorage instance
  * @am: an #McpAccountManager instance
  * @account: the unique name of the account
+ * @cancellable: (allow-none): optionally used to (try to) cancel the operation
  * @callback: called on success or failure
  * @user_data: data for @callback
  *
@@ -687,6 +689,7 @@ void
 mcp_account_storage_delete_async (McpAccountStorage *storage,
     McpAccountManager *am,
     const gchar *account,
+    GCancellable *cancellable,
     GAsyncReadyCallback callback,
     gpointer user_data)
 {

@@ -1829,7 +1829,7 @@ mcd_storage_delete_account (McdStorage *self,
 
   /* FIXME: stop ignoring the error (if any), and make this method async
    * in order to pass the error up to McdAccount */
-  mcp_account_storage_delete_async (plugin, ma, account,
+  mcp_account_storage_delete_async (plugin, ma, account, NULL,
       delete_cb, g_strdup (account));
 
   g_object_unref (plugin);

@@ -352,6 +352,7 @@ static void
 delete_async (McpAccountStorage *self,
     McpAccountManager *am,
     const gchar *account,
+    GCancellable *cancellable,
     GAsyncReadyCallback callback,
     gpointer user_data)
 {
@@ -361,7 +362,7 @@ delete_async (McpAccountStorage *self,
   gchar *filename = NULL;
   const gchar * const *iter;
 
-  task = g_task_new (amd, NULL, callback, user_data);
+  task = g_task_new (amd, cancellable, callback, user_data);
 
   if (sa == NULL || sa->absent)
     {
