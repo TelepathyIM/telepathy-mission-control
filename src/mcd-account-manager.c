@@ -782,8 +782,11 @@ complete_account_creation_finish (McdAccount *account,
         tp_clear_object (&account);
     }
 
-    mcd_account_manager_write_conf_async (account_manager, account, NULL,
-                                          NULL);
+    if (account != NULL)
+    {
+        mcd_storage_commit (account_manager->priv->storage,
+            mcd_account_get_unique_name (account));
+    }
 
     if (cad->callback != NULL)
         cad->callback (account_manager, account, cad->error, cad->user_data);
@@ -1191,15 +1194,6 @@ setup_account_loaded (McdAccount *account,
     g_object_unref (self);
 }
 
-static void
-uncork_storage_plugins (McdAccountManager *account_manager)
-{
-    McdAccountManagerPrivate *priv = MCD_ACCOUNT_MANAGER_PRIV (account_manager);
-
-    mcd_account_manager_write_conf_async (account_manager, NULL, NULL, NULL);
-    mcd_storage_ready (priv->storage);
-}
-
 typedef struct
 {
     McdAccountManager *self;
@@ -1512,7 +1506,18 @@ _mcd_account_manager_setup (McdAccountManager *account_manager)
         g_object_unref (account);
     }
 
-    uncork_storage_plugins (account_manager);
+    /* FIXME: why do we need to commit the accounts at this point?
+     * It was added to uncork_storage_plugins() in 3d5b5e7a248d
+     * without explanation */
+    g_hash_table_iter_init (&iter, account_manager->priv->accounts);
+    while (g_hash_table_iter_next (&iter, NULL, &v))
+    {
+        mcd_storage_commit (storage,
+            mcd_account_get_unique_name (v));
+    }
+
+    /* uncork signals from storage plugins */
+    mcd_storage_ready (priv->storage);
 
     migrate_accounts (account_manager);
 
@@ -1747,56 +1752,6 @@ mcd_account_manager_get_connectivity_monitor (McdAccountManager *self)
 {
   g_return_val_if_fail (MCD_IS_ACCOUNT_MANAGER (self), NULL);
   return self->priv->minotaur;
-}
-
-/**
- * McdAccountManagerWriteConfCb:
- * @account_manager: the #McdAccountManager
- * @error: a set #GError on failure or %NULL if there was no error
- * @user_data: user data
- *
- * The callback from mcd_account_manager_write_conf_async(). If the config
- * writing was successful, @error will be %NULL, otherwise it will be set
- * with the appropriate error.
- */
-
-/**
- * mcd_account_manager_write_conf_async:
- * @account_manager: the #McdAccountManager
- * @account: the account to be written, or %NULL to flush all accounts
- * @callback: a callback to be called on write success or failure
- * @user_data: data to be passed to @callback
- *
- * Write the account manager configuration to disk.
- */
-void
-mcd_account_manager_write_conf_async (McdAccountManager *account_manager,
-                                      McdAccount *account,
-                                      McdAccountManagerWriteConfCb callback,
-                                      gpointer user_data)
-{
-    McdStorage *storage = NULL;
-    const gchar *account_name = NULL;
-
-    g_return_if_fail (MCD_IS_ACCOUNT_MANAGER (account_manager));
-
-    storage = account_manager->priv->storage;
-
-    if (account != NULL)
-    {
-        account_name = mcd_account_get_unique_name (account);
-
-        DEBUG ("updating %s", account_name);
-        mcd_storage_commit (storage, account_name);
-    }
-    else
-    {
-        DEBUG ("updating all accounts");
-        mcd_storage_commit (storage, NULL);
-    }
-
-    if (callback != NULL)
-        callback (account_manager, NULL, user_data);
 }
 
 GHashTable *
