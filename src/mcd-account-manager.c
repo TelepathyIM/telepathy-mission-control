@@ -308,6 +308,7 @@ created_cb (GObject *storage_plugin_obj,
     else
     {
         WARNING ("%s", error->message);
+        g_clear_error (&error);
         goto finish;
     }
 
