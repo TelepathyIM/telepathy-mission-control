@@ -181,14 +181,13 @@ set_parameter (McpAccountStorage *self,
   McdAccountManagerDefault *amd = MCD_ACCOUNT_MANAGER_DEFAULT (self);
   McdDefaultStoredAccount *sa;
 
+  sa = lookup_stored_account (amd, account);
+  g_return_val_if_fail (sa != NULL, MCP_ACCOUNT_STORAGE_SET_RESULT_FAILED);
+  g_return_val_if_fail (!sa->absent, MCP_ACCOUNT_STORAGE_SET_RESULT_FAILED);
+
   if (val == NULL)
     {
       gboolean changed = FALSE;
-
-      sa = lookup_stored_account (amd, account);
-
-      if (sa == NULL)
-        return MCP_ACCOUNT_STORAGE_SET_RESULT_UNCHANGED;
 
       changed = g_hash_table_remove (sa->parameters, parameter);
       /* deliberately not ||= - if we removed it from parameters, we
@@ -202,7 +201,6 @@ set_parameter (McpAccountStorage *self,
     {
       GVariant *old;
 
-      sa = ensure_stored_account (amd, account);
       old = g_hash_table_lookup (sa->parameters, parameter);
 
       if (old == NULL)
@@ -246,13 +244,12 @@ set_attribute (McpAccountStorage *self,
   McdAccountManagerDefault *amd = MCD_ACCOUNT_MANAGER_DEFAULT (self);
   McdDefaultStoredAccount *sa;
 
+  sa = lookup_stored_account (amd, account);
+  g_return_val_if_fail (sa != NULL, MCP_ACCOUNT_STORAGE_SET_RESULT_FAILED);
+  g_return_val_if_fail (!sa->absent, MCP_ACCOUNT_STORAGE_SET_RESULT_FAILED);
+
   if (val == NULL)
     {
-      sa = lookup_stored_account (amd, account);
-
-      if (sa == NULL)
-        return MCP_ACCOUNT_STORAGE_SET_RESULT_UNCHANGED;
-
       if (!g_hash_table_remove (sa->attributes, attribute))
         return MCP_ACCOUNT_STORAGE_SET_RESULT_UNCHANGED;
     }
@@ -260,7 +257,6 @@ set_attribute (McpAccountStorage *self,
     {
       GVariant *old;
 
-      sa = ensure_stored_account (amd, account);
       old = g_hash_table_lookup (sa->attributes, attribute);
 
       if (old != NULL && g_variant_equal (old, val))
@@ -288,8 +284,8 @@ get_attribute (McpAccountStorage *self,
   if (flags != NULL)
     *flags = 0;
 
-  if (sa == NULL || sa->absent)
-    return FALSE;
+  g_return_val_if_fail (sa != NULL, NULL);
+  g_return_val_if_fail (!sa->absent, NULL);
 
   /* ignore @type, we store every attribute with its type anyway; MC will
    * coerce values to an appropriate type if needed */
@@ -312,8 +308,8 @@ get_parameter (McpAccountStorage *self,
   if (flags != NULL)
     *flags = 0;
 
-  if (sa == NULL || sa->absent)
-    return FALSE;
+  g_return_val_if_fail (sa != NULL, NULL);
+  g_return_val_if_fail (!sa->absent, NULL);
 
   variant = g_hash_table_lookup (sa->parameters, parameter);
 
@@ -457,6 +453,9 @@ am_default_commit_one (McdAccountManagerDefault *self,
   gboolean ret;
   GError *error = NULL;
 
+  g_return_val_if_fail (sa != NULL, FALSE);
+  g_return_val_if_fail (!sa->absent, FALSE);
+
   if (!sa->dirty)
     return TRUE;
 
@@ -537,6 +536,16 @@ _commit (const McpAccountStorage *self,
       g_clear_error (&error);
       /* fall through anyway: writing to the files will fail, but it does
        * give us a chance to commit to the keyring too */
+    }
+
+  if (account != NULL)
+    {
+      McdDefaultStoredAccount *sa = lookup_stored_account (amd, account);
+
+      g_return_val_if_fail (sa != NULL, FALSE);
+      g_return_val_if_fail (!sa->absent, FALSE);
+
+      return am_default_commit_one (amd, account, sa);
     }
 
   g_hash_table_iter_init (&outer, amd->accounts);
