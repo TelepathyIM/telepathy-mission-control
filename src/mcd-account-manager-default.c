@@ -361,13 +361,8 @@ delete_async (McpAccountStorage *self,
 
   task = g_task_new (amd, cancellable, callback, user_data);
 
-  if (sa == NULL || sa->absent)
-    {
-      /* Apparently we never had this account anyway. The plugin API
-       * considers this to be "success". */
-      g_task_return_boolean (task, TRUE);
-      goto finally;
-    }
+  g_return_if_fail (sa != NULL);
+  g_return_if_fail (!sa->absent);
 
   filename = account_file_in (g_get_user_data_dir (), account);
 

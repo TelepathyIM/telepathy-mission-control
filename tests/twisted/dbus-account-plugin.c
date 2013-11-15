@@ -916,14 +916,8 @@ test_dbus_account_plugin_delete_async (McpAccountStorage *storage,
 
   DEBUG ("called");
 
-  if (account == NULL || !self->active)
-    {
-      /* We were asked to delete an account we don't have. It's
-       * a bit like success. */
-      g_task_return_boolean (task, TRUE);
-      g_object_unref (task);
-      return;
-    }
+  g_return_if_fail (self->active);
+  g_return_if_fail (account != NULL);
 
   /* deletion used to be delayed, so the regression tests will expect this
    * to happen - leave them unmodified for now */
