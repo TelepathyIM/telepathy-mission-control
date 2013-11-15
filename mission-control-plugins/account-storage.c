@@ -56,7 +56,8 @@
  *   iface->desc = "The FOO storage backend";
  *   iface->provider = "org.freedesktop.Telepathy.MissionControl5.FooStorage";
  *
- *   iface->delete = foo_plugin_delete;
+ *   iface->delete_async = foo_plugin_delete_async;
+ *   iface->delete_finish = foo_plugin_delete_finish;
  *   iface->commit = foo_plugin_commit;
  *   iface->list = foo_plugin_list;
  *   iface->ready = foo_plugin_ready;
