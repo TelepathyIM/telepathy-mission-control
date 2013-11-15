@@ -745,7 +745,8 @@ mcd_account_delete_async (McdAccount *account,
         return;
     }
 
-    mcd_storage_delete_account (priv->storage, name);
+    if ((flags & MCD_DBUS_PROP_SET_FLAG_ALREADY_IN_STORAGE) == 0)
+        mcd_storage_delete_account (priv->storage, name);
 
     data_dir_str = get_old_account_data_path (priv);
 
