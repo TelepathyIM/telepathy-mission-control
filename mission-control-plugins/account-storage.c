@@ -678,6 +678,9 @@ mcp_account_storage_create (const McpAccountStorage *storage,
  *
  * The default implementation just returns failure (asynchronously),
  * and is appropriate for read-only storage.
+ *
+ * Implementations that override delete_async must also override
+ * delete_finish.
  */
 void
 mcp_account_storage_delete_async (McpAccountStorage *storage,
