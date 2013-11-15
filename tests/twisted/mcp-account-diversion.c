@@ -302,7 +302,9 @@ _commit (const McpAccountStorage *self,
   gboolean rval = FALSE;
 
   /* This simple implementation ignores account_name and commits everything:
-   * we're writing out the whole keyfile anyway */
+   * we're writing out the whole keyfile anyway. If MC is looping over
+   * accounts, the second and subsequent accounts will find that
+   * adp->save is false, so there's no write-amplification. */
 
   if (!adp->save)
     return TRUE;

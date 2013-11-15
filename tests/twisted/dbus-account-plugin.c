@@ -1151,36 +1151,6 @@ test_dbus_account_plugin_set_parameter (McpAccountStorage *storage,
   return MCP_ACCOUNT_STORAGE_SET_RESULT_CHANGED;
 }
 
-static gboolean
-test_dbus_account_plugin_commit_all (const McpAccountStorage *storage,
-    const McpAccountManager *am)
-{
-  TestDBusAccountPlugin *self = TEST_DBUS_ACCOUNT_PLUGIN (storage);
-  GHashTableIter iter;
-  gpointer k;
-
-  DEBUG ("called");
-
-  if (!self->active)
-    return FALSE;
-
-  g_dbus_connection_emit_signal (self->bus, NULL,
-      TEST_DBUS_ACCOUNT_PLUGIN_PATH, TEST_DBUS_ACCOUNT_PLUGIN_IFACE,
-      "CommittingAll", NULL, NULL);
-
-  g_hash_table_iter_init (&iter, self->accounts);
-
-  while (g_hash_table_iter_next (&iter, &k, NULL))
-    {
-      if (!mcp_account_storage_commit (storage, am, k))
-        {
-          g_warning ("declined to commit account %s", (const gchar *) k);
-        }
-    }
-
-  return TRUE;
-}
-
 static void
 delete_account_cb (GObject *source_object,
     GAsyncResult *res,
@@ -1330,9 +1300,6 @@ test_dbus_account_plugin_commit (const McpAccountStorage *storage,
   GVariantBuilder as_builder;
 
   DEBUG ("%s", account_name);
-
-  if (account_name == NULL)
-    return test_dbus_account_plugin_commit_all (storage, am);
 
   account = lookup_account (self, account_name);
 

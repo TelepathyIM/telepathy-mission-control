@@ -743,8 +743,7 @@ mcp_account_storage_delete_finish (McpAccountStorage *storage,
  * McpAccountStorageCommitFunc:
  * @storage: an #McpAccountStorage instance
  * @am: an #McpAccountManager instance
- * @account: (allow-none): the unique suffix of an account's object path,
- *  or %NULL to commit all accounts
+ * @account: the unique suffix of an account's object path
  *
  * An implementation of mcp_account_storage_commit().
  *
@@ -755,8 +754,7 @@ mcp_account_storage_delete_finish (McpAccountStorage *storage,
  * mcp_account_storage_commit:
  * @storage: an #McpAccountStorage instance
  * @am: an #McpAccountManager instance
- * @account: (allow-none): the unique suffix of an account's object path,
- *  or %NULL if all accounts are to be committed
+ * @account: the unique suffix of an account's object path
  *
  * The plugin is expected to write its cache to long term storage,
  * deleting, adding or updating entries in said storage as needed.
@@ -767,6 +765,9 @@ mcp_account_storage_delete_finish (McpAccountStorage *storage,
  *
  * The default implementation just returns %FALSE, and is appropriate for
  * read-only storage.
+ *
+ * Mission Control 5.17+ no longer requires plugins to cope with
+ * account == NULL.
  *
  * Returns: %TRUE if the commit process was started (but not necessarily
  * completed) successfully; %FALSE if there was a problem that was immediately

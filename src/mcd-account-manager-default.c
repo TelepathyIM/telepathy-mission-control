@@ -454,6 +454,13 @@ am_default_commit_one (McdAccountManagerDefault *self,
   if (!sa->dirty)
     return TRUE;
 
+  if (!mcd_ensure_directory (self->directory, &error))
+    {
+      g_warning ("%s", error->message);
+      g_error_free (error);
+      return FALSE;
+    }
+
   filename = account_file_in (g_get_user_data_dir (), account_name);
 
   DEBUG ("Saving account %s to %s", account_name, filename);
@@ -518,48 +525,14 @@ _commit (const McpAccountStorage *self,
     const gchar *account)
 {
   McdAccountManagerDefault *amd = MCD_ACCOUNT_MANAGER_DEFAULT (self);
-  gboolean all_succeeded = TRUE;
-  GError *error = NULL;
-  GHashTableIter outer;
-  gpointer account_p, sa_p;
+  McdDefaultStoredAccount *sa = lookup_stored_account (amd, account);
 
-  DEBUG ("Saving accounts to %s", amd->directory);
+  g_return_val_if_fail (sa != NULL, FALSE);
+  g_return_val_if_fail (!sa->absent, FALSE);
 
-  if (!mcd_ensure_directory (amd->directory, &error))
-    {
-      g_warning ("%s", error->message);
-      g_clear_error (&error);
-      /* fall through anyway: writing to the files will fail, but it does
-       * give us a chance to commit to the keyring too */
-    }
+  DEBUG ("Saving account %s to %s", account, amd->directory);
 
-  if (account != NULL)
-    {
-      McdDefaultStoredAccount *sa = lookup_stored_account (amd, account);
-
-      g_return_val_if_fail (sa != NULL, FALSE);
-      g_return_val_if_fail (!sa->absent, FALSE);
-
-      return am_default_commit_one (amd, account, sa);
-    }
-
-  g_hash_table_iter_init (&outer, amd->accounts);
-
-  while (g_hash_table_iter_next (&outer, &account_p, &sa_p))
-    {
-      if (account == NULL || !tp_strdiff (account, account_p))
-        {
-          McdDefaultStoredAccount *sa = sa_p;
-
-          if (sa->absent)
-            continue;
-
-          if (!am_default_commit_one (amd, account_p, sa_p))
-            all_succeeded = FALSE;
-        }
-    }
-
-  return all_succeeded;
+  return am_default_commit_one (amd, account, sa);
 }
 
 static gboolean
@@ -963,9 +936,24 @@ _list (const McpAccountStorage *self,
 
   if (save)
     {
+      gboolean all_succeeded = TRUE;
+
       DEBUG ("Saving initial or migrated account data");
 
-      if (_commit (self, am, NULL))
+      g_hash_table_iter_init (&hash_iter, amd->accounts);
+
+      while (g_hash_table_iter_next (&hash_iter, &k, &v))
+        {
+          McdDefaultStoredAccount *sa = v;
+
+          if (sa->absent)
+            continue;
+
+          if (!am_default_commit_one (amd, k, v))
+            all_succeeded = FALSE;
+        }
+
+      if (all_succeeded)
         {
           if (migrate_from != NULL)
             {
