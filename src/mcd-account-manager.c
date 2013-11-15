@@ -134,8 +134,6 @@ enum
     PROP_CLIENT_FACTORY
 };
 
-static guint write_conf_id = 0;
-
 static void register_dbus_service (McdAccountManager *account_manager);
 static void release_setup_lock (McdAccountManager *account_manager);
 static void setup_account_loaded (McdAccount *account,
@@ -1132,20 +1130,6 @@ properties_iface_init (TpSvcDBusPropertiesClass *iface, gpointer iface_data)
 #undef IMPLEMENT
 }
 
-static gboolean
-write_conf (gpointer userdata)
-{
-    McdStorage *storage = MCD_STORAGE (userdata);
-
-    DEBUG ("called");
-    g_source_remove (write_conf_id);
-    write_conf_id = 0;
-
-    mcd_storage_commit (storage, NULL);
-
-    return TRUE;
-}
-
 static void
 release_setup_lock (McdAccountManager *self)
 {
@@ -1613,12 +1597,6 @@ static void
 _mcd_account_manager_finalize (GObject *object)
 {
     McdAccountManagerPrivate *priv = MCD_ACCOUNT_MANAGER_PRIV (object);
-
-    if (write_conf_id)
-    {
-        write_conf (priv->storage);
-        g_assert (write_conf_id == 0);
-    }
 
     tp_clear_object (&priv->storage);
     g_free (priv->account_connections_dir);
