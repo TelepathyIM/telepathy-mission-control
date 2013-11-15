@@ -27,6 +27,8 @@
 #include <telepathy-glib/telepathy-glib-dbus.h>
 
 #define DEBUG(format, ...) g_debug ("%s: " format, G_STRFUNC, ##__VA_ARGS__)
+#define CRITICAL(format, ...) \
+  g_critical ("%s: " format, G_STRFUNC, ##__VA_ARGS__)
 
 #define TESTDOT "org.freedesktop.Telepathy.Test."
 #define TESTSLASH "/org/freedesktop/Telepathy/Test/"
@@ -371,7 +373,7 @@ test_dbus_account_plugin_process_account_deletion (TestDBusAccountPlugin *self,
 
   if (account == NULL)
     {
-      g_warning ("accounts service deleted %s but we don't "
+      CRITICAL ("accounts service deleted %s but we don't "
           "have any record of that account", account_name);
     }
   else
@@ -409,7 +411,7 @@ test_dbus_account_plugin_process_attributes (TestDBusAccountPlugin *self,
 
   if (account == NULL)
     {
-      g_warning ("accounts service altered %s but we don't "
+      CRITICAL ("accounts service altered %s but we don't "
           "have any record of that account", account_name);
     }
   else
@@ -516,7 +518,7 @@ test_dbus_account_plugin_process_parameters (TestDBusAccountPlugin *self,
 
   if (account == NULL)
     {
-      g_warning ("accounts service altered %s but we don't "
+      CRITICAL ("accounts service altered %s but we don't "
           "have any record of that account", account_name);
     }
   else
