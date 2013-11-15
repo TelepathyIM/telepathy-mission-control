@@ -1828,33 +1828,21 @@ mcd_storage_delete_account (McdStorage *self,
 void
 mcd_storage_commit (McdStorage *self, const gchar *account)
 {
-  GList *store;
   McpAccountManager *ma = MCP_ACCOUNT_MANAGER (self);
   McpAccountStorage *plugin;
   const gchar *pname;
 
   g_return_if_fail (MCD_IS_STORAGE (self));
+  g_return_if_fail (account != NULL);
 
-  if (account != NULL)
-    {
-      plugin = g_hash_table_lookup (self->accounts, account);
-      g_return_if_fail (plugin != NULL);
+  plugin = g_hash_table_lookup (self->accounts, account);
+  g_return_if_fail (plugin != NULL);
 
-      pname = mcp_account_storage_name (plugin);
+  pname = mcp_account_storage_name (plugin);
 
-      DEBUG ("flushing plugin %s %s to long term storage", pname, account);
-      mcp_account_storage_commit (plugin, ma, account);
-      return;
-    }
-
-  for (store = stores; store != NULL; store = g_list_next (store))
-    {
-      plugin = store->data;
-      pname = mcp_account_storage_name (plugin);
-
-      DEBUG ("flushing plugin %s to long term storage", pname);
-      mcp_account_storage_commit (plugin, ma, NULL);
-    }
+  /* FIXME: fd.o #29563: this should be async, really */
+  DEBUG ("flushing plugin %s %s to long term storage", pname, account);
+  mcp_account_storage_commit (plugin, ma, account);
 }
 
 /*
