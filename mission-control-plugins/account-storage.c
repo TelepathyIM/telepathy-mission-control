@@ -151,13 +151,6 @@ default_create (const McpAccountStorage *storage,
   return NULL;
 }
 
-static GList *
-default_list (const McpAccountStorage *storage,
-    const McpAccountManager *am)
-{
-  return NULL;
-}
-
 static void
 default_ready (const McpAccountStorage *storage,
     const McpAccountManager *am)
@@ -186,28 +179,6 @@ default_get_restrictions (const McpAccountStorage *storage,
     const gchar *account)
 {
   return 0;
-}
-
-static GVariant *
-default_get_attribute (McpAccountStorage *storage,
-    McpAccountManager *am,
-    const gchar *account,
-    const gchar *attribute,
-    const GVariantType *type,
-    McpAttributeFlags *flags)
-{
-  return NULL;
-}
-
-static GVariant *
-default_get_parameter (McpAccountStorage *storage,
-    McpAccountManager *am,
-    const gchar *account,
-    const gchar *parameter,
-    const GVariantType *type,
-    McpParameterFlags *flags)
-{
-  return NULL;
 }
 
 static McpAccountStorageSetResult
@@ -243,13 +214,10 @@ class_init (gpointer klass,
   iface->delete_async = default_delete_async;
   iface->delete_finish = default_delete_finish;
   iface->commit = default_commit;
-  iface->list = default_list;
   iface->ready = default_ready;
   iface->get_identifier = default_get_identifier;
   iface->get_additional_info = default_get_additional_info;
   iface->get_restrictions = default_get_restrictions;
-  iface->get_attribute = default_get_attribute;
-  iface->get_parameter = default_get_parameter;
   iface->set_attribute = default_set_attribute;
   iface->set_parameter = default_set_parameter;
 
@@ -468,7 +436,7 @@ mcp_account_storage_priority (const McpAccountStorage *storage)
  *
  * Retrieve an attribute.
  *
- * There is a default implementation, which just returns %NULL.
+ * There is no default implementation.
  * All account storage plugins must override this method.
  *
  * The returned variant does not necessarily have to match @type:
@@ -508,7 +476,7 @@ mcp_account_storage_get_attribute (McpAccountStorage *storage,
  *
  * Retrieve a parameter.
  *
- * There is a default implementation, which just returns %NULL.
+ * There is no default implementation.
  * All account storage plugins must override this method.
  *
  * The returned variant does not necessarily have to match @type:
@@ -819,7 +787,8 @@ mcp_account_storage_commit (const McpAccountStorage *storage,
  * This method is called only at initialisation time, before the dbus name
  * has been claimed, and is the only one permitted to block.
  *
- * The default implementation returns %NULL, i.e. an empty list.
+ * There is no default implementation. All implementations of this interface
+ * must override this method.
  *
  * Returns: (element-type utf8) (transfer full): a list of account names that
  * the plugin has settings for. The account names should be freed with
