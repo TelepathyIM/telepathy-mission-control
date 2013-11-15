@@ -981,7 +981,10 @@ _list (const McpAccountStorage *self,
 
   while (g_hash_table_iter_next (&hash_iter, &k, &v))
     {
-      rval = g_list_prepend (rval, g_strdup (k));
+      McdDefaultStoredAccount *sa = v;
+
+      if (!sa->absent)
+        rval = g_list_prepend (rval, g_strdup (k));
     }
 
   return rval;
