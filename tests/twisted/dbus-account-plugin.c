@@ -972,8 +972,8 @@ test_dbus_account_plugin_get_attribute (McpAccountStorage *storage,
   if (flags != NULL)
     *flags = 0;
 
-  if (!self->active || account == NULL)
-    return NULL;
+  g_return_val_if_fail (self->active, NULL);
+  g_return_val_if_fail (account != NULL, NULL);
 
   v = g_hash_table_lookup (account->attributes, attribute);
 
@@ -1008,8 +1008,8 @@ test_dbus_account_plugin_get_parameter (McpAccountStorage *storage,
   if (flags != NULL)
     *flags = 0;
 
-  if (!self->active || account == NULL)
-    return NULL;
+  g_return_val_if_fail (self->active, NULL);
+  g_return_val_if_fail (account != NULL, NULL);
 
   g_dbus_connection_emit_signal (self->bus, NULL,
       TEST_DBUS_ACCOUNT_PLUGIN_PATH, TEST_DBUS_ACCOUNT_PLUGIN_IFACE,
@@ -1052,8 +1052,8 @@ test_dbus_account_plugin_set_attribute (McpAccountStorage *storage,
 
   DEBUG ("%s of %s", attribute, account_name);
 
-  if (!self->active || account == NULL)
-    return MCP_ACCOUNT_STORAGE_SET_RESULT_FAILED;
+  g_return_val_if_fail (self->active, MCP_ACCOUNT_STORAGE_SET_RESULT_FAILED);
+  g_return_val_if_fail (account != NULL, MCP_ACCOUNT_STORAGE_SET_RESULT_FAILED);
 
   if (value == NULL)
     {
@@ -1112,8 +1112,8 @@ test_dbus_account_plugin_set_parameter (McpAccountStorage *storage,
 
   DEBUG ("%s of %s", parameter, account_name);
 
-  if (!self->active || account == NULL)
-    return MCP_ACCOUNT_STORAGE_SET_RESULT_FAILED;
+  g_return_val_if_fail (self->active, MCP_ACCOUNT_STORAGE_SET_RESULT_FAILED);
+  g_return_val_if_fail (account != NULL, MCP_ACCOUNT_STORAGE_SET_RESULT_FAILED);
 
   if (value == NULL)
     {
@@ -1342,8 +1342,8 @@ test_dbus_account_plugin_commit (const McpAccountStorage *storage,
 
   account = lookup_account (self, account_name);
 
-  if (!self->active || account == NULL)
-    return FALSE;
+  g_return_val_if_fail (self->active, FALSE);
+  g_return_val_if_fail (account != NULL, FALSE);
 
   g_dbus_connection_emit_signal (self->bus, NULL,
       TEST_DBUS_ACCOUNT_PLUGIN_PATH, TEST_DBUS_ACCOUNT_PLUGIN_IFACE,
@@ -1484,8 +1484,8 @@ test_dbus_account_plugin_get_identifier (const McpAccountStorage *storage,
 
   DEBUG ("%s", account_name);
 
-  if (!self->active || account == NULL)
-    return;
+  g_return_if_fail (self->active);
+  g_return_if_fail (account != NULL);
 
   /* Our "library-specific unique identifier" is just the object-path
    * as a string. */
@@ -1503,8 +1503,8 @@ test_dbus_account_plugin_get_additional_info (const McpAccountStorage *storage,
 
   DEBUG ("%s", account_name);
 
-  if (!self->active || account == NULL)
-    return NULL;
+  g_return_val_if_fail (self->active, NULL);
+  g_return_val_if_fail (account != NULL, NULL);
 
   ret = g_hash_table_new_full (g_str_hash, g_str_equal,
       g_free, (GDestroyNotify) tp_g_value_slice_free);
@@ -1523,8 +1523,8 @@ test_dbus_account_plugin_get_restrictions (const McpAccountStorage *storage,
 
   DEBUG ("%s", account_name);
 
-  if (!self->active || account == NULL)
-    return 0;
+  g_return_val_if_fail (self->active, 0);
+  g_return_val_if_fail (account != NULL, 0);
 
   return account->restrictions;
 }
