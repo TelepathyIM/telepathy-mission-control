@@ -409,8 +409,8 @@ identify_account_async (McpAccountManager *mcpa,
 static gint
 account_storage_cmp (gconstpointer a, gconstpointer b)
 {
-    gint pa = mcp_account_storage_priority (a);
-    gint pb = mcp_account_storage_priority (b);
+    gint pa = mcp_account_storage_priority ((McpAccountStorage *) a);
+    gint pb = mcp_account_storage_priority ((McpAccountStorage *) b);
 
     if (pa > pb) return -1;
     if (pa < pb) return 1;

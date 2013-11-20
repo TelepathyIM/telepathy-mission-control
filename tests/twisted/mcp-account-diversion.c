@@ -250,8 +250,8 @@ _get_parameter (McpAccountStorage *self,
   return ret;
 }
 
-static gboolean _commit (const McpAccountStorage *self,
-    const McpAccountManager *am,
+static gboolean _commit (McpAccountStorage *self,
+    McpAccountManager *am,
     const gchar *account_name);
 
 static void
@@ -292,8 +292,8 @@ delete_finish (McpAccountStorage *storage,
 }
 
 static gboolean
-_commit (const McpAccountStorage *self,
-    const McpAccountManager *am,
+_commit (McpAccountStorage *self,
+    McpAccountManager *am,
     const gchar *account_name G_GNUC_UNUSED)
 {
   gsize n;
@@ -321,8 +321,8 @@ _commit (const McpAccountStorage *self,
 }
 
 static GList *
-_list (const McpAccountStorage *self,
-    const McpAccountManager *am)
+_list (McpAccountStorage *self,
+    McpAccountManager *am)
 {
   gsize i;
   gsize n;
@@ -348,8 +348,8 @@ _list (const McpAccountStorage *self,
 }
 
 static gchar *
-create (const McpAccountStorage *self,
-    const McpAccountManager *am,
+create (McpAccountStorage *self,
+    McpAccountManager *am,
     const gchar *manager,
     const gchar *protocol,
     const gchar *identification,

@@ -748,8 +748,8 @@ parameters_changed_cb (GDBusConnection *bus,
 }
 
 static GList *
-test_dbus_account_plugin_list (const McpAccountStorage *storage,
-    const McpAccountManager *am)
+test_dbus_account_plugin_list (McpAccountStorage *storage,
+    McpAccountManager *am)
 {
   TestDBusAccountPlugin *self = TEST_DBUS_ACCOUNT_PLUGIN (storage);
   GError *error = NULL;
@@ -858,8 +858,8 @@ test_dbus_account_plugin_list (const McpAccountStorage *storage,
 }
 
 static void
-test_dbus_account_plugin_ready (const McpAccountStorage *storage,
-    const McpAccountManager *am)
+test_dbus_account_plugin_ready (McpAccountStorage *storage,
+    McpAccountManager *am)
 {
   TestDBusAccountPlugin *self = TEST_DBUS_ACCOUNT_PLUGIN (storage);
 
@@ -873,8 +873,8 @@ test_dbus_account_plugin_ready (const McpAccountStorage *storage,
 }
 
 static gchar *
-test_dbus_account_plugin_create (const McpAccountStorage *storage,
-    const McpAccountManager *am,
+test_dbus_account_plugin_create (McpAccountStorage *storage,
+    McpAccountManager *am,
     const gchar *manager,
     const gchar *protocol,
     const gchar *identifier,
@@ -1286,8 +1286,8 @@ update_parameters_cb (GObject *source_object,
 }
 
 static gboolean
-test_dbus_account_plugin_commit (const McpAccountStorage *storage,
-    const McpAccountManager *am,
+test_dbus_account_plugin_commit (McpAccountStorage *storage,
+    McpAccountManager *am,
     const gchar *account_name)
 {
   TestDBusAccountPlugin *self = TEST_DBUS_ACCOUNT_PLUGIN (storage);
@@ -1436,7 +1436,7 @@ test_dbus_account_plugin_commit (const McpAccountStorage *storage,
 }
 
 static void
-test_dbus_account_plugin_get_identifier (const McpAccountStorage *storage,
+test_dbus_account_plugin_get_identifier (McpAccountStorage *storage,
     const gchar *account_name,
     GValue *identifier)
 {
@@ -1455,7 +1455,7 @@ test_dbus_account_plugin_get_identifier (const McpAccountStorage *storage,
 }
 
 static GHashTable *
-test_dbus_account_plugin_get_additional_info (const McpAccountStorage *storage,
+test_dbus_account_plugin_get_additional_info (McpAccountStorage *storage,
     const gchar *account_name)
 {
   TestDBusAccountPlugin *self = TEST_DBUS_ACCOUNT_PLUGIN (storage);
@@ -1476,7 +1476,7 @@ test_dbus_account_plugin_get_additional_info (const McpAccountStorage *storage,
 }
 
 static guint
-test_dbus_account_plugin_get_restrictions (const McpAccountStorage *storage,
+test_dbus_account_plugin_get_restrictions (McpAccountStorage *storage,
     const gchar *account_name)
 {
   TestDBusAccountPlugin *self = TEST_DBUS_ACCOUNT_PLUGIN (storage);

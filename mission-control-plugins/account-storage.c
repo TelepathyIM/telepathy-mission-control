@@ -133,16 +133,16 @@ default_delete_finish (McpAccountStorage *storage,
 }
 
 static gboolean
-default_commit (const McpAccountStorage *storage,
-    const McpAccountManager *am,
+default_commit (McpAccountStorage *storage,
+    McpAccountManager *am,
     const gchar *account)
 {
   return FALSE;
 }
 
 static gchar *
-default_create (const McpAccountStorage *storage,
-    const McpAccountManager *am,
+default_create (McpAccountStorage *storage,
+    McpAccountManager *am,
     const gchar *manager,
     const gchar *protocol,
     const gchar *identification,
@@ -154,14 +154,14 @@ default_create (const McpAccountStorage *storage,
 }
 
 static void
-default_ready (const McpAccountStorage *storage,
-    const McpAccountManager *am)
+default_ready (McpAccountStorage *storage,
+    McpAccountManager *am)
 {
   /* do nothing */
 }
 
 static void
-default_get_identifier (const McpAccountStorage *storage,
+default_get_identifier (McpAccountStorage *storage,
     const gchar *account,
     GValue *identifier)
 {
@@ -170,14 +170,14 @@ default_get_identifier (const McpAccountStorage *storage,
 }
 
 static GHashTable *
-default_get_additional_info (const McpAccountStorage *storage,
+default_get_additional_info (McpAccountStorage *storage,
     const gchar *account)
 {
   return g_hash_table_new (g_str_hash, g_str_equal);
 }
 
 static TpStorageRestrictionFlags
-default_get_restrictions (const McpAccountStorage *storage,
+default_get_restrictions (McpAccountStorage *storage,
     const gchar *account)
 {
   return 0;
@@ -417,7 +417,7 @@ mcp_account_storage_get_type (void)
  * Returns: the priority of this plugin
  **/
 gint
-mcp_account_storage_priority (const McpAccountStorage *storage)
+mcp_account_storage_priority (McpAccountStorage *storage)
 {
   McpAccountStorageIface *iface = MCP_ACCOUNT_STORAGE_GET_IFACE (storage);
 
@@ -657,8 +657,8 @@ mcp_account_storage_set_parameter (McpAccountStorage *storage,
  *  be done.
  */
 gchar *
-mcp_account_storage_create (const McpAccountStorage *storage,
-    const McpAccountManager *am,
+mcp_account_storage_create (McpAccountStorage *storage,
+    McpAccountManager *am,
     const gchar *manager,
     const gchar *protocol,
     const gchar *identification,
@@ -774,8 +774,8 @@ mcp_account_storage_delete_finish (McpAccountStorage *storage,
  * obvious.
  */
 gboolean
-mcp_account_storage_commit (const McpAccountStorage *storage,
-    const McpAccountManager *am,
+mcp_account_storage_commit (McpAccountStorage *storage,
+    McpAccountManager *am,
     const gchar *account)
 {
   McpAccountStorageIface *iface = MCP_ACCOUNT_STORAGE_GET_IFACE (storage);
@@ -817,8 +817,8 @@ mcp_account_storage_commit (const McpAccountStorage *storage,
  * them.
  */
 GList *
-mcp_account_storage_list (const McpAccountStorage *storage,
-    const McpAccountManager *am)
+mcp_account_storage_list (McpAccountStorage *storage,
+    McpAccountManager *am)
 {
   McpAccountStorageIface *iface = MCP_ACCOUNT_STORAGE_GET_IFACE (storage);
 
@@ -851,8 +851,8 @@ mcp_account_storage_list (const McpAccountStorage *storage,
  * "deleted".
  */
 void
-mcp_account_storage_ready (const McpAccountStorage *storage,
-    const McpAccountManager *am)
+mcp_account_storage_ready (McpAccountStorage *storage,
+    McpAccountManager *am)
 {
   McpAccountStorageIface *iface = MCP_ACCOUNT_STORAGE_GET_IFACE (storage);
 
@@ -889,7 +889,7 @@ mcp_account_storage_ready (const McpAccountStorage *storage,
  * the account.
  */
 void
-mcp_account_storage_get_identifier (const McpAccountStorage *storage,
+mcp_account_storage_get_identifier (McpAccountStorage *storage,
     const gchar *account,
     GValue *identifier)
 {
@@ -932,7 +932,7 @@ mcp_account_storage_get_identifier (const McpAccountStorage *storage,
  *  storage-specific information, which must not be %NULL
  */
 GHashTable *
-mcp_account_storage_get_additional_info (const McpAccountStorage *storage,
+mcp_account_storage_get_additional_info (McpAccountStorage *storage,
     const gchar *account)
 {
   McpAccountStorageIface *iface = MCP_ACCOUNT_STORAGE_GET_IFACE (storage);
@@ -968,7 +968,7 @@ mcp_account_storage_get_additional_info (const McpAccountStorage *storage,
  *  account storage.
  */
 TpStorageRestrictionFlags
-mcp_account_storage_get_restrictions (const McpAccountStorage *storage,
+mcp_account_storage_get_restrictions (McpAccountStorage *storage,
     const gchar *account)
 {
   McpAccountStorageIface *iface = MCP_ACCOUNT_STORAGE_GET_IFACE (storage);
@@ -989,7 +989,7 @@ mcp_account_storage_get_restrictions (const McpAccountStorage *storage,
  * Returns: the plugin's name (for logging etc)
  */
 const gchar *
-mcp_account_storage_name (const McpAccountStorage *storage)
+mcp_account_storage_name (McpAccountStorage *storage)
 {
   McpAccountStorageIface *iface = MCP_ACCOUNT_STORAGE_GET_IFACE (storage);
 
@@ -1007,7 +1007,7 @@ mcp_account_storage_name (const McpAccountStorage *storage)
  * Returns: the plugin's description (for logging etc)
  */
 const gchar *
-mcp_account_storage_description (const McpAccountStorage *storage)
+mcp_account_storage_description (McpAccountStorage *storage)
 {
   McpAccountStorageIface *iface = MCP_ACCOUNT_STORAGE_GET_IFACE (storage);
 
@@ -1026,7 +1026,7 @@ mcp_account_storage_description (const McpAccountStorage *storage)
  *  was provided in #McpAccountStorageIface.provider.
  */
 const gchar *
-mcp_account_storage_provider (const McpAccountStorage *storage)
+mcp_account_storage_provider (McpAccountStorage *storage)
 {
   McpAccountStorageIface *iface = MCP_ACCOUNT_STORAGE_GET_IFACE (storage);
 

@@ -326,8 +326,8 @@ get_parameter (McpAccountStorage *self,
 }
 
 static gchar *
-_create (const McpAccountStorage *self,
-    const McpAccountManager *am,
+_create (McpAccountStorage *self,
+    McpAccountManager *am,
     const gchar *manager,
     const gchar *protocol,
     const gchar *identification,
@@ -520,8 +520,8 @@ am_default_commit_one (McdAccountManagerDefault *self,
 }
 
 static gboolean
-_commit (const McpAccountStorage *self,
-    const McpAccountManager *am,
+_commit (McpAccountStorage *self,
+    McpAccountManager *am,
     const gchar *account)
 {
   McdAccountManagerDefault *amd = MCD_ACCOUNT_MANAGER_DEFAULT (self);
@@ -819,8 +819,8 @@ am_default_load_directory (McdAccountManagerDefault *self,
 }
 
 static GList *
-_list (const McpAccountStorage *self,
-    const McpAccountManager *am)
+_list (McpAccountStorage *self,
+    McpAccountManager *am)
 {
   GList *rval = NULL;
   McdAccountManagerDefault *amd = MCD_ACCOUNT_MANAGER_DEFAULT (self);
