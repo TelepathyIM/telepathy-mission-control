@@ -236,7 +236,7 @@ _commit (const McpAccountStorage *self,
   if (!mcd_ensure_directory (dir, &error))
     {
       g_warning ("%s", error->message);
-      g_error_free (error);
+      g_clear_error (&error);
       /* fall through anyway: writing to the file will fail, but it does
        * give us a chance to commit to the keyring too */
     }
