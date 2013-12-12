@@ -1626,10 +1626,10 @@ on_inactivity_changed (McdSlacker *slacker,
     McdConnection *self)
 {
   McdConnectionPrivate *priv = self->priv;
-  DEBUG ("%sactive, %s have power saving iface.", inactive ? "in" : "",
-      priv->has_power_saving_if ? "has" : "doesn't");
+  DEBUG ("%sactive, connection %s have power saving iface.", inactive ? "in" : "",
+      priv->has_power_saving_if ? "does" : "doesn't");
 
-  if (priv->has_power_saving_if)
+  if (priv->tp_conn != NULL && priv->has_power_saving_if)
     tp_cli_connection_interface_power_saving_call_set_power_saving (priv->tp_conn, -1,
         inactive, NULL, NULL, NULL, NULL);
 }
