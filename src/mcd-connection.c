@@ -1065,28 +1065,6 @@ on_connection_ready (GObject *source_object, GAsyncResult *result,
     if (!connection)
         goto finally;
 
-    if (!tp_proxy_has_interface_by_id (tp_conn,
-            TP_IFACE_QUARK_CONNECTION_INTERFACE_REQUESTS))
-    {
-        GHashTable *asv;
-
-        DEBUG ("%s: connection manager is too old",
-               tp_proxy_get_object_path (tp_conn));
-        connection->priv->abort_reason =
-            TP_CONNECTION_STATUS_REASON_NONE_SPECIFIED;
-        asv = tp_asv_new (
-            "debug-message", G_TYPE_STRING,
-                "Connection manager does not implement Requests interface",
-            NULL);
-        g_signal_emit (connection, signals[CONNECTION_STATUS_CHANGED], 0,
-            TP_CONNECTION_STATUS_DISCONNECTED,
-            connection->priv->abort_reason,
-            tp_conn, TP_ERROR_STR_SOFTWARE_UPGRADE_REQUIRED, asv);
-        g_hash_table_unref (asv);
-        _mcd_connection_release_tp_connection (connection, NULL, TRUE);
-        goto finally;
-    }
-
     DEBUG ("connection is ready");
     priv = MCD_CONNECTION_PRIV (connection);
 
@@ -1134,8 +1112,6 @@ _mcd_connection_start_dispatching (McdConnection *self,
 
     self->priv->dispatching_started = TRUE;
 
-    g_return_if_fail (tp_proxy_has_interface_by_id (self->priv->tp_conn,
-        TP_IFACE_QUARK_CONNECTION_INTERFACE_REQUESTS));
     mcd_connection_setup_requests (self);
 
     /* FIXME: why is this here? if we need to update caps before and after   *
@@ -1170,11 +1146,7 @@ mcd_connection_done_task_before_connect (McdConnection *self)
             DEBUG ("TpConnection went away, not doing anything");
         }
 
-        if (tp_proxy_has_interface_by_id (self->priv->tp_conn,
-                TP_IFACE_QUARK_CONNECTION_INTERFACE_REQUESTS))
-        {
-            _mcd_dispatcher_add_connection (self->priv->dispatcher, self);
-        }
+        _mcd_dispatcher_add_connection (self->priv->dispatcher, self);
 
         DEBUG ("%s: Calling Connect()",
                tp_proxy_get_object_path (self->priv->tp_conn));
@@ -1297,12 +1269,6 @@ mcd_connection_early_get_interfaces_cb (TpProxy *proxy,
                 /* else the McdDispatcher hasn't sorted itself out yet, so
                  * we can't usefully pre-load capabilities - we'll be told
                  * the real capabilities as soon as it has worked them out */
-            }
-            else if (q == TP_IFACE_QUARK_CONNECTION_INTERFACE_REQUESTS)
-            {
-              /* If we have the Requests iface, we could start dispatching
-               * before the connection is in CONNECTED state */
-              tp_proxy_add_interface_by_id ((TpProxy *) tp_conn, q);
             }
         }
     }
@@ -1805,20 +1771,7 @@ _mcd_connection_request_channel (McdConnection *connection,
         return TRUE;
     }
 
-    if (tp_proxy_has_interface_by_id (priv->tp_conn,
-            TP_IFACE_QUARK_CONNECTION_INTERFACE_REQUESTS))
-    {
-        ret = request_channel_new_iface (connection, channel);
-    }
-    else
-    {
-        mcd_channel_take_error (channel,
-                                g_error_new (TP_ERROR,
-                                             TP_ERROR_NOT_IMPLEMENTED,
-                                             "No Requests interface"));
-        mcd_mission_abort ((McdMission *) channel);
-        return TRUE;
-    }
+    ret = request_channel_new_iface (connection, channel);
 
     if (ret)
         _mcd_channel_set_status (channel, MCD_CHANNEL_STATUS_REQUESTED);

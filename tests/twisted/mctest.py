@@ -256,7 +256,6 @@ class SimulatedConnection(object):
 
         self.interfaces = []
         self.interfaces.append(cs.CONN_IFACE_CONTACTS)
-        self.interfaces.append(cs.CONN_IFACE_REQUESTS)
 
         if self.has_aliasing:
             self.interfaces.append(cs.CONN_IFACE_ALIASING)
