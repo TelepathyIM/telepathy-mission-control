@@ -626,15 +626,14 @@ def wrap_connection(conn):
     return ConnWrapper(conn, tp_name_prefix + '.Connection',
         dict(
         [('Peer', 'org.freedesktop.DBus.Peer'),
+         ('Contacts', cs.CONN),     # backwards compat with Telepathy 0
          ('Aliasing', cs.CONN_IFACE_ALIASING),
          ('Avatars', cs.CONN_IFACE_AVATARS),
-         ('Contacts', cs.CONN_IFACE_CONTACTS),
          ('ContactCapabilities', cs.CONN_IFACE_CONTACT_CAPS),
          ('ContactInfo', cs.CONN_IFACE_CONTACT_INFO),
          ('Location', cs.CONN_IFACE_LOCATION),
          ('Presence', cs.CONN_IFACE_PRESENCE),
          ('Requests', cs.CONN_IFACE_REQUESTS),
-         ('Future', tp_name_prefix + '.Connection.FUTURE'),
          ('MailNotification', cs.CONN_IFACE_MAIL_NOTIFICATION),
          ('ContactList', cs.CONN_IFACE_CONTACT_LIST),
          ('ContactGroups', cs.CONN_IFACE_CONTACT_GROUPS),
@@ -642,13 +641,29 @@ def wrap_connection(conn):
          ('PowerSaving', cs.CONN_IFACE_POWER_SAVING),
          ('Addressing', cs.CONN_IFACE_ADDRESSING),
          ('ClientTypes', cs.CONN_IFACE_CLIENT_TYPES),
+         ('Renaming', cs.CONN_IFACE_RENAMING),
+         ('Sidecars1', cs.CONN_IFACE_SIDECARS1),
         ]))
+
+class ChannelWrapper(ProxyWrapper):
+    def send_msg_sync(self, txt):
+        message = [
+                { 'message-type': cs.MT_NORMAL, },
+                { 'content-type': 'text/plain',
+                  'content': txt
+                }]
+        self.Text.SendMessage(message, 0)
 
 def wrap_channel(chan, type_, extra=None):
     interfaces = {
         type_: tp_name_prefix + '.Channel.Type.' + type_,
         'Channel': cs.CHANNEL,
         'Group': cs.CHANNEL_IFACE_GROUP,
+        'Hold': cs.CHANNEL_IFACE_HOLD,
+        'RoomConfig1': cs.CHANNEL_IFACE_ROOM_CONFIG,
+        'ChatState': cs.CHANNEL_IFACE_CHAT_STATE,
+        'Destroyable': cs.CHANNEL_IFACE_DESTROYABLE,
+        'Password': cs.CHANNEL_IFACE_PASSWORD,
         }
 
     if extra:
@@ -656,11 +671,14 @@ def wrap_channel(chan, type_, extra=None):
             (name, tp_name_prefix + '.Channel.Interface.' + name)
             for name in extra]))
 
-    return ProxyWrapper(chan, tp_name_prefix + '.Channel', interfaces)
+    return ChannelWrapper(chan, tp_name_prefix + '.Channel', interfaces)
 
 
 def wrap_content(chan, extra=None):
-    interfaces = { }
+    interfaces = {
+        'DTMF': cs.CALL_CONTENT_IFACE_DTMF,
+        'Media': cs.CALL_CONTENT_IFACE_MEDIA,
+        }
 
     if extra:
         interfaces.update(dict([
