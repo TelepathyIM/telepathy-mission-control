@@ -255,7 +255,6 @@ class SimulatedConnection(object):
         self.avatar_delayed = server_delays_avatar
 
         self.interfaces = []
-        self.interfaces.append(cs.CONN_IFACE_CONTACTS)
 
         if self.has_aliasing:
             self.interfaces.append(cs.CONN_IFACE_ALIASING)
@@ -296,18 +295,10 @@ class SimulatedConnection(object):
 
         q.add_dbus_method_impl(self.GetContactAttributes,
                 path=self.object_path,
-                interface=cs.CONN_IFACE_CONTACTS, method='GetContactAttributes')
+                interface=cs.CONN, method='GetContactAttributes')
         q.add_dbus_method_impl(self.GetContactByID,
                 path=self.object_path,
-                interface=cs.CONN_IFACE_CONTACTS, method='GetContactByID')
-        q.add_dbus_method_impl(self.Get_ContactAttributeInterfaces,
-                path=self.object_path,
-                interface=cs.PROPERTIES_IFACE, method='Get',
-                args=[cs.CONN_IFACE_CONTACTS, 'ContactAttributeInterfaces'])
-        q.add_dbus_method_impl(self.GetAll_Contacts,
-                path=self.object_path,
-                interface=cs.PROPERTIES_IFACE, method='GetAll',
-                args=[cs.CONN_IFACE_CONTACTS])
+                interface=cs.CONN, method='GetContactByID')
 
         if has_presence:
             q.add_dbus_method_impl(self.SetPresence, path=self.object_path,
@@ -588,17 +579,6 @@ class SimulatedConnection(object):
         h = self.ensure_handle(e.args[0])
         self.q.dbus_return(e.message, h,
                 self.get_contact_attributes(h, e.args[1]), signature='ua{sv}')
-
-    def GetAll_Contacts(self, e):
-        self.q.dbus_return(e.message, {
-            'ContactAttributeInterfaces':
-                self.get_contact_attribute_interfaces(),
-            }, signature='a{sv}')
-
-    def Get_ContactAttributeInterfaces(self, e):
-        self.q.dbus_return(e.message,
-            dbus.Array(self.get_contact_attribute_interfaces(), signature='s'),
-            signature='v')
 
 class SimulatedChannel(object):
     def __init__(self, conn, immutable, mutable={},

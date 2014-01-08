@@ -51,7 +51,7 @@ def test(q, bus, mc, nickname):
     # OK, let's go online
     expect_after_connect = [
             EventPattern('dbus-method-call',
-                interface=cs.CONN_IFACE_CONTACTS,
+                interface=cs.CONN,
                 predicate=(lambda e: e.method in (
                     'GetContactAttributes', 'GetContactByID'
                     ) and

@@ -51,7 +51,7 @@ def test(q, bus, mc):
 
     expect_after_connect = [
             EventPattern('dbus-method-call',
-                interface=cs.CONN_IFACE_CONTACTS,
+                interface=cs.CONN,
                 predicate=(lambda e: e.method in (
                     'GetContactAttributes', 'GetContactByID'
                     ) and
@@ -88,7 +88,7 @@ def test(q, bus, mc):
 
     get_aliases, _ = q.expect_many(
         EventPattern('dbus-method-call',
-            interface=cs.CONN_IFACE_CONTACTS,
+            interface=cs.CONN,
             predicate=(lambda e: e.method in (
                 'GetContactAttributes', 'GetContactByID'
                 ) and
@@ -127,7 +127,7 @@ def test(q, bus, mc):
     # In response to the self-handle change, we check our nickname again
     get_aliases, _ = q.expect_many(
         EventPattern('dbus-method-call',
-            interface=cs.CONN_IFACE_CONTACTS,
+            interface=cs.CONN,
             predicate=(lambda e: e.method in (
                 'GetContactAttributes', 'GetContactByID'
                 ) and
