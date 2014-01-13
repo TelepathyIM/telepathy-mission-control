@@ -59,9 +59,6 @@ MC_DEBUG=all
 export MC_DEBUG
 G_DEBUG=fatal-criticals
 export G_DEBUG
-# for ENABLE_LIBACCOUNTS_SSO
-AG_DEBUG=all
-export AG_DEBUG
 
 GIO_EXTRA_MODULES="${plugins}"
 export GIO_EXTRA_MODULES
@@ -106,12 +103,6 @@ for i in $list ; do
   export XDG_CACHE_HOME
   XDG_CACHE_DIR="${tmp}/cache"
   export XDG_CACHE_DIR
-
-  # for ENABLE_LIBACCOUNTS_SSO
-  ACCOUNTS="${tmp}/libaccounts-accounts"
-  export ACCOUNTS
-  AG_SERVICES="${tmp}/libaccounts-services"
-  export AG_SERVICES
 
   CHECK_TWISTED_VERBOSE=1
   export CHECK_TWISTED_VERBOSE

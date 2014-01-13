@@ -25,12 +25,27 @@ from servicetest import (Event, EventPattern)
 
 import constants as cs
 
-# indices into the tuple of dicts representing an account
-ATTRS = 0
-ATTR_FLAGS = 1
-PARAMS = 2
-UNTYPED_PARAMS = 3
-PARAM_FLAGS = 4
+class FakeAccount(object):
+
+    def __init__(self):
+        self.attrs = dbus.Dictionary({}, signature='sv')
+        self.attr_flags = dbus.Dictionary({}, signature='su')
+        self.params = dbus.Dictionary({}, signature='sv')
+        self.untyped_params = dbus.Dictionary({}, signature='ss')
+        self.param_flags = dbus.Dictionary({}, signature='su')
+        self.restrictions = 0
+
+    SIGNATURE = 'a{sv}a{su}a{sv}a{ss}a{su}u'
+
+    def to_dbus(self):
+        return (
+                self.attrs,
+                self.attr_flags,
+                self.params,
+                self.untyped_params,
+                self.param_flags,
+                dbus.UInt32(self.restrictions),
+                )
 
 class FakeAccountsService(object):
     def __init__(self, q, bus):
@@ -68,25 +83,28 @@ class FakeAccountsService(object):
                 method='UpdateParameters')
 
     def create_account(self, account, attrs={}, attr_flags={}, params={},
-            untyped_params={}, param_flags={}):
+            untyped_params={}, param_flags={}, restrictions=0):
+
         if account in self.accounts:
             raise KeyError('Account %s already exists' % account)
-        self.accounts[account] = ({}, {}, {}, {}, {})
-        self.accounts[account][ATTRS].update(attrs)
+
+        self.accounts[account] = FakeAccount()
+        self.accounts[account].restrictions = restrictions
+        self.accounts[account].attrs.update(attrs)
         for attr in attrs:
-            self.accounts[account][ATTR_FLAGS][attr] = dbus.UInt32(0)
-        self.accounts[account][ATTR_FLAGS].update(attr_flags)
-        self.accounts[account][PARAMS].update(params)
+            self.accounts[account].attr_flags[attr] = dbus.UInt32(0)
+        self.accounts[account].attr_flags.update(attr_flags)
+        self.accounts[account].params.update(params)
         for param in params:
-            self.accounts[account][PARAM_FLAGS][param] = dbus.UInt32(0)
-        self.accounts[account][UNTYPED_PARAMS].update(untyped_params)
+            self.accounts[account].param_flags[param] = dbus.UInt32(0)
+        self.accounts[account].untyped_params.update(untyped_params)
         for param in untyped_params:
-            self.accounts[account][PARAM_FLAGS][param] = dbus.UInt32(0)
-        self.accounts[account][PARAM_FLAGS].update(param_flags)
+            self.accounts[account].param_flags[param] = dbus.UInt32(0)
+        self.accounts[account].param_flags.update(param_flags)
         self.q.dbus_emit(self.object_path, cs.TEST_DBUS_ACCOUNT_SERVICE_IFACE,
                 'AccountCreated',
-                account, *self.accounts[account],
-                signature='sa{sv}a{su}a{sv}a{ss}a{su}')
+                account, *(self.accounts[account].to_dbus()),
+                signature='s' + FakeAccount.SIGNATURE)
 
     def CreateAccount(self, e):
         try:
@@ -111,28 +129,31 @@ class FakeAccountsService(object):
             self.q.dbus_return(e.message, signature='')
 
     def GetAccounts(self, e):
-        self.q.dbus_return(e.message, self.accounts,
-                signature='a{s(a{sv}a{su}a{sv}a{ss}a{su})}')
+        accounts = {}
+        for a in self.accounts:
+            accounts[a] = self.accounts[a].to_dbus()
+        self.q.dbus_return(e.message, accounts,
+                signature='a{s(' + FakeAccount.SIGNATURE + ')}')
 
     def update_attributes(self, account, changed={}, flags={}, deleted=[]):
         if account not in self.accounts:
             self.create_account(account)
 
         for (attribute, value) in changed.items():
-            self.accounts[account][ATTRS][attribute] = value
-            self.accounts[account][ATTR_FLAGS][attribute] = flags.get(
+            self.accounts[account].attrs[attribute] = value
+            self.accounts[account].attr_flags[attribute] = flags.get(
                     attribute, dbus.UInt32(0))
 
         for attribute in deleted:
-            if attribute in self.accounts[account][ATTRS]:
-                del self.accounts[account][ATTRS][attribute]
-            if attribute in self.accounts[account][ATTR_FLAGS]:
-                del self.accounts[account][ATTR_FLAGS][attribute]
+            if attribute in self.accounts[account].attrs:
+                del self.accounts[account].attrs[attribute]
+            if attribute in self.accounts[account].attr_flags:
+                del self.accounts[account].attr_flags[attribute]
 
         self.q.dbus_emit(self.object_path, cs.TEST_DBUS_ACCOUNT_SERVICE_IFACE,
                 'AttributesChanged',
                 account, changed,
-                dict([(a, self.accounts[account][ATTR_FLAGS][a])
+                dict([(a, self.accounts[account].attr_flags[a])
                     for a in changed]),
                 deleted, signature='sa{sv}a{su}as')
 
@@ -150,31 +171,31 @@ class FakeAccountsService(object):
             self.create_account(account)
 
         for (param, value) in changed.items():
-            self.accounts[account][PARAMS][param] = value
-            if param in self.accounts[account][UNTYPED_PARAMS]:
-                del self.accounts[account][UNTYPED_PARAMS][param]
-            self.accounts[account][PARAM_FLAGS][param] = flags.get(
+            self.accounts[account].params[param] = value
+            if param in self.accounts[account].untyped_params:
+                del self.accounts[account].untyped_params[param]
+            self.accounts[account].param_flags[param] = flags.get(
                     param, dbus.UInt32(0))
 
         for (param, value) in untyped.items():
-            self.accounts[account][UNTYPED_PARAMS][param] = value
-            if param in self.accounts[account][PARAMS]:
-                del self.accounts[account][PARAMS][param]
-            self.accounts[account][PARAM_FLAGS][param] = flags.get(
+            self.accounts[account].untyped_params[param] = value
+            if param in self.accounts[account].params:
+                del self.accounts[account].params[param]
+            self.accounts[account].param_flags[param] = flags.get(
                     param, dbus.UInt32(0))
 
         for param in deleted:
-            if param in self.accounts[account][PARAMS]:
-                del self.accounts[account][PARAMS][param]
-            if param in self.accounts[account][UNTYPED_PARAMS]:
-                del self.accounts[account][UNTYPED_PARAMS][param]
-            if param in self.accounts[account][PARAM_FLAGS]:
-                del self.accounts[account][PARAM_FLAGS][param]
+            if param in self.accounts[account].params:
+                del self.accounts[account].params[param]
+            if param in self.accounts[account].untyped_params:
+                del self.accounts[account].untyped_params[param]
+            if param in self.accounts[account].param_flags:
+                del self.accounts[account].param_flags[param]
 
         self.q.dbus_emit(self.object_path, cs.TEST_DBUS_ACCOUNT_SERVICE_IFACE,
                 'ParametersChanged',
                 account, changed, untyped,
-                dict([(p, self.accounts[account][PARAM_FLAGS][p])
+                dict([(p, self.accounts[account].param_flags[p])
                     for p in (set(changed.keys()) | set(untyped.keys()))]),
                 deleted,
                 signature='sa{sv}a{ss}a{su}as')

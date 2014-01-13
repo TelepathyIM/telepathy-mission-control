@@ -150,62 +150,7 @@ fi
 AC_SUBST(ACCOUNTS_CACHE_DIR)
 AC_DEFINE_UNQUOTED(ACCOUNTS_CACHE_DIR,"$ACCOUNTS_CACHE_DIR", [Directory for account/connection mapping for crash recovery])
 
-aegis_enabled="no"
-AC_MSG_CHECKING([whether to build with Aegis (libcreds) support])
-AC_ARG_ENABLE(aegis,
-              AC_HELP_STRING([--enable-aegis],
-                             [Aegis security framework support]),
-              [
-                AC_CHECK_LIB(creds, creds_init,
-                             [
-                               AC_DEFINE([ENABLE_AEGIS], [1],
-                                         [Define if Aegis is supported])
-                               AC_SUBST([AEGIS_LIBS], [-lcreds])
-                             ],
-                             [ AC_MSG_ERROR([Aegis: libcreds not found]) ])
-                aegis_enabled="yes"
-              ],
-              [
-                aegis_enabled="no"
-                AC_MSG_RESULT(no)
-                AC_DEFINE([ENABLE_AEGIS], [0], [Define if Aegis is supported])
-              ])
-
-AM_CONDITIONAL(ENABLE_AEGIS, [test x$aegis_enabled = xyes])
-
 PKG_PROG_PKG_CONFIG()
-
-dnl libaccounts-glib SSO
-libaccounts_sso_enabled="no"
-AC_MSG_CHECKING(whether to build with libaccounts-glib SSO suport)
-
-AC_ARG_ENABLE([libaccounts-sso],
-              AC_HELP_STRING([--enable-libaccounts-sso],
-                             [build with SSO suport. default=no]),
-              [ AC_MSG_RESULT(${enableval})
-                libaccounts_sso_enabled="${enableval}" ],
-              [ AC_MSG_RESULT(no) ] )
-
-AS_IF([ test "x$libaccounts_sso_enabled" = xauto ],
-      [ PKG_CHECK_EXISTS([libaccounts-glib],
-                         [libaccounts_sso_enabled=yes],
-                         [libaccounts_sso_enabled=no]) ])
-
-dnl set up the shell/make variable, the #define and check the package version
-AS_IF([ test "x$libaccounts_sso_enabled" = xyes ],
-      [ ENABLE_LIBACCOUNTS_SSO=yes
-        AC_DEFINE(ENABLE_LIBACCOUNTS_SSO, [1],
-                  [Define if libaccounts SSO support is required])
-        PKG_CHECK_MODULES([LIBACCOUNTS_SSO], [libaccounts-glib >= 0.26]) ],
-      [ AC_DEFINE(ENABLE_LIBACCOUNTS_SSO, [0]) ])
-
-dnl export the CFLAGS and LDFLAGS equivalents determined by PKG_CHECK_MODULES
-AC_SUBST(LIBACCOUNTS_SSO_CFLAGS)
-AC_SUBST(LIBACCOUNTS_SSO_LIBS)
-
-dnl the automake conditional
-AM_CONDITIONAL(ENABLE_LIBACCOUNTS_SSO, [test x$libaccounts_sso_enabled = xyes])
-dnl /libaccounts-glib SSO
 
 PKG_CHECK_MODULES(DBUS, [dbus-1 >= 0.95, dbus-glib-1 >= 0.82])
 AC_SUBST(DBUS_CFLAGS)
@@ -232,13 +177,6 @@ PKG_CHECK_MODULES([GIO_UNIX], [gio-unix-2.0],
 
 AC_DEFINE([GLIB_VERSION_MIN_REQUIRED], [GLIB_VERSION_2_30], [Ignore post 2.30 deprecations])
 AC_DEFINE([GLIB_VERSION_MAX_ALLOWED], [GLIB_VERSION_2_36], [Prevent post 2.36 APIs])
-
-dnl Check for MCE, a Maemo service used to determine when the device is idle.
-PKG_CHECK_MODULES([MCE], mce >= 1.5, [HAVE_MCE=yes], [HAVE_MCE=no])
-AM_CONDITIONAL([HAVE_MCE], [test x"$HAVE_MCE" = xyes])
-if test x"$HAVE_MCE" = xyes; then
-  AC_DEFINE([HAVE_MCE], [1], [Define if mce is available])
-fi
 
 # -----------------------------------------------------------
 # Connectivity integration
@@ -334,9 +272,5 @@ Configure summary:
     Features:
         Plugin API documentation.....:  ${enable_gtk_doc}
         Network Manager integration..:  ${have_nm}
-        ConnMan integration..........:  ${have_connman}
         Connectivity GSetting........:  ${enable_conn_setting}
-        Aegis........................:  ${aegis_enabled}
-        libaccounts-glib backend.....:  ${libaccounts_sso_enabled}
-        Nokia Mode Control Entity....:  ${HAVE_MCE}
 "

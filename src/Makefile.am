@@ -3,7 +3,6 @@ AM_CPPFLAGS = \
 	   $(DBUS_CFLAGS) \
 	   $(GLIB_CFLAGS) \
 	   $(NETWORK_MANAGER_CFLAGS) \
-	   $(CONNMAN_CFLAGS) \
 	   -DG_LOG_DOMAIN=\"mcd\" \
 	   -DMCD_PLUGIN_LOADER_DIR=\"@libdir@/mission-control-plugins.@MCP_ABI_VERSION@\" \
 	   -DMC_DISABLE_DEPRECATED -I$(top_srcdir)
@@ -25,12 +24,6 @@ mc_headers = \
 	mcd-dispatcher.h \
 	mcd-service.h \
 	mcd-storage.h
-
-if ENABLE_LIBACCOUNTS_SSO
-mc_headers += \
-	mcd-account-manager-sso.h \
-	$(NULL)
-endif
 
 mc_gen_headers = \
 	_gen/cli-Connection_Manager_Interface_Account_Storage.h \
@@ -71,17 +64,7 @@ libmcd_convenience_la_LIBADD = \
 	$(DBUS_LIBS) \
 	$(GLIB_LIBS) \
 	$(NETWORK_MANAGER_LIBS) \
-	$(CONNMAN_LIBS) \
 	$(NULL)
-
-if ENABLE_LIBACCOUNTS_SSO
-libmcd_convenience_la_LIBADD += $(LIBACCOUNTS_SSO_LIBS)
-AM_CPPFLAGS += $(LIBACCOUNTS_SSO_CFLAGS)
-endif
-
-if ENABLE_AEGIS
-libmcd_convenience_la_LIBADD += $(top_builddir)/plugins/libmcp-aegis.la
-endif
 
 noinst_LTLIBRARIES = libmcd-convenience.la
 
@@ -143,12 +126,6 @@ libmcd_convenience_la_SOURCES = \
 	request.h \
 	sp_timestamp.h \
 	$(mc_headers)
-
-if ENABLE_LIBACCOUNTS_SSO
-libmcd_convenience_la_SOURCES += \
-	mcd-account-manager-sso.c \
-	$(NULL)
-endif
 
 mcd-enum-types.h: stamp-mcd-enum-types.h
 	$(AM_V_GEN)true

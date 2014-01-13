@@ -19,6 +19,7 @@ TWISTED_BASIC_TESTS = \
 	account-manager/recover-from-disconnect.py \
 	account-manager/req-conn-fails.py \
 	account-manager/request-online.py \
+	account-manager/restricted-storage.py \
 	account-manager/service.py \
 	account-manager/update-parameters.py \
 	account-requests/cancel.py \
@@ -29,7 +30,6 @@ TWISTED_BASIC_TESTS = \
 	dispatcher/already-has-channel.py \
 	dispatcher/approver-fails.py \
 	dispatcher/bypass-approval.py \
-	dispatcher/bypass-observers.py \
 	dispatcher/cancel.py \
 	dispatcher/capture-bundle.py \
 	dispatcher/cdo-claim.py \
@@ -142,13 +142,6 @@ nobase_nodist_twistedtests_DATA = \
 	$(NULL)
 endif
 
-
-if HAVE_MCE
-HAVE_MCE_PYBOOL = True
-else
-HAVE_MCE_PYBOOL = False
-endif
-
 if HAVE_NM
 HAVE_NM_PYBOOL = True
 else
@@ -157,7 +150,6 @@ endif
 
 config.py: Makefile
 	$(AM_V_GEN) { \
-		echo "HAVE_MCE = $(HAVE_MCE_PYBOOL)"; \
 		echo "HAVE_NM = $(HAVE_NM_PYBOOL)"; \
 	} > $@
 

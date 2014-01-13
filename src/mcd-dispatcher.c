@@ -589,17 +589,7 @@ mcd_dispatcher_client_needs_recovery_cb (McdClientProxy *client,
     for (list = channels; list; list = list->next)
     {
         TpChannel *channel = list->data;
-        const gchar *object_path = tp_proxy_get_object_path (channel);
         GVariant *properties;
-        McdClientProxy *handler;
-
-        /* FIXME: This is not exactly the right behaviour, see fd.o#40305 */
-        handler = _mcd_dispatcher_lookup_handler (self, channel, NULL);
-        if (handler && _mcd_client_proxy_get_bypass_observers (handler))
-        {
-            DEBUG ("skipping unobservable channel %s", object_path);
-            continue;
-        }
 
         properties = tp_channel_dup_immutable_properties (channel);
 

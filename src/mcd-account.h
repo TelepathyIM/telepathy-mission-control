@@ -40,6 +40,7 @@ typedef struct _McdAccountClass McdAccountClass;
 
 #include "mcd-connection.h"
 #include "mcd-account-manager.h"
+#include "mcd-dbusprop.h"
 
 struct _McdAccount
 {
@@ -84,7 +85,9 @@ McdAccount *mcd_account_new (McdAccountManager *account_manager,
     const gchar *name,
     McdConnectivityMonitor *minotaur);
 
-void mcd_account_delete (McdAccount *account, McdAccountDeleteCb callback,
+void mcd_account_delete (McdAccount *account,
+                         McdDBusPropSetFlags flags,
+                         McdAccountDeleteCb callback,
                          gpointer user_data);
 
 const gchar *mcd_account_get_unique_name (McdAccount *account);

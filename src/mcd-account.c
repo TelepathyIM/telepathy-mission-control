@@ -158,7 +158,6 @@ struct _McdAccountPrivate
     gboolean loaded;
     gboolean has_been_online;
     gboolean removed;
-    gboolean always_on;
     gboolean changing_presence;
     gboolean setting_avatar;
     gboolean waiting_for_initial_avatar;
@@ -183,7 +182,6 @@ enum
     PROP_CONNECTIVITY_MONITOR,
     PROP_STORAGE,
     PROP_NAME,
-    PROP_ALWAYS_ON,
 };
 
 enum
@@ -673,8 +671,12 @@ account_delete_identify_account_cb (TpProxy *protocol,
   g_object_unref (account);
 }
 
+static TpStorageRestrictionFlags mcd_account_get_storage_restrictions (
+    McdAccount *account);
+
 void
 mcd_account_delete (McdAccount *account,
+                    McdDBusPropSetFlags flags,
                      McdAccountDeleteCb callback,
                      gpointer user_data)
 {
@@ -683,6 +685,23 @@ mcd_account_delete (McdAccount *account,
     GError *error = NULL;
     const gchar *name = mcd_account_get_unique_name (account);
     TpConnectionManager *cm = mcd_account_get_cm (account);
+
+    /* We don't really have a flag for "cannot delete accounts" yet, but
+     * it seems reasonable that if you can't disable it or put it
+     * offline, you shouldn't be able to delete it. Also, we're going
+     * to try to disable it in a moment anyway. */
+    if ((flags & MCD_DBUS_PROP_SET_FLAG_ALREADY_IN_STORAGE) == 0 &&
+        (mcd_account_get_storage_restrictions (account) &
+          (TP_STORAGE_RESTRICTION_FLAG_CANNOT_SET_ENABLED |
+           TP_STORAGE_RESTRICTION_FLAG_CANNOT_SET_PRESENCE)) != 0)
+    {
+        g_set_error (&error, TP_ERROR, TP_ERROR_PERMISSION_DENIED,
+                     "Storage plugin for %s does not allow deleting it",
+                     name);
+        callback (account, error, user_data);
+        g_error_free (error);
+        return;
+    }
 
     /* if the CM implements CM.I.AccountStorage, we need to tell the CM
      * to forget any account credentials it knows */
@@ -707,7 +726,7 @@ mcd_account_delete (McdAccount *account,
     /* got to turn the account off before removing it, otherwise we can *
      * end up with an orphaned CM holding the account online            */
     if (!_mcd_account_set_enabled (account, FALSE, FALSE,
-                                   MCD_DBUS_PROP_SET_FLAG_NONE, &error))
+                                   flags, &error))
     {
         g_warning ("could not disable account %s (%s)", name, error->message);
         callback (account, error, user_data);
@@ -1153,18 +1172,20 @@ _mcd_account_set_enabled (McdAccount *account,
 {
     McdAccountPrivate *priv = account->priv;
 
-    if (priv->always_on && !enabled)
-    {
-        g_set_error (error, TP_ERROR, TP_ERROR_PERMISSION_DENIED,
-                     "Account %s cannot be disabled",
-                     priv->unique_name);
-        return FALSE;
-    }
-
     if (priv->enabled != enabled)
     {
         GValue value = G_VALUE_INIT;
         const gchar *name = mcd_account_get_unique_name (account);
+
+        if ((flags & MCD_DBUS_PROP_SET_FLAG_ALREADY_IN_STORAGE) == 0 &&
+            (mcd_account_get_storage_restrictions (account) &
+              TP_STORAGE_RESTRICTION_FLAG_CANNOT_SET_ENABLED) != 0)
+        {
+            g_set_error (error, TP_ERROR, TP_ERROR_PERMISSION_DENIED,
+                         "Storage plugin for %s does not allow changing "
+                         "its Enabled property", name);
+            return FALSE;
+        }
 
         if (!enabled && priv->connection != NULL)
             _mcd_connection_request_presence (priv->connection,
@@ -1693,6 +1714,16 @@ set_automatic_presence (TpSvcDBusProperties *self,
         return FALSE;
     }
 
+    if ((flags & MCD_DBUS_PROP_SET_FLAG_ALREADY_IN_STORAGE) == 0 &&
+        (mcd_account_get_storage_restrictions (account) &
+            TP_STORAGE_RESTRICTION_FLAG_CANNOT_SET_PRESENCE) != 0)
+    {
+        g_set_error (error, TP_ERROR, TP_ERROR_PERMISSION_DENIED,
+                     "Storage plugin for %s does not allow changing "
+                     "its presence", priv->unique_name);
+        return FALSE;
+    }
+
     DEBUG ("setting automatic presence: %d, %s, %s", type, status, message);
 
     if (priv->auto_presence_type != type)
@@ -1774,17 +1805,23 @@ set_connect_automatically (TpSvcDBusProperties *self,
 
     connect_automatically = g_value_get_boolean (value);
 
-    if (priv->always_on && !connect_automatically)
-    {
-        g_set_error (error, TP_ERROR, TP_ERROR_PERMISSION_DENIED,
-                     "Account %s always connects automatically",
-                     priv->unique_name);
-        return FALSE;
-    }
-
     if (priv->connect_automatically != connect_automatically)
     {
         const gchar *account_name = mcd_account_get_unique_name (account);
+
+        /* We use CANNOT_SET_PRESENCE to control access to
+         * ConnectAutomatically, because RequestedPresence is not stored,
+         * but it can be derived from ConnectAutomatically and
+         * AutomaticPresence */
+        if ((flags & MCD_DBUS_PROP_SET_FLAG_ALREADY_IN_STORAGE) == 0 &&
+            (mcd_account_get_storage_restrictions (account) &
+                TP_STORAGE_RESTRICTION_FLAG_CANNOT_SET_PRESENCE) != 0)
+        {
+            g_set_error (error, TP_ERROR, TP_ERROR_PERMISSION_DENIED,
+                         "Storage plugin for %s does not allow changing "
+                         "its ConnectAutomatically property", account_name);
+            return FALSE;
+        }
 
         if (!(flags & MCD_DBUS_PROP_SET_FLAG_ALREADY_IN_STORAGE))
         {
@@ -1927,10 +1964,13 @@ set_requested_presence (TpSvcDBusProperties *self,
     status = g_value_get_string (va->values + 1);
     message = g_value_get_string (va->values + 2);
 
-    if (priv->always_on && !_presence_type_is_online (type))
+    if ((flags & MCD_DBUS_PROP_SET_FLAG_ALREADY_IN_STORAGE) == 0 &&
+        (mcd_account_get_storage_restrictions (account) &
+          TP_STORAGE_RESTRICTION_FLAG_CANNOT_SET_PRESENCE) != 0)
     {
         g_set_error (error, TP_ERROR, TP_ERROR_PERMISSION_DENIED,
-                     "Account %s cannot be taken offline", priv->unique_name);
+                     "Storage plugin for %s does not allow changing "
+                     "its presence", priv->unique_name);
         return FALSE;
     }
 
@@ -2137,22 +2177,24 @@ get_storage_specific_info (TpSvcDBusProperties *self,
   g_value_take_boxed (value, storage_specific_info);
 }
 
+static TpStorageRestrictionFlags
+mcd_account_get_storage_restrictions (McdAccount *self)
+{
+  McpAccountStorage *storage_plugin = get_storage_plugin (self);
+
+  g_return_val_if_fail (storage_plugin != NULL, 0);
+
+  return mcp_account_storage_get_restrictions (storage_plugin,
+      self->priv->unique_name);
+}
+
 static void
 get_storage_restrictions (TpSvcDBusProperties *self,
     const gchar *name, GValue *value)
 {
-  TpStorageRestrictionFlags flags;
-  McdAccount *account = MCD_ACCOUNT (self);
-  McpAccountStorage *storage_plugin = get_storage_plugin (account);
-
   g_value_init (value, G_TYPE_UINT);
-
-  g_return_if_fail (storage_plugin != NULL);
-
-  flags = mcp_account_storage_get_restrictions (storage_plugin,
-      account->priv->unique_name);
-
-  g_value_set_uint (value, flags);
+  g_value_set_uint (value,
+      mcd_account_get_storage_restrictions (MCD_ACCOUNT (self)));
 }
 
 static const McdDBusProp account_properties[] = {
@@ -2419,7 +2461,8 @@ account_remove (TpSvcAccount *svc, DBusGMethodInvocation *context)
     data->context = context;
 
     DEBUG ("called");
-    mcd_account_delete (self, account_remove_delete_cb, data);
+    mcd_account_delete (self, MCD_DBUS_PROP_SET_FLAG_NONE,
+                        account_remove_delete_cb, data);
 }
 
 /*
@@ -3235,15 +3278,11 @@ mcd_account_setup (McdAccount *account)
 
     priv->object_path = g_strconcat (TP_ACCOUNT_OBJECT_PATH_BASE, name, NULL);
 
-    if (!priv->always_on)
-    {
-        priv->enabled =
-          mcd_storage_get_boolean (storage, name, MC_ACCOUNTS_KEY_ENABLED);
+    priv->enabled = mcd_storage_get_boolean (storage, name,
+        MC_ACCOUNTS_KEY_ENABLED);
 
-        priv->connect_automatically =
-          mcd_storage_get_boolean (storage, name,
-                                   MC_ACCOUNTS_KEY_CONNECT_AUTOMATICALLY);
-    }
+    priv->connect_automatically = mcd_storage_get_boolean (storage, name,
+        MC_ACCOUNTS_KEY_CONNECT_AUTOMATICALLY);
 
     priv->has_been_online =
       mcd_storage_get_boolean (storage, name, MC_ACCOUNTS_KEY_HAS_BEEN_ONLINE);
@@ -3393,19 +3432,6 @@ set_property (GObject *obj, guint prop_id,
 	priv->unique_name = g_value_dup_string (val);
 	break;
 
-    case PROP_ALWAYS_ON:
-        priv->always_on = g_value_get_boolean (val);
-
-        if (priv->always_on)
-        {
-            priv->enabled = TRUE;
-            priv->connect_automatically = TRUE;
-            priv->req_presence_type = priv->auto_presence_type;
-            priv->req_presence_status = g_strdup (priv->auto_presence_status);
-            priv->req_presence_message = g_strdup (priv->auto_presence_message);
-        }
-
-        break;
     default:
 	G_OBJECT_WARN_INVALID_PROPERTY_ID (obj, prop_id, pspec);
 	break;
@@ -3657,13 +3683,6 @@ mcd_account_class_init (McdAccountClass * klass)
                               NULL,
                               G_PARAM_READWRITE | G_PARAM_CONSTRUCT_ONLY));
 
-    g_object_class_install_property
-        (object_class, PROP_ALWAYS_ON,
-         g_param_spec_boolean ("always-on", "Always on?", "Always on?",
-                              FALSE,
-                              G_PARAM_WRITABLE | G_PARAM_CONSTRUCT_ONLY |
-                              G_PARAM_STATIC_STRINGS));
-
     /* Signals */
     _mcd_account_signals[USABILITY_CHANGED] =
         g_signal_new ("usability-changed",
@@ -3705,7 +3724,6 @@ mcd_account_init (McdAccount *account)
     priv->curr_presence_status = g_strdup ("offline");
     priv->curr_presence_message = g_strdup ("");
 
-    priv->always_on = FALSE;
     priv->always_dispatch = FALSE;
     priv->enabled = FALSE;
     priv->connect_automatically = FALSE;
@@ -5128,14 +5146,6 @@ _mcd_account_set_connection_context (McdAccount *self,
     }
 
     self->priv->connection_context = c;
-}
-
-gboolean
-_mcd_account_get_always_on (McdAccount *self)
-{
-    g_return_val_if_fail (MCD_IS_ACCOUNT (self), FALSE);
-
-    return self->priv->always_on;
 }
 
 gboolean

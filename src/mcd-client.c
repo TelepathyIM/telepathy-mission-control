@@ -68,7 +68,6 @@ struct _McdClientProxyPrivate
     gboolean introspect_started;
     gboolean ready;
     gboolean bypass_approval;
-    gboolean bypass_observers;
     gboolean delay_approvers;
     gboolean recover;
 
@@ -400,10 +399,6 @@ parse_client_file (McdClientProxy *client,
         g_key_file_get_boolean (file, TP_IFACE_CLIENT_HANDLER,
                                 "BypassApproval", NULL);
 
-    client->priv->bypass_observers =
-        g_key_file_get_boolean (file, TP_IFACE_CLIENT_HANDLER,
-                                "BypassObservers", NULL);
-
     client->priv->delay_approvers =
         g_key_file_get_boolean (file, TP_IFACE_CLIENT_OBSERVER,
                                 "DelayApprovers", NULL);
@@ -663,10 +658,6 @@ _mcd_client_proxy_handler_get_all_cb (TpProxy *proxy,
     bypass = tp_asv_get_boolean (properties, "BypassApproval", NULL);
     self->priv->bypass_approval = bypass;
     DEBUG ("%s has BypassApproval=%c", bus_name, bypass ? 'T' : 'F');
-
-    bypass = tp_asv_get_boolean (properties, "BypassObservers", NULL);
-    self->priv->bypass_observers = bypass;
-    DEBUG ("%s has BypassObservers=%c", bus_name, bypass ? 'T' : 'F');
 
     /* don't emit handler-capabilities-changed if we're not actually available
      * any more - if that's the case, then we already signalled our loss of
@@ -1366,14 +1357,6 @@ _mcd_client_proxy_get_bypass_approval (McdClientProxy *self)
     g_return_val_if_fail (MCD_IS_CLIENT_PROXY (self), FALSE);
 
     return self->priv->bypass_approval;
-}
-
-gboolean
-_mcd_client_proxy_get_bypass_observers (McdClientProxy *self)
-{
-    g_return_val_if_fail (MCD_IS_CLIENT_PROXY (self), FALSE);
-
-    return self->priv->bypass_observers;
 }
 
 gboolean

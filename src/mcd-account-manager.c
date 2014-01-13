@@ -336,7 +336,7 @@ toggled_cb (GObject *plugin, const gchar *name, gboolean on, gpointer data)
     }
 
   _mcd_account_set_enabled (account, on, FALSE,
-                            MCD_DBUS_PROP_SET_FLAG_NONE, &error);
+                            MCD_DBUS_PROP_SET_FLAG_ALREADY_IN_STORAGE, &error);
 
   if (error != NULL)
     {
@@ -398,7 +398,9 @@ deleted_cb (GObject *plugin, const gchar *name, gpointer data)
         /* this unhooks the account's signal handlers */
         g_hash_table_remove (manager->priv->accounts, name);
         tp_svc_account_manager_emit_account_removed (manager, object_path);
-        mcd_account_delete (account, _mcd_account_delete_cb, NULL);
+        mcd_account_delete (account,
+                            MCD_DBUS_PROP_SET_FLAG_ALREADY_IN_STORAGE,
+                            _mcd_account_delete_cb, NULL);
     }
 }
 
@@ -710,7 +712,8 @@ complete_account_creation_finish (McdAccount *account,
 
     if (!cad->ok)
     {
-        mcd_account_delete (account, NULL, NULL);
+        mcd_account_delete (account, MCD_DBUS_PROP_SET_FLAG_NONE,
+                            NULL, NULL);
         tp_clear_object (&account);
     }
 
@@ -1166,7 +1169,8 @@ migrate_create_account_cb (McdAccountManager *account_manager,
     DEBUG ("Account %s migrated, removing it",
            mcd_account_get_unique_name (ctx->account));
 
-    mcd_account_delete (ctx->account, migrate_delete_account_cb, ctx);
+    mcd_account_delete (ctx->account, MCD_DBUS_PROP_SET_FLAG_NONE,
+                        migrate_delete_account_cb, ctx);
 }
 
 static void

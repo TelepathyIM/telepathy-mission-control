@@ -477,9 +477,9 @@ mcd_connectivity_monitor_init (McdConnectivityMonitor *connectivity_monitor)
 
 #ifdef ENABLE_CONN_SETTING
   priv->settings = g_settings_new ("im.telepathy.v1.MissionControl.FromEmpathy");
-  g_settings_bind (priv->settings, "use-conn",
-      connectivity_monitor, "use-conn",
-      G_SETTINGS_BIND_GET);
+  /* We'll call g_settings_bind() in constructed because default values of
+   * properties haven't been set yet at this point and we don't want them to
+   * override the value from GSettings. */
 #endif
 
 #ifdef HAVE_NM
@@ -500,6 +500,17 @@ mcd_connectivity_monitor_init (McdConnectivityMonitor *connectivity_monitor)
 
   g_bus_get (G_BUS_TYPE_SYSTEM, NULL, got_system_bus_cb,
       g_object_ref (connectivity_monitor));
+}
+
+static void
+connectivity_monitor_constructed (GObject *object)
+{
+#ifdef ENABLE_CONN_SETTING
+  McdConnectivityMonitor *self = MCD_CONNECTIVITY_MONITOR (object);
+
+  g_settings_bind (self->priv->settings, "use-conn",
+      self, "use-conn", G_SETTINGS_BIND_GET);
+#endif
 }
 
 static void
@@ -626,6 +637,7 @@ mcd_connectivity_monitor_class_init (McdConnectivityMonitorClass *klass)
   oclass->finalize = connectivity_monitor_finalize;
   oclass->dispose = connectivity_monitor_dispose;
   oclass->constructor = connectivity_monitor_constructor;
+  oclass->constructed = connectivity_monitor_constructed;
   oclass->get_property = connectivity_monitor_get_property;
   oclass->set_property = connectivity_monitor_set_property;
 
