@@ -103,5 +103,7 @@ const GError *mcd_channel_get_error (McdChannel *channel);
 
 GVariant *mcd_channel_dup_immutable_properties (McdChannel *channel);
 
+GHashTable * mcd_channel_dup_immutable_properties_asv (McdChannel *channel);
+
 G_END_DECLS
 #endif /* MCD_CHANNEL_H */

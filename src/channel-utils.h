@@ -44,6 +44,8 @@ void _mcd_tp_channel_details_free (GPtrArray *channels);
 G_GNUC_INTERNAL gboolean _mcd_tp_channel_should_close (TpChannel *channel,
                                                        const gchar *verb);
 
+G_GNUC_INTERNAL GHashTable * _mcd_tp_channel_dup_immutable_properties_asv (TpChannel *channel);
+
 G_END_DECLS
 #endif
 

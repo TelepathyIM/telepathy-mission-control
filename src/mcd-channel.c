@@ -769,6 +769,20 @@ mcd_channel_dup_immutable_properties (McdChannel *channel)
     return ret;
 }
 
+GHashTable *
+mcd_channel_dup_immutable_properties_asv (McdChannel *channel)
+{
+    g_return_val_if_fail (MCD_IS_CHANNEL (channel), NULL);
+
+    if (channel->priv->tp_chan == NULL)
+    {
+        DEBUG ("Channel %p has no associated TpChannel", channel);
+        return NULL;
+    }
+
+    return _mcd_tp_channel_dup_immutable_properties_asv (channel->priv->tp_chan);
+}
+
 /**
  * mcd_channel_take_error:
  * @channel: the #McdChannel.

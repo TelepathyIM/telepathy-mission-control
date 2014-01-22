@@ -137,4 +137,22 @@ _mcd_tp_channel_details_free (GPtrArray *channels)
     g_boxed_free (TP_ARRAY_TYPE_CHANNEL_DETAILS_LIST, channels);
 }
 
+GHashTable *
+_mcd_tp_channel_dup_immutable_properties_asv (TpChannel *channel)
+{
+    GVariant *props;
+    GHashTable *asv;
+    GValue v = G_VALUE_INIT;
+
+    props = tp_channel_dup_immutable_properties (channel);
+    g_return_val_if_fail (props != NULL, NULL);
+
+    dbus_g_value_parse_g_variant (props, &v);
+    asv = g_value_dup_boxed (&v);
+
+    g_variant_unref (props);
+    g_value_unset (&v);
+
+    return asv;
+}
 
