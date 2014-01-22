@@ -343,6 +343,8 @@ login1_inhibit_cb (GObject *source G_GNUC_UNUSED,
         {
           DEBUG ("Inhibit() didn't return enough fds?");
         }
+
+      g_variant_unref (tuple);
     }
   else
     {
@@ -400,6 +402,7 @@ login1_prepare_for_sleep_cb (GDBusConnection *system_bus G_GNUC_UNUSED,
           DEBUG ("about to suspend");
           connectivity_monitor_remove_states (self, CONNECTIVITY_AWAKE,
               self->priv->login1_inhibit);
+          tp_clear_pointer (&self->priv->login1_inhibit, mcd_inhibit_release);
         }
       else
         {
@@ -440,6 +443,7 @@ login1_prepare_for_shutdown_cb (GDBusConnection *system_bus G_GNUC_UNUSED,
           DEBUG ("about to shut down");
           connectivity_monitor_remove_states (self, CONNECTIVITY_RUNNING,
               self->priv->login1_inhibit);
+          tp_clear_pointer (&self->priv->login1_inhibit, mcd_inhibit_release);
         }
       else
         {
