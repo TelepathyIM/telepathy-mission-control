@@ -41,7 +41,7 @@ def test(q, bus, mc):
             EventPattern('dbus-method-call', method='EnsureChannel'),
             EventPattern('dbus-method-call', method='ObserveChannels'),
             EventPattern('dbus-method-call', method='AddDispatchOperation'),
-            EventPattern('dbus-method-call', method='HandleChannels'),
+            EventPattern('dbus-method-call', method='HandleChannel'),
             ]
     q.forbid_events(forbidden)
 

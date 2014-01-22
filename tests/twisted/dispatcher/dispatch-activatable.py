@@ -115,13 +115,13 @@ def test(q, bus, mc):
 
     e = q.expect('dbus-method-call',
             path=abiword.object_path,
-            interface=cs.HANDLER, method='HandleChannels',
+            interface=cs.HANDLER, method='HandleChannel',
             handled=False)
     # AbiWord accepts the channels
     q.dbus_return(e.message, signature='')
 
     # FIXME: this isn't currently emitted (part of the same bug as emitting
-    # it as soon as HandleChannels is called)
+    # it as soon as HandleChannel is called)
     #q.expect('dbus-signal', path=cdo_path, signal='Finished')
     #q.expect('dbus-signal', path=cs.CD_PATH,
     #    signal='DispatchOperationFinished', args=[cdo_path])

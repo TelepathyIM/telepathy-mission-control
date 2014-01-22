@@ -87,7 +87,7 @@ def test(q, bus, mc):
 
     e = q.expect('dbus-method-call',
             path=verifier.object_path,
-            interface=cs.HANDLER, method='HandleChannels',
+            interface=cs.HANDLER, method='HandleChannel',
             handled=False)
 
 if __name__ == '__main__':

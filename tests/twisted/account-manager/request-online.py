@@ -140,7 +140,7 @@ def test(q, bus, mc):
     chan = SimulatedChannel(conn, new_channel)
     chan.announce()
 
-    e = q.expect('dbus-method-call', method='HandleChannels')
+    e = q.expect('dbus-method-call', method='HandleChannel')
     q.dbus_return(e.message, signature='')
 
     # Put the account offline

@@ -180,7 +180,7 @@ def test(q, bus, mc):
     # Empathy is asked to handle the channels
     e = q.expect('dbus-method-call',
             path=empathy.object_path,
-            interface=cs.HANDLER, method='HandleChannels',
+            interface=cs.HANDLER, method='HandleChannel',
             handled=False)
 
     # Empathy accepts the channels
@@ -304,10 +304,10 @@ def test(q, bus, mc):
     # Empathy is asked to handle the channels
     e = q.expect('dbus-method-call',
             path=empathy.object_path,
-            interface=cs.HANDLER, method='HandleChannels',
+            interface=cs.HANDLER, method='HandleChannel',
             handled=False)
 
-    account_path, conn_path, channels, requests, action_time, info = e.args
+    account_path, conn_path, chan_path, chan_props, requests, action_time, info = e.args
     assert action_time == 13
 
     # Empathy accepts the channels
@@ -323,10 +323,10 @@ def test(q, bus, mc):
     # Now there are no more active channel dispatch operations
     assert cd_props.Get(cs.CD_IFACE_OP_LIST, 'DispatchOperations') == []
 
-    # From now on, it is an error to get HandleChannels (because we're
+    # From now on, it is an error to get HandleChannel (because we're
     # testing Claim())
     forbidden = [
-            EventPattern('dbus-method-call', method='HandleChannels'),
+            EventPattern('dbus-method-call', method='HandleChannel'),
             ]
     q.forbid_events(forbidden)
 

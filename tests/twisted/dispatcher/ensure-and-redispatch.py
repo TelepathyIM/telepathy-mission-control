@@ -180,18 +180,16 @@ def test_channel_creation(q, bus, account, client, conn):
     # Handler is next
     e = q.expect('dbus-method-call',
             path=client.object_path,
-            interface=cs.HANDLER, method='HandleChannels',
+            interface=cs.HANDLER, method='HandleChannel',
             handled=False)
     assert e.args[0] == account.object_path, e.args
     assert e.args[1] == conn.object_path, e.args
-    channels = e.args[2]
-    assert len(channels) == 1, channels
-    assert channels[0][0] == channel.object_path, channels
-    assert channels[0][1] == channel_immutable, channels
-    assert e.args[3] == [request_path], e.args
-    assert e.args[4] == user_action_time
-    assert isinstance(e.args[5], dict)
-    assert len(e.args) == 6
+    assert e.args[2] == channel.object_path, channels
+    assert e.args[3] == channel_immutable, channels
+    assert e.args[4] == [request_path], e.args
+    assert e.args[5] == user_action_time
+    assert isinstance(e.args[6], dict)
+    assert len(e.args) == 7
 
     # Handler accepts the Channels
     q.dbus_return(e.message, signature='')
@@ -212,7 +210,7 @@ def test_channel_redispatch(q, bus, account, client, conn, channel,
             EventPattern('dbus-method-call', method='ObserveChannels'),
             # Even though there is a better handler on a different unique
             # name, the channels must not be re-dispatched to it.
-            EventPattern('dbus-method-call', method='HandleChannels',
+            EventPattern('dbus-method-call', method='HandleChannel',
                 predicate=lambda e: e.path != client.object_path),
             # If the handler rejects the re-handle call, the channel must not
             # be closed.
@@ -222,7 +220,7 @@ def test_channel_redispatch(q, bus, account, client, conn, channel,
     if client_gone:
         # There's nothing to call these methods on any more.
         forbidden.append(EventPattern('dbus-method-call',
-            method='HandleChannels'))
+            method='HandleChannel'))
         forbidden.append(EventPattern('dbus-method-call',
             method='AddRequest'))
 
@@ -288,28 +286,26 @@ def test_channel_redispatch(q, bus, account, client, conn, channel,
             channel.object_path, channel.immutable, signature='boa{sv}')
 
     if not client_gone:
-        # Handler is re-invoked. This HandleChannels call is only said to
+        # Handler is re-invoked. This HandleChannel call is only said to
         # satisfy the new request, because the earlier request has already
         # been satisfied.
         e = q.expect('dbus-method-call',
                 path=client.object_path,
-                interface=cs.HANDLER, method='HandleChannels',
+                interface=cs.HANDLER, method='HandleChannel',
                 handled=False)
         assert e.args[0] == account.object_path, e.args
         assert e.args[1] == conn.object_path, e.args
-        channels = e.args[2]
-        assert len(channels) == 1, channels
-        assert channels[0][0] == channel.object_path, channels
-        assert channels[0][1] == channel.immutable, channels
-        assert e.args[3] == [request_path], e.args
-        assert e.args[4] == user_action_time
-        assert isinstance(e.args[5], dict)
-        assertContains('request-properties', e.args[5])
-        assertContains(request_path, e.args[5]['request-properties'])
-        assertLength(1, e.args[5]['request-properties'])
+        assert e.args[2] == channel.object_path, channels
+        assert e.args[3] == channel.immutable, channels
+        assert e.args[4] == [request_path], e.args
+        assert e.args[5] == user_action_time
+        assert isinstance(e.args[6], dict)
+        assertContains('request-properties', e.args[6])
+        assertContains(request_path, e.args[6]['request-properties'])
+        assertLength(1, e.args[6]['request-properties'])
         assertEquals(request_props,
-                e.args[5]['request-properties'][request_path])
-        assert len(e.args) == 6
+                e.args[6]['request-properties'][request_path])
+        assert len(e.args) == 7
 
         if ungrateful_handler:
             q.dbus_raise(e.message, cs.INVALID_ARGUMENT,

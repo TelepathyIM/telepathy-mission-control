@@ -191,7 +191,7 @@ def test(q, bus, mc):
     # Empathy is asked to handle the channels
     e = q.expect('dbus-method-call',
             path=empathy.object_path,
-            interface=cs.HANDLER, method='HandleChannels',
+            interface=cs.HANDLER, method='HandleChannel',
             handled=False)
 
     # Empathy accepts the channels

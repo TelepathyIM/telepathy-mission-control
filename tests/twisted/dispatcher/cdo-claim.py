@@ -128,7 +128,7 @@ def test(q, bus, mc):
     # gnome-shell is asked to re-handle the channel
     e = q.expect('dbus-method-call',
             path=gs.object_path,
-            interface=cs.HANDLER, method='HandleChannels',
+            interface=cs.HANDLER, method='HandleChannel',
             handled=False)
 
     q.dbus_return(e.message, signature='')

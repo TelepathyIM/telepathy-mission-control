@@ -983,7 +983,7 @@ mcd_dispatcher_finish_reinvocation (McdChannel *request)
 }
 
 static void
-reinvoke_handle_channels_cb (TpClient *client,
+reinvoke_handle_channel_cb (TpClient *client,
                              const GError *error,
                              gpointer user_data G_GNUC_UNUSED,
                              GObject *weak_object)
@@ -1021,7 +1021,6 @@ static void
 _mcd_dispatcher_reinvoke_handler (McdDispatcher *dispatcher,
                                   McdChannel *request)
 {
-    GList *request_as_list;
     McdClientProxy *handler = NULL;
     McdRequest *real_request = _mcd_channel_get_request (request);
     TpChannel *tp_channel = mcd_channel_get_tp_channel (request);
@@ -1030,8 +1029,6 @@ _mcd_dispatcher_reinvoke_handler (McdDispatcher *dispatcher,
 
     g_assert (real_request != NULL);
     g_assert (tp_channel != NULL);
-
-    request_as_list = g_list_append (NULL, request);
 
     request_properties = g_hash_table_new_full (g_str_hash, g_str_equal,
         g_free, (GDestroyNotify) g_hash_table_unref);
@@ -1059,15 +1056,14 @@ _mcd_dispatcher_reinvoke_handler (McdDispatcher *dispatcher,
      * is completely different, because the channel is already being
      * handled perfectly well. */
 
-    _mcd_client_proxy_handle_channels (handler,
-        -1, request_as_list,
+    _mcd_client_proxy_handle_channel (handler,
+        -1, request,
         0, /* the request's user action time will be used automatically */
         handler_info,
-        reinvoke_handle_channels_cb, NULL, NULL, (GObject *) request);
+        reinvoke_handle_channel_cb, NULL, NULL, (GObject *) request);
 
 finally:
     g_hash_table_unref (handler_info);
-    g_list_free (request_as_list);
 }
 
 static McdDispatchOperation *
@@ -1827,7 +1823,6 @@ static void
 try_delegating (ChannelToDelegate *to_delegate)
 {
     McdClientProxy *client;
-    GList *channels = NULL;
 
     DEBUG ("%s",
         mcd_channel_get_object_path (to_delegate->channel));
@@ -1871,14 +1866,11 @@ try_delegating (ChannelToDelegate *to_delegate)
     DEBUG ("...trying client %s", _mcd_client_proxy_get_unique_name (
         client));
 
-    channels = g_list_prepend (channels, to_delegate->channel);
-
-    _mcd_client_proxy_handle_channels (client, -1, channels,
+    _mcd_client_proxy_handle_channel (client, -1, to_delegate->channel,
         to_delegate->ctx->user_action_time, NULL, delegate_channels_cb,
         to_delegate, NULL, NULL);
 
     g_object_unref (client);
-    g_list_free (channels);
 }
 
 static void
@@ -2028,7 +2020,7 @@ error:
 }
 
 static void
-present_handle_channels_cb (TpClient *client,
+present_handle_channel_cb (TpClient *client,
     const GError *error,
     gpointer user_data,
     GObject *weak_object)
@@ -2066,7 +2058,6 @@ dispatcher_present_channel (
     McdChannel *mcd_channel;
     GError *error = NULL;
     McdClientProxy *client;
-    GList *channels = NULL;
 
     chan_account = _mcd_handler_map_get_channel_account (
         self->priv->handler_map, channel_path);
@@ -2105,13 +2096,10 @@ dispatcher_present_channel (
         goto error;
       }
 
-    channels = g_list_append (channels, mcd_channel);
-
-    _mcd_client_proxy_handle_channels (client, -1, channels,
-        user_action_time, NULL, present_handle_channels_cb,
+    _mcd_client_proxy_handle_channel (client, -1, mcd_channel,
+        user_action_time, NULL, present_handle_channel_cb,
         context, NULL, G_OBJECT (mcd_channel));
 
-    g_list_free (channels);
     return;
 
 error:

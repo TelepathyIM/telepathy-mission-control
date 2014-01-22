@@ -251,7 +251,7 @@ struct _McdDispatchOperationPrivate
     gboolean observe_only;
 
     /* If non-NULL, we're in the middle of asking plugins whether we may call
-     * HandleChannels, or doing so. This is a client lock. */
+     * HandleChannel, or doing so. This is a client lock. */
     McdClientProxy *trying_handler;
 
     /* If TRUE, we've tried all the BypassApproval handlers, which happens
@@ -457,7 +457,7 @@ _mcd_dispatch_operation_check_client_locks (McdDispatchOperation *self)
      * with an error */
     if (self->priv->trying_handler != NULL)
     {
-        DEBUG ("waiting for handler_is_suitable or HandleChannels to return");
+        DEBUG ("waiting for handler_is_suitable or HandleChannel to return");
         return;
     }
 
@@ -516,7 +516,7 @@ _mcd_dispatch_operation_check_client_locks (McdDispatchOperation *self)
 
     approval = g_queue_peek_head (self->priv->approvals);
 
-    /* if we've been claimed, respond, then do not call HandleChannels */
+    /* if we've been claimed, respond, then do not call HandleChannel */
     if (approval != NULL && approval->type == APPROVAL_TYPE_CLAIM)
     {
         /* this needs to be copied because we don't use it til after we've
@@ -1856,7 +1856,7 @@ _mcd_dispatch_operation_dup_channel (McdDispatchOperation *self)
 }
 
 static void
-_mcd_dispatch_operation_handle_channels_cb (TpClient *client,
+_mcd_dispatch_operation_handle_channel_cb (TpClient *client,
                                             const GError *error,
                                             gpointer user_data,
                                             GObject *weak G_GNUC_UNUSED)
@@ -1885,9 +1885,9 @@ _mcd_dispatch_operation_handle_channels_cb (TpClient *client,
              * are discovered before their handler filters), or the handler
              * is activatable and was not running, the handler filter came
              * from a .client file, and the bus daemon activated the handler
-             * as a side-effect of HandleChannels (in which case
+             * as a side-effect of HandleChannel (in which case
              * NameOwnerChanged should have already been emitted by the time
-             * we got a reply to HandleChannels).
+             * we got a reply to HandleChannel).
              *
              * We recover by whining to stderr and closing the channels, in the
              * interests of at least failing visibly.
@@ -2245,11 +2245,11 @@ _mcd_dispatch_operation_run_clients (McdDispatchOperation *self)
 static void
 mcd_dispatch_operation_handle_channels (McdDispatchOperation *self)
 {
-    GList *channels = NULL;
     GHashTable *handler_info;
     GHashTable *request_properties;
 
     g_assert (self->priv->trying_handler != NULL);
+    g_return_if_fail (self->priv->channel != NULL);
 
     if (self->priv->handler_unsuitable != NULL)
     {
@@ -2260,7 +2260,7 @@ mcd_dispatch_operation_handle_channels (McdDispatchOperation *self)
          * handler_unsuitable */
         self->priv->handler_unsuitable = NULL;
 
-        _mcd_dispatch_operation_handle_channels_cb (
+        _mcd_dispatch_operation_handle_channel_cb (
             (TpClient *) self->priv->trying_handler,
             tmp, self, NULL);
         g_error_free (tmp);
@@ -2268,31 +2268,20 @@ mcd_dispatch_operation_handle_channels (McdDispatchOperation *self)
         return;
     }
 
-    /* FIXME: it shouldn't be possible to get here without a channel */
-    if (self->priv->channel != NULL)
-    {
-        collect_satisfied_requests (self->priv->channel, NULL,
-                                    &request_properties);
-        channels = g_list_prepend (NULL, self->priv->channel);
-    }
-    else
-    {
-        request_properties = g_hash_table_new_full (g_str_hash,
-            g_str_equal, g_free, (GDestroyNotify) g_hash_table_unref);
-    }
+    collect_satisfied_requests (self->priv->channel, NULL,
+                                &request_properties);
 
     handler_info = tp_asv_new (NULL, NULL);
     tp_asv_take_boxed (handler_info, "request-properties",
         TP_HASH_TYPE_OBJECT_IMMUTABLE_PROPERTIES_MAP, request_properties);
     request_properties = NULL;
 
-    _mcd_client_proxy_handle_channels (self->priv->trying_handler,
-        -1, channels, self->priv->handle_with_time,
-        handler_info, _mcd_dispatch_operation_handle_channels_cb,
+    _mcd_client_proxy_handle_channel (self->priv->trying_handler,
+        -1, self->priv->channel, self->priv->handle_with_time,
+        handler_info, _mcd_dispatch_operation_handle_channel_cb,
         g_object_ref (self), g_object_unref, NULL);
 
     g_hash_table_unref (handler_info);
-    g_list_free (channels);
 }
 
 static void

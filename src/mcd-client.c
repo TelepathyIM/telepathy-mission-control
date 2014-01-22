@@ -1640,26 +1640,28 @@ borrow_channel_connection_path (McdChannel *channel)
 }
 
 void
-_mcd_client_proxy_handle_channels (McdClientProxy *self,
+_mcd_client_proxy_handle_channel (McdClientProxy *self,
     gint timeout_ms,
-    const GList *channels,
+    McdChannel *channel,
     gint64 user_action_time,
     GHashTable *handler_info,
-    tp_cli_client_handler_callback_for_handle_channels callback,
+    tp_cli_client_handler_callback_for_handle_channel callback,
     gpointer user_data,
     GDestroyNotify destroy,
     GObject *weak_object)
 {
-    GPtrArray *channel_details;
+    GHashTable *chan_props;
     GPtrArray *requests_satisfied;
-    const GList *iter;
+    gint64 req_time = 0;
+    GHashTable *requests;
+    gpointer path;
+    GHashTableIter it;
 
     g_return_if_fail (MCD_IS_CLIENT_PROXY (self));
-    g_return_if_fail (channels != NULL);
+    g_return_if_fail (MCD_IS_CHANNEL (channel));
 
-    DEBUG ("calling HandleChannels on %s", tp_proxy_get_bus_name (self));
+    DEBUG ("calling HandleChannel on %s", tp_proxy_get_bus_name (self));
 
-    channel_details = _mcd_tp_channel_details_build_from_list (channels);
     requests_satisfied = g_ptr_array_new_with_free_func (g_free);
 
     if (handler_info == NULL)
@@ -1671,43 +1673,37 @@ _mcd_client_proxy_handle_channels (McdClientProxy *self,
         g_hash_table_ref (handler_info);
     }
 
-    for (iter = channels; iter != NULL; iter = iter->next)
+    requests = _mcd_channel_get_satisfied_requests (channel, &req_time);
+
+    g_hash_table_iter_init (&it, requests);
+    while (g_hash_table_iter_next (&it, &path, NULL))
     {
-        gint64 req_time = 0;
-        GHashTable *requests;
-        GHashTableIter it;
-        gpointer path;
-
-        requests = _mcd_channel_get_satisfied_requests (iter->data,
-                                                             &req_time);
-
-        g_hash_table_iter_init (&it, requests);
-        while (g_hash_table_iter_next (&it, &path, NULL))
-        {
-            g_ptr_array_add (requests_satisfied, g_strdup (path));
-        }
-
-        g_hash_table_unref (requests);
-
-        /* Numerical order is correct for all currently supported values:
-         *
-         * (TP_USER_ACTION_TIME_NOT_USER_ACTION == 0) is less than
-         * (normal X11 timestamps, which are 1 to G_MAXUINT32) are less than
-         * (TP_USER_ACTION_TIME_CURRENT_TIME == G_MAXINT64) */
-        if (req_time > user_action_time)
-            user_action_time = req_time;
-
-        _mcd_channel_set_status (iter->data,
-                                 MCD_CHANNEL_STATUS_HANDLER_INVOKED);
+        g_ptr_array_add (requests_satisfied, g_strdup (path));
     }
 
-    tp_cli_client_handler_call_handle_channels ((TpClient *) self,
-        timeout_ms, borrow_channel_account_path (channels->data),
-        borrow_channel_connection_path (channels->data), channel_details,
+    g_hash_table_unref (requests);
+
+    /* Numerical order is correct for all currently supported values:
+     *
+     * (TP_USER_ACTION_TIME_NOT_USER_ACTION == 0) is less than
+     * (normal X11 timestamps, which are 1 to G_MAXUINT32) are less than
+     * (TP_USER_ACTION_TIME_CURRENT_TIME == G_MAXINT64) */
+    if (req_time > user_action_time)
+        user_action_time = req_time;
+
+    _mcd_channel_set_status (channel,
+                             MCD_CHANNEL_STATUS_HANDLER_INVOKED);
+
+    chan_props = mcd_channel_dup_immutable_properties_asv (channel);
+
+    tp_cli_client_handler_call_handle_channel ((TpClient *) self,
+        timeout_ms, borrow_channel_account_path (channel),
+        borrow_channel_connection_path (channel),
+        mcd_channel_get_object_path (channel), chan_props,
         requests_satisfied, user_action_time, handler_info,
         callback, user_data, destroy, weak_object);
 
-    _mcd_tp_channel_details_free (channel_details);
     g_ptr_array_unref (requests_satisfied);
     g_hash_table_unref (handler_info);
+    g_hash_table_unref (chan_props);
 }

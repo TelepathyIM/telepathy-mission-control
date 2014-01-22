@@ -103,7 +103,7 @@ def test(q, bus, mc):
     event = q.expect('dbus-return', method='Get')
 
     # We can't call this synchronously because MC won't return until
-    # HandleChannels returns.
+    # HandleChannel returns.
     call_async(q, cdo_iface, 'HandleWith', cs.CLIENT + '.Kopete')
 
     # Finally return from ObserveChannels.
@@ -111,7 +111,7 @@ def test(q, bus, mc):
 
     h = q.expect('dbus-method-call',
                  path=kopete.object_path,
-                 interface=cs.HANDLER, method='HandleChannels',
+                 interface=cs.HANDLER, method='HandleChannel',
                  handled=False)
 
     # Waste a little time here and there.  We can't call sync_dbus
@@ -120,7 +120,7 @@ def test(q, bus, mc):
     call_async(q, cd_props, 'Get', cs.CD_IFACE_OP_LIST, 'DispatchOperations')
     event = q.expect('dbus-return', method='Get')
 
-    # Return from HandleChannels.
+    # Return from HandleChannel.
     q.dbus_return(h.message, bus=bus, signature='')
 
     # MC finally returns from HandleWith.

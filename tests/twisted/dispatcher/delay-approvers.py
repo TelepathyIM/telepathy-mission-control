@@ -121,7 +121,7 @@ def test(q, bus, mc):
     # Kopete is asked to handle the channels
     k = q.expect('dbus-method-call',
             path=kopete.object_path,
-            interface=cs.HANDLER, method='HandleChannels',
+            interface=cs.HANDLER, method='HandleChannel',
             handled=False)
 
     # Kopete accepts the channels

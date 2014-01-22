@@ -231,18 +231,16 @@ def test(q, bus, mc):
 
     e = q.expect('dbus-method-call',
             path=kopete.object_path,
-            interface=cs.HANDLER, method='HandleChannels',
+            interface=cs.HANDLER, method='HandleChannel',
             handled=False)
     assert e.args[0] == account.object_path, e.args
     assert e.args[1] == conn.object_path, e.args
-    channels = e.args[2]
-    assert len(channels) == 1, channels
-    assert channels[0][0] == chan.object_path, channels
-    assert channels[0][1] == chan.immutable, channels
-    assert e.args[3] == [request_path], e.args
-    assert e.args[4] == user_action_time, (e.args[4], user_action_time)
-    assert isinstance(e.args[5], dict)
-    assert len(e.args) == 6
+    assert e.args[2] == chan.object_path, channels
+    assert e.args[3] == chan.immutable, channels
+    assert e.args[4] == [request_path], e.args
+    assert e.args[5] == user_action_time, (e.args[4], user_action_time)
+    assert isinstance(e.args[6], dict)
+    assert len(e.args) == 7
 
     q.dbus_return(e.message, bus=kopete_bus, signature='')
 

@@ -150,7 +150,7 @@ def test(q, bus, mc):
     # Empathy is asked to handle the channels
     e = q.expect('dbus-method-call',
             path=empathy.object_path,
-            interface=cs.HANDLER, method='HandleChannels',
+            interface=cs.HANDLER, method='HandleChannel',
             handled=False)
 
     # Empathy rejects the channels
@@ -162,7 +162,7 @@ def test(q, bus, mc):
 
     # The channels no longer count as having been approved. Check that MC
     # doesn't carry on regardless
-    forbidden = [EventPattern('dbus-method-call', method='HandleChannels')]
+    forbidden = [EventPattern('dbus-method-call', method='HandleChannel')]
     q.forbid_events(forbidden)
     sync_dbus(bus, q, mc)
     q.unforbid_events(forbidden)
@@ -174,7 +174,7 @@ def test(q, bus, mc):
     # Empathy is asked to handle the channels, again
     e = q.expect('dbus-method-call',
             path=empathy.object_path,
-            interface=cs.HANDLER, method='HandleChannels',
+            interface=cs.HANDLER, method='HandleChannel',
             handled=False)
 
     # Empathy rejects the channels, again
@@ -187,7 +187,7 @@ def test(q, bus, mc):
     # OK, OK, is anyone else competent enough to handle them?
     # (Also, assert that MC doesn't offer them back to Empathy, knowing that
     # it already tried and failed)
-    forbidden = [EventPattern('dbus-method-call', method='HandleChannels',
+    forbidden = [EventPattern('dbus-method-call', method='HandleChannel',
         path=empathy.object_path)]
     q.forbid_events(forbidden)
     call_async(q, cdo_iface, 'HandleWith', '')
@@ -195,7 +195,7 @@ def test(q, bus, mc):
     # Kopete is asked to handle the channels
     k = q.expect('dbus-method-call',
                 path=kopete.object_path,
-                interface=cs.HANDLER, method='HandleChannels',
+                interface=cs.HANDLER, method='HandleChannel',
                 handled=False)
 
     # Kopete rejects the channels too

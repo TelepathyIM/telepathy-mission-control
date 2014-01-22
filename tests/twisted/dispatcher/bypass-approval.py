@@ -161,7 +161,7 @@ def expect_and_exercise_approval(q, bus, chan, channel_properties,
     # Empathy is asked to handle the channels
     e = q.expect('dbus-method-call',
             path=empathy.object_path,
-            interface=cs.HANDLER, method='HandleChannels',
+            interface=cs.HANDLER, method='HandleChannel',
             handled=False)
 
     # Empathy accepts the channels
@@ -239,7 +239,7 @@ def test(q, bus, mc):
     # Kopete's BypassApproval part is asked to handle the channels
     e = q.expect('dbus-method-call',
             path=bypass.object_path,
-            interface=cs.HANDLER, method='HandleChannels',
+            interface=cs.HANDLER, method='HandleChannel',
             handled=False)
     # Kopete accepts the channels
     q.dbus_return(e.message, signature='')
@@ -279,7 +279,7 @@ def test(q, bus, mc):
     # Kopete's BypassApproval part is asked to handle the channels
     e = q.expect('dbus-method-call',
             path=bypass.object_path,
-            interface=cs.HANDLER, method='HandleChannels',
+            interface=cs.HANDLER, method='HandleChannel',
             handled=False)
     # Kopete's BypassApproval part fails to accept the channels
     q.dbus_raise(e.message, 'com.example.Broken', 'No way')

@@ -222,18 +222,16 @@ def test(q, bus, unused, **kwargs):
     # Empathy is asked to handle the channel
     e = q.expect('dbus-method-call',
             path=client.object_path,
-            interface=cs.HANDLER, method='HandleChannels',
+            interface=cs.HANDLER, method='HandleChannel',
             handled=False)
     assert e.args[0] == account.object_path, e.args
     assert e.args[1] == conn.object_path, e.args
-    channels = e.args[2]
-    assert len(channels) == 1, channels
-    assert channels[0][0] == channel.object_path, channels
-    assert channels[0][1] == channel_immutable, channels
-    assert e.args[3] == [request_path], e.args
-    assert e.args[4] == user_action_time
-    assert isinstance(e.args[5], dict)
-    assert len(e.args) == 6
+    assert e.args[2] == channel.object_path, channels
+    assert e.args[3] == channel_immutable, channels
+    assert e.args[4] == [request_path], e.args
+    assert e.args[5] == user_action_time
+    assert isinstance(e.args[6], dict)
+    assert len(e.args) == 7
 
 if __name__ == '__main__':
     exec_test(test, {}, preload_mc=False, use_fake_accounts_service=True,

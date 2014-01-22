@@ -32,7 +32,7 @@ def test(q, bus, mc):
     # Because the channels are handled by another process, we should never be
     # asked to approve or handle them.
     forbidden = [
-            EventPattern('dbus-method-call', method='HandleChannels'),
+            EventPattern('dbus-method-call', method='HandleChannel'),
             EventPattern('dbus-method-call', method='AddDispatchOperation'),
             ]
     q.forbid_events(forbidden)

@@ -36,7 +36,7 @@ REQUEST = dbus.Dictionary({
         }, signature='sv')
 
 def test_ensure(q, bus, account, conn, chan, expected_handler_path):
-    """Tests that a client Ensure-ing the channel causes HandleChannels to be
+    """Tests that a client Ensure-ing the channel causes HandleChannel to be
     called on the current handler. (Previously, DelegateChannels() and
     PresentChannel() both broke this.)"""
     cd = ChannelDispatcher(bus)
@@ -54,7 +54,7 @@ def test_ensure(q, bus, account, conn, chan, expected_handler_path):
         chan.object_path, chan.immutable, signature='boa{sv}')
 
     e = q.expect('dbus-method-call',
-            interface=cs.HANDLER, method='HandleChannels',
+            interface=cs.HANDLER, method='HandleChannel',
             handled=False)
     assertEquals(expected_handler_path, e.path)
     q.dbus_return(e.message, signature='')
@@ -71,7 +71,7 @@ def test_delegate_channel(q, bus, mc, account, conn, chan, empathy, empathy_bus,
     # Empathy is asked to handle the channel and accept
     e = q.expect('dbus-method-call',
             path=empathy.object_path,
-            interface=cs.HANDLER, method='HandleChannels',
+            interface=cs.HANDLER, method='HandleChannel',
             handled=False)
 
     q.dbus_return(e.message, signature='')
@@ -92,7 +92,7 @@ def test_delegate_channel(q, bus, mc, account, conn, chan, empathy, empathy_bus,
     # gnome-shell is asked to handle the channel and accept
     e = q.expect('dbus-method-call',
             path=gs.object_path,
-            interface=cs.HANDLER, method='HandleChannels',
+            interface=cs.HANDLER, method='HandleChannel',
             handled=False)
 
     q.dbus_return(e.message, signature='')
@@ -111,7 +111,7 @@ def test_delegate_channel(q, bus, mc, account, conn, chan, empathy, empathy_bus,
     # Empathy is asked to handle the channel but refuses
     e = q.expect('dbus-method-call',
             path=empathy.object_path,
-            interface=cs.HANDLER, method='HandleChannels',
+            interface=cs.HANDLER, method='HandleChannel',
             handled=False)
 
     q.dbus_raise(e.message, cs.NOT_AVAILABLE, "No thanks")
@@ -137,7 +137,7 @@ def test_delegate_channel(q, bus, mc, account, conn, chan, empathy, empathy_bus,
     # gnome-shell is asked to re-handle the channel
     e = q.expect('dbus-method-call',
             path=gs.object_path,
-            interface=cs.HANDLER, method='HandleChannels',
+            interface=cs.HANDLER, method='HandleChannel',
             handled=False)
 
     q.dbus_return(e.message, signature='')
@@ -151,7 +151,7 @@ def test_delegate_channel(q, bus, mc, account, conn, chan, empathy, empathy_bus,
     # gnome-shell is asked to re-handle the channel
     e = q.expect('dbus-method-call',
             path=gs.object_path,
-            interface=cs.HANDLER, method='HandleChannels',
+            interface=cs.HANDLER, method='HandleChannel',
             handled=False)
 
     q.dbus_return(e.message, signature='')
@@ -242,7 +242,7 @@ def test(q, bus, mc):
 
     e = q.expect('dbus-method-call',
             path=gs.object_path,
-            interface=cs.HANDLER, method='HandleChannels',
+            interface=cs.HANDLER, method='HandleChannel',
             handled=False)
 
     q.dbus_return(e.message, signature='')
@@ -280,7 +280,7 @@ def test(q, bus, mc):
     # gnome-shell handles the channel
     e = q.expect('dbus-method-call',
             path=gs.object_path,
-            interface=cs.HANDLER, method='HandleChannels',
+            interface=cs.HANDLER, method='HandleChannel',
             handled=False)
 
     q.dbus_return(e.message, signature='')

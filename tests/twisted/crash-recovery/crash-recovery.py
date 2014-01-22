@@ -118,11 +118,10 @@ def test(q, bus, unused, **kwargs):
     # ... and as a handler
     e = q.expect('dbus-method-call',
             path=client.object_path,
-            interface=cs.HANDLER, method='HandleChannels',
+            interface=cs.HANDLER, method='HandleChannel',
             handled=False)
     assert e.args[1] == conn.object_path, e.args
-    channels = e.args[2]
-    assert channels[0][0] == unhandled_chan.object_path, channels
+    assert e.args[2] == unhandled_chan.object_path, channels
     q.dbus_return(e.message, signature='')
 
 if __name__ == '__main__':

@@ -90,7 +90,7 @@ def test(q, bus, mc):
     forbidden = [EventPattern('dbus-method-call',
                               interface=cs.APPROVER, method='AddDispatchOperation'),
                  EventPattern('dbus-method-call',
-                              interface=cs.HANDLER, method='HandleChannels')]
+                              interface=cs.HANDLER, method='HandleChannel')]
     q.forbid_events(forbidden)
 
     o = q.expect('dbus-method-call',
