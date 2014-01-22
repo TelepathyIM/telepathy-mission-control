@@ -872,8 +872,6 @@ _mcd_dispatch_operation_finish (McdDispatchOperation *operation,
                         DEBUG ("successful HandleWith, channel went to %s",
                                successful_handler);
 
-                        /* HandleWith and HandleWithTime both return void, so
-                         * it's OK to not distinguish */
                         tp_svc_channel_dispatch_operation_return_from_handle_with (
                             approval->context);
                         approval->context = NULL;
@@ -931,7 +929,7 @@ static gboolean mcd_dispatch_operation_check_handle_with (
     McdDispatchOperation *self, const gchar *handler_name, GError **error);
 
 static void
-dispatch_operation_handle_with_time (TpSvcChannelDispatchOperation *cdo,
+dispatch_operation_handle_with (TpSvcChannelDispatchOperation *cdo,
     const gchar *handler_name,
     gint64 user_action_timestamp,
     DBusGMethodInvocation *context)
@@ -953,16 +951,6 @@ dispatch_operation_handle_with_time (TpSvcChannelDispatchOperation *cdo,
     g_queue_push_tail (self->priv->approvals,
                        approval_new_handle_with (handler_name, context));
     _mcd_dispatch_operation_check_client_locks (self);
-}
-
-static void
-dispatch_operation_handle_with (TpSvcChannelDispatchOperation *cdo,
-    const gchar *handler_name,
-    DBusGMethodInvocation *context)
-{
-    dispatch_operation_handle_with_time (cdo, handler_name,
-                                         TP_USER_ACTION_TIME_NOT_USER_ACTION,
-                                         context);
 }
 
 typedef struct {
@@ -1066,7 +1054,6 @@ dispatch_operation_iface_init (TpSvcChannelDispatchOperationClass *iface,
     iface, dispatch_operation_##x)
     IMPLEMENT(handle_with);
     IMPLEMENT(claim);
-    IMPLEMENT(handle_with_time);
 #undef IMPLEMENT
 }
 

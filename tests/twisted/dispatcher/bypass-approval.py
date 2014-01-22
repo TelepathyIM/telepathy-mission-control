@@ -157,7 +157,7 @@ def expect_and_exercise_approval(q, bus, chan, channel_properties,
 
     # The user responds to Empathy first
     call_async(q, cdo_iface, 'HandleWith',
-            cs.tp_name_prefix + '.Client.Empathy')
+            cs.tp_name_prefix + '.Client.Empathy', 0)
 
     # Empathy is asked to handle the channels
     e = q.expect('dbus-method-call',

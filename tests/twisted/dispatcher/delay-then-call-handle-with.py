@@ -104,7 +104,7 @@ def test(q, bus, mc):
 
     # We can't call this synchronously because MC won't return until
     # HandleChannel returns.
-    call_async(q, cdo_iface, 'HandleWith', cs.CLIENT + '.Kopete')
+    call_async(q, cdo_iface, 'HandleWith', cs.CLIENT + '.Kopete', 0)
 
     # Finally return from ObserveChannels.
     q.dbus_return(o.message, bus=bus, signature='')

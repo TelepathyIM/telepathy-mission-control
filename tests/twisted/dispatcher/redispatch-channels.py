@@ -238,7 +238,7 @@ def test(q, bus, mc):
 
     # gnome-shell handles the channel itself first
     call_async(q, cdo, 'HandleWith',
-            cs.tp_name_prefix + '.Client.GnomeShell')
+            cs.tp_name_prefix + '.Client.GnomeShell', 0)
 
     e = q.expect('dbus-method-call',
             path=gs.object_path,

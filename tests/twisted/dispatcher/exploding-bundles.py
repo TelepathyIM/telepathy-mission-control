@@ -233,7 +233,7 @@ def test(q, bus, mc):
     # Both Approvers now have a flashing icon or something, trying to get the
     # user's attention. The user clicks on Empathy
     call_async(q, text_cdo_iface, 'HandleWith',
-        cs.tp_name_prefix + '.Client.org.gnome.Empathy')
+        cs.tp_name_prefix + '.Client.org.gnome.Empathy', 0)
 
     # Empathy is asked to handle the channel
     e = q.expect('dbus-method-call',
@@ -254,7 +254,7 @@ def test(q, bus, mc):
     # The user doesn't care which client will handle the channel - because
     # Empathy is the only possibility, it will be chosen (this is also a
     # regression test for the ability to leave the handler unspecified).
-    call_async(q, media_cdo_iface, 'HandleWith', '')
+    call_async(q, media_cdo_iface, 'HandleWith', '', 0)
 
     # Empathy is asked to handle the channel
     e = q.expect('dbus-method-call',

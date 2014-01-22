@@ -132,7 +132,7 @@ def test(q, bus, mc):
 
     # The user responds to Kopete
     call_async(q, cdo_iface, 'HandleWith',
-            cs.tp_name_prefix + '.Client.Kopete')
+            cs.tp_name_prefix + '.Client.Kopete', 0)
 
     # Kopete is asked to handle the channels
     k = q.expect('dbus-method-call',

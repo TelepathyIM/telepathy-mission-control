@@ -166,15 +166,15 @@ def test(q, bus, mc):
 
     # Using an invalid Handler name should fail
     call_async(q, cdo_iface, 'HandleWith',
-            cs.tp_name_prefix + '.The.Moon.On.A.Stick')
+            cs.tp_name_prefix + '.The.Moon.On.A.Stick', 0)
     q.expect('dbus-error', method='HandleWith')
     call_async(q, cdo_iface, 'HandleWith',
-            cs.tp_name_prefix + '.Client.the moon on a stick')
+            cs.tp_name_prefix + '.Client.the moon on a stick', 0)
     q.expect('dbus-error', method='HandleWith')
 
     # The user responds to Empathy first
     call_async(q, cdo_iface, 'HandleWith',
-            cs.tp_name_prefix + '.Client.Empathy')
+            cs.tp_name_prefix + '.Client.Empathy', 0)
 
     # Empathy is asked to handle the channels
     e = q.expect('dbus-method-call',
@@ -195,7 +195,7 @@ def test(q, bus, mc):
     # Now there are no more active channel dispatch operations
     assert cd_props.Get(cs.CD_IFACE_OP_LIST, 'DispatchOperations') == []
 
-    # Approve another channel using HandleWithTime()
+    # Approve another channe
     channel_properties = dbus.Dictionary(text_fixed_properties,
             signature='sv')
     channel_properties[cs.CHANNEL + '.TargetID'] = 'lucien'
@@ -296,7 +296,7 @@ def test(q, bus, mc):
     # user's attention
 
     # The user responds to Empathy first
-    call_async(q, cdo_iface, 'HandleWithTime',
+    call_async(q, cdo_iface, 'HandleWith',
             cs.tp_name_prefix + '.Client.Empathy', 13)
 
     # Empathy is asked to handle the channels
@@ -312,7 +312,7 @@ def test(q, bus, mc):
     q.dbus_return(e.message, bus=empathy_bus, signature='')
 
     q.expect_many(
-            EventPattern('dbus-return', method='HandleWithTime'),
+            EventPattern('dbus-return', method='HandleWith'),
             EventPattern('dbus-signal', interface=cs.CDO, signal='Finished'),
             EventPattern('dbus-signal', interface=cs.CD_IFACE_OP_LIST,
                 signal='DispatchOperationFinished'),

@@ -144,7 +144,7 @@ def test(q, bus, mc):
     q.dbus_return(e.message, bus=empathy_bus, signature='')
 
     call_async(q, cdo_iface, 'HandleWith',
-            cs.tp_name_prefix + '.Client.Empathy')
+            cs.tp_name_prefix + '.Client.Empathy', 0)
 
     # Empathy is asked to handle the channels
     e = q.expect('dbus-method-call',
@@ -168,7 +168,7 @@ def test(q, bus, mc):
 
     # I'm Feeling Lucky. It might work if I try again? Maybe?
     call_async(q, cdo_iface, 'HandleWith',
-            cs.tp_name_prefix + '.Client.Empathy')
+            cs.tp_name_prefix + '.Client.Empathy', 0)
 
     # Empathy is asked to handle the channels, again
     e = q.expect('dbus-method-call',
@@ -189,7 +189,7 @@ def test(q, bus, mc):
     forbidden = [EventPattern('dbus-method-call', method='HandleChannel',
         path=empathy.object_path)]
     q.forbid_events(forbidden)
-    call_async(q, cdo_iface, 'HandleWith', '')
+    call_async(q, cdo_iface, 'HandleWith', '', 0)
 
     # Kopete is asked to handle the channels
     k = q.expect('dbus-method-call',

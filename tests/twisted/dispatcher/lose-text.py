@@ -149,7 +149,7 @@ def test(q, bus, mc):
 
     # Empathy wants to handle the channel, but is too late
     call_async(q, cdo_iface, 'HandleWith',
-            cs.tp_name_prefix + '.Client.Empathy')
+            cs.tp_name_prefix + '.Client.Empathy', 0)
     e = q.expect('dbus-error')
     # FIXME: e.error.get_dbus_name() == [...Disconnected] which doesn't
     #   seem like the most appropriate thing for MC to do (but at least it's

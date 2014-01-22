@@ -222,7 +222,7 @@ def test(q, bus, mc):
     kopete_cdo = bus.get_object(cs.CD, cdo_path)
     kopete_cdo_iface = dbus.Interface(kopete_cdo, cs.CDO)
     call_async(q, kopete_cdo_iface, 'HandleWith',
-            cs.tp_name_prefix + '.Client.Kopete')
+            cs.tp_name_prefix + '.Client.Kopete', 0)
 
     check_handler = q.expect('dbus-method-call', path='/com/example/Policy',
             interface='com.example.Policy', method='CheckHandler')
@@ -232,7 +232,7 @@ def test(q, bus, mc):
 
     # well, let's try *something*... Kopete has been marked as failed,
     # so this will try Empathy
-    call_async(q, kopete_cdo_iface, 'HandleWith', '')
+    call_async(q, kopete_cdo_iface, 'HandleWith', '', 0)
 
     check_handler = q.expect('dbus-method-call', path='/com/example/Policy',
             interface='com.example.Policy', method='CheckHandler')
