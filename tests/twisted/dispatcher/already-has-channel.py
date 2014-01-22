@@ -174,8 +174,7 @@ def test(q, bus, mc):
                 handled=False),
             )
 
-    assert e.args == [[(chan.object_path, channel_properties)],
-            cdo_path, cdo_properties]
+    assert e.args == [cdo_path, cdo_properties]
     assert k.args == e.args
 
     q.dbus_return(e.message, signature='')

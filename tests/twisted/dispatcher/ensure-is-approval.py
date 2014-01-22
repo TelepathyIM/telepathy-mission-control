@@ -26,7 +26,7 @@ import dbus.bus
 import dbus.service
 
 from servicetest import EventPattern, tp_name_prefix, tp_path_prefix, \
-        call_async, sync_dbus
+        call_async, sync_dbus, assertEquals
 from mctest import exec_test, SimulatedConnection, SimulatedClient, \
         create_fakecm_account, enable_fakecm_account, SimulatedChannel, \
         expect_client_setup
@@ -118,8 +118,8 @@ def test(q, bus, mc):
             cdo_properties[cs.CDO + '.Interfaces']
     assert cdo_props_iface.Get(cs.CDO, 'Connection') == conn.object_path
     assert cdo_props_iface.Get(cs.CDO, 'Account') == account.object_path
-    assert cdo_props_iface.Get(cs.CDO, 'Channels') == [(chan.object_path,
-        channel_properties)]
+    assert cdo_props_iface.Get(cs.CDO, 'Channel') == chan.object_path
+    assertEquals(channel_properties, cdo_props_iface.Get(cs.CDO, 'ChannelProperties'))
     assert cdo_props_iface.Get(cs.CDO, 'PossibleHandlers') == \
             cdo_properties[cs.CDO + '.PossibleHandlers']
 
@@ -163,8 +163,7 @@ def test(q, bus, mc):
                 handled=False),
             )
 
-    assert e.args == [[(chan.object_path, channel_properties)],
-            cdo_path, cdo_properties]
+    assert e.args == [cdo_path, cdo_properties]
     assert k.args == e.args
 
     q.dbus_return(e.message, bus=empathy_bus, signature='')

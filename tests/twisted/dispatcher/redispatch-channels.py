@@ -230,7 +230,7 @@ def test(q, bus, mc):
         interface=cs.APPROVER, method='AddDispatchOperation',
         handled=False)
 
-    channels, cdo_path,props = e.args
+    cdo_path, props = e.args
 
     cdo = ChannelDispatchOperation(bus, cdo_path)
 

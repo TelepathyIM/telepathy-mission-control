@@ -152,6 +152,8 @@ enum
 };
 
 static void on_operation_finished (McdDispatchOperation *operation,
+                                   const gchar *dbus_error,
+                                   const gchar *message,
                                    McdDispatcher *self);
 
 static void
@@ -212,6 +214,8 @@ mcd_dispatcher_dup_possible_handlers (McdDispatcher *self,
 
 static void
 on_operation_finished (McdDispatchOperation *operation,
+                       const gchar *dbus_error,
+                       const gchar *message,
                        McdDispatcher *self)
 {
     GList *its_link;

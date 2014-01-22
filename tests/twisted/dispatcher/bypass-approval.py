@@ -25,7 +25,7 @@ import dbus
 import dbus.service
 
 from servicetest import EventPattern, tp_name_prefix, tp_path_prefix, \
-        call_async, sync_dbus
+        call_async, sync_dbus, assertEquals
 from mctest import exec_test, SimulatedConnection, SimulatedClient, \
         create_fakecm_account, enable_fakecm_account, SimulatedChannel, \
         expect_client_setup
@@ -144,7 +144,8 @@ def expect_and_exercise_approval(q, bus, chan, channel_properties,
                 handled=False),
             )
 
-    assert e.args[0] == [(chan.object_path, channel_properties)]
+    assertEquals(chan.object_path, e.args[1][cs.CDO + '.Channel'])
+    assertEquals(channel_properties, e.args[1][cs.CDO + '.ChannelProperties'])
     assert k.args == e.args
 
     # Both Approvers indicate that they are ready to proceed

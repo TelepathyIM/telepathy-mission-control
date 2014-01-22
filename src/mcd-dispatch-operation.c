@@ -711,23 +711,30 @@ get_account (TpSvcDBusProperties *self, const gchar *name, GValue *value)
 }
 
 static void
-get_channels (TpSvcDBusProperties *iface, const gchar *name, GValue *value)
+get_channel (TpSvcDBusProperties *iface, const gchar *name, GValue *value)
 {
     McdDispatchOperation *self = MCD_DISPATCH_OPERATION (iface);
 
     DEBUG ("called for %s", self->priv->unique_name);
 
-    g_value_init (value, TP_ARRAY_TYPE_CHANNEL_DETAILS_LIST);
+    g_value_init (value, DBUS_TYPE_G_OBJECT_PATH);
+    g_value_set_boxed (value,
+        mcd_channel_get_object_path (self->priv->channel));
+}
 
-    if (self->priv->channel == NULL)
-    {
-        g_value_take_boxed (value, g_ptr_array_sized_new (0));
-        return;
-    }
+static void
+get_channel_properties (TpSvcDBusProperties *iface, const gchar *name,
+                        GValue *value)
+{
+    McdDispatchOperation *self = MCD_DISPATCH_OPERATION (iface);
+    GHashTable *props;
 
-    g_value_take_boxed (value,
-        _mcd_tp_channel_details_build_from_tp_chan (
-            mcd_channel_get_tp_channel (self->priv->channel)));
+    DEBUG ("called for %s", self->priv->unique_name);
+
+    props = mcd_channel_dup_immutable_properties_asv (self->priv->channel);
+
+    g_value_init (value, TP_HASH_TYPE_STRING_VARIANT_MAP);
+    g_value_take_boxed (value, props);
 }
 
 static void
@@ -746,7 +753,8 @@ static const McdDBusProp dispatch_operation_properties[] = {
     { "Interfaces", NULL, mcd_dbus_get_interfaces },
     { "Connection", NULL, get_connection },
     { "Account", NULL, get_account },
-    { "Channels", NULL, get_channels },
+    { "Channel", NULL, get_channel },
+    { "ChannelProperties", NULL, get_channel_properties },
     { "PossibleHandlers", NULL, get_possible_handlers },
     { 0 },
 };
@@ -788,7 +796,20 @@ mcd_dispatch_operation_actually_finish (McdDispatchOperation *self)
     g_object_ref (self);
 
     DEBUG ("%s/%p: finished", self->priv->unique_name, self);
-    tp_svc_channel_dispatch_operation_emit_finished (self);
+    if (self->priv->result == NULL)
+    {
+        tp_svc_channel_dispatch_operation_emit_finished (self, "", "");
+    }
+    else
+    {
+        gchar *error_name = _mcd_build_error_string (self->priv->result);
+
+        tp_svc_channel_dispatch_operation_emit_finished (self,
+                                                         error_name,
+                                                         self->priv->result->message);
+
+        g_free (error_name);
+    }
 
     _mcd_dispatch_operation_check_client_locks (self);
 
@@ -1488,10 +1509,6 @@ _mcd_dispatch_operation_get_properties (McdDispatchOperation *operation)
 
             if (!property->getprop) continue;
 
-            /* The Channels property is mutable, so cannot be returned
-             * here */
-            if (!tp_strdiff (property->name, "Channels")) continue;
-
             value = g_slice_new0 (GValue);
             property->getprop ((TpSvcDBusProperties *)operation,
                                property->name, value);
@@ -1635,18 +1652,6 @@ _mcd_dispatch_operation_lose_channel (McdDispatchOperation *self,
         g_assert (self->priv->lost_channel == NULL);
         self->priv->lost_channel = g_object_ref (channel);
     }
-    else
-    {
-        gchar *error_name = _mcd_build_error_string (error);
-
-        DEBUG ("%s/%p losing channel %s: %s: %s",
-               self->priv->unique_name, self, object_path, error_name,
-               error->message);
-        tp_svc_channel_dispatch_operation_emit_channel_lost (self, object_path,
-                                                             error_name,
-                                                             error->message);
-        g_free (error_name);
-    }
 
     /* We previously stole this ref from self->priv->channel - drop it */
     g_object_unref (channel);
@@ -1677,18 +1682,6 @@ _mcd_dispatch_operation_check_finished (McdDispatchOperation *self)
                  * that I can't be sure */
                 g_critical ("McdChannel has already lost its TpChannel: %p",
                     lost_channel);
-            }
-            else
-            {
-                const GError *error = mcd_channel_get_error (lost_channel);
-                gchar *error_name = _mcd_build_error_string (error);
-
-                DEBUG ("%s/%p losing channel %s: %s: %s",
-                       self->priv->unique_name, self, object_path, error_name,
-                       error->message);
-                tp_svc_channel_dispatch_operation_emit_channel_lost (self,
-                    object_path, error_name, error->message);
-                g_free (error_name);
             }
 
             g_object_unref (lost_channel);
@@ -2169,7 +2162,7 @@ _mcd_dispatch_operation_run_approvers (McdDispatchOperation *self)
 
         tp_cli_client_approver_call_add_dispatch_operation (
             (TpClient *) client, -1,
-            channel_details, dispatch_operation, properties,
+            dispatch_operation, properties,
             add_dispatch_operation_cb,
             g_object_ref (self), g_object_unref, NULL);
 

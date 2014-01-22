@@ -24,7 +24,7 @@ import dbus
 import dbus.service
 
 from servicetest import EventPattern, tp_name_prefix, tp_path_prefix, \
-        call_async
+        call_async, assertEquals
 from mctest import exec_test, SimulatedConnection, SimulatedClient, \
         create_fakecm_account, enable_fakecm_account, SimulatedChannel, \
         expect_client_setup
@@ -119,6 +119,8 @@ def test(q, bus, mc):
 
     assert text_cdo_properties[cs.CDO + '.Account'] == account.object_path
     assert text_cdo_properties[cs.CDO + '.Connection'] == conn.object_path
+    assertEquals(text_chan.object_path, text_cdo_properties[cs.CDO + '.Channel'])
+    assertEquals(text_channel_properties, text_cdo_properties[cs.CDO + '.ChannelProperties'])
 
     handlers = text_cdo_properties[cs.CDO + '.PossibleHandlers'][:]
     assert (sorted(handlers) ==
@@ -204,7 +206,7 @@ def test(q, bus, mc):
             EventPattern('dbus-method-call',
                 path=empathy.object_path,
                 interface=cs.APPROVER, method='AddDispatchOperation',
-                predicate=lambda e: e.args[1] == text_cdo_path,
+                predicate=lambda e: e.args[0] == text_cdo_path,
                 handled=False),
             EventPattern('dbus-method-call',
                 path=kopete.object_path,
@@ -213,19 +215,16 @@ def test(q, bus, mc):
             EventPattern('dbus-method-call',
                 path=empathy.object_path,
                 interface=cs.APPROVER, method='AddDispatchOperation',
-                predicate=lambda e: e.args[1] == media_cdo_path,
+                predicate=lambda e: e.args[0] == media_cdo_path,
                 handled=False)
             )
-    assert len(e_approve_text.args[0]) == 1
-    assert ((text_chan.object_path, text_channel_properties) in
-            e_approve_text.args[0])
-    assert e_approve_text.args[1:] == [text_cdo_path, text_cdo_properties]
-    assert k_approve_text.args == e_approve_text.args
 
-    assert len(e_approve_media.args[0]) == 1
-    assert ((media_chan.object_path, media_channel_properties) in
-            e_approve_media.args[0])
-    assert e_approve_media.args[1:] == [media_cdo_path, media_cdo_properties]
+    assertEquals(text_cdo_path, e_approve_text.args[0])
+    assertEquals(text_cdo_properties, e_approve_text.args[1])
+    assertEquals(k_approve_text.args, e_approve_text.args)
+
+    assertEquals(media_cdo_path, e_approve_media.args[0])
+    assertEquals(media_cdo_properties, e_approve_media.args[1])
 
     q.dbus_return(e_approve_text.message, signature='')
     q.dbus_return(k_approve_text.message, signature='')
@@ -341,21 +340,21 @@ def test(q, bus, mc):
                 path=empathy.object_path,
                 interface=cs.APPROVER, method='AddDispatchOperation',
                 predicate=(lambda e:
-                    e.args[0][0][0] ==
+                    e.args[1][cs.CDO + '.Channel'] ==
                     media_chan.object_path),
                 handled=False),
             EventPattern('dbus-method-call',
                 path=empathy.object_path,
                 interface=cs.APPROVER, method='AddDispatchOperation',
                 predicate=(lambda e:
-                    e.args[0][0][0] ==
+                    e.args[1][cs.CDO + '.Channel'] ==
                     text_chan.object_path),
                 handled=False),
             EventPattern('dbus-method-call',
                 path=kopete.object_path,
                 interface=cs.APPROVER, method='AddDispatchOperation',
                 predicate=(lambda e:
-                    e.args[0][0][0] ==
+                    e.args[1][cs.CDO + '.Channel'] ==
                     text_chan.object_path),
                 handled=False),
             EventPattern('dbus-method-call',

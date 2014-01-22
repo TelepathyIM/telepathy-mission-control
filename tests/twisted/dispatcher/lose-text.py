@@ -138,8 +138,7 @@ def test(q, bus, mc):
                 handled=False),
             )
 
-    assert e.args == [[(chan.object_path, channel_properties)],
-            cdo_path, cdo_properties]
+    assert e.args == [cdo_path, cdo_properties]
     assert k.args == e.args
 
     q.dbus_return(e.message, signature='')
@@ -162,12 +161,9 @@ def test(q, bus, mc):
 
     # ... and in response, the channel dispatch operation finishes
 
-    e = q.expect('dbus-signal', path=cdo_path, signal='ChannelLost')
-    assert e.args[0] == chan.object_path
+    q.expect('dbus-signal', path=cdo_path, signal='Finished')
     # FIXME: e.args[1:] == [...Disconnected, 'Channel aborted'] which doesn't
     #   seem like the most appropriate thing for MC to do
-
-    q.expect('dbus-signal', path=cdo_path, signal='Finished')
     q.expect('dbus-signal', path=cs.CD_PATH,
         signal='DispatchOperationFinished', args=[cdo_path])
 

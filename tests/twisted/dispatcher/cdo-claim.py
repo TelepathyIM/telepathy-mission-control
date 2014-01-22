@@ -82,7 +82,7 @@ def test(q, bus, mc):
                 handled=False),
             )
 
-    channels, cdo_path, props = k.args
+    cdo_path, props = k.args
 
     cdo = bus.get_object(cs.CD, cdo_path)
     cdo_iface = dbus.Interface(cdo, cs.CDO)
