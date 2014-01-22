@@ -74,7 +74,7 @@ def test(q, bus, mc):
     e, k = q.expect_many(
             EventPattern('dbus-method-call',
                 path=logger.object_path,
-                interface=cs.OBSERVER, method='ObserveChannels',
+                interface=cs.OBSERVER, method='ObserveChannel',
                 handled=False),
             EventPattern('dbus-method-call',
                 path=gs.object_path,
@@ -117,7 +117,7 @@ def test(q, bus, mc):
     # Logger recovers the channel
     e = q.expect('dbus-method-call',
                 path=logger.object_path,
-                interface=cs.OBSERVER, method='ObserveChannels',
+                interface=cs.OBSERVER, method='ObserveChannel',
                 handled=False)
 
     # gnome-shell which is handling the channel asks to re-ensure it

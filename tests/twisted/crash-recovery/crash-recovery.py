@@ -106,13 +106,13 @@ def test(q, bus, unused, **kwargs):
     e, = mc.wait_for_names(
             EventPattern('dbus-method-call',
                 path=client.object_path,
-                interface=cs.OBSERVER, method='ObserveChannels',
+                interface=cs.OBSERVER, method='ObserveChannel',
                 handled=False),
             )
 
     assert e.args[1] == conn.object_path, e.args
-    channels = e.args[2]
-    assert channels[0][0] == unhandled_chan.object_path, channels
+    chan_path = e.args[2]
+    assert chan_path == unhandled_chan.object_path, e.args
     q.dbus_return(e.message, signature='')
 
     # ... and as a handler

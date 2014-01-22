@@ -509,17 +509,15 @@ class SimulatedConnection(object):
             'Channels': self.get_channel_details(),
         }, signature='a{sv}')
 
-    def NewChannels(self, channels):
-        for channel in channels:
-            assert not channel.announced
-            channel.announced = True
-            self.channels.append(channel)
+    def NewChannel(self, channel):
+        assert not channel.announced
+        channel.announced = True
+        self.channels.append(channel)
 
         self.q.dbus_emit(self.object_path, cs.CONN_IFACE_REQUESTS,
-                'NewChannels',
-                [(channel.object_path, channel.immutable)
-                    for channel in channels],
-                signature='a(oa{sv})')
+                'NewChannel',
+                channel.object_path, channel.immutable,
+                signature='oa{sv}')
 
     def get_contact_attributes(self, h, ifaces):
         id = self.inspect_handles([h])[0]
@@ -669,7 +667,7 @@ class SimulatedChannel(object):
         self.q.dbus_return(e.message, [], signature='a(uuus)')
 
     def announce(self):
-        self.conn.NewChannels([self])
+        self.conn.NewChannel(self)
 
     def Close(self, e):
         if not self.closed:

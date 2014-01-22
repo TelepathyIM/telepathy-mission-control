@@ -91,7 +91,7 @@ def test(q, bus, mc):
     # Empathy, the observer, gets the channel to observe. Because it
     # has DelayApprovers=TRUE, Kopete should not have
     # AddDispatchOperation called on it until Empathy returns from
-    # ObserveChannels. Because Loggy has DelayApprovers=False,
+    # ObserveChannel. Because Loggy has DelayApprovers=False,
     # however, ADO can be called on Kopete before Loggy returns, but
     # again, only after Empathy returns.
     forbidden = [EventPattern('dbus-method-call',
@@ -101,11 +101,11 @@ def test(q, bus, mc):
 
     e, l = q.expect_many(EventPattern('dbus-method-call',
                  path=empathy.object_path,
-                 interface=cs.OBSERVER, method='ObserveChannels',
+                 interface=cs.OBSERVER, method='ObserveChannel',
                  handled=False),
              EventPattern('dbus-method-call',
                  path=loggy.object_path,
-                 interface=cs.OBSERVER, method='ObserveChannels',
+                 interface=cs.OBSERVER, method='ObserveChannel',
                  handled=False),
              )
 
@@ -115,7 +115,7 @@ def test(q, bus, mc):
     call_async(q, cd_props, 'Get', cs.CD_IFACE_OP_LIST, 'DispatchOperations')
     event = q.expect('dbus-return', method='Get')
 
-    # Finally return from ObserveChannels from Empathy, so now we
+    # Finally return from ObserveChannel from Empathy, so now we
     # expect ADO to be called on Kopete.
     q.dbus_return(e.message, bus=bus, signature='')
     q.unforbid_events(forbidden)
@@ -127,7 +127,7 @@ def test(q, bus, mc):
 
     q.dbus_return(e.message, bus=bus, signature='')
 
-    # Return from loggy's ObserveChannels.
+    # Return from loggy's ObserveChannel.
     q.dbus_return(l.message, bus=bus, signature='')
 
     # The user responds to Kopete

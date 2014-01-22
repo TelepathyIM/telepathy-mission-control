@@ -105,7 +105,8 @@ def test(q, bus, mc):
     media_chan = SimulatedChannel(conn, media_channel_properties,
             destroyable=False)
 
-    conn.NewChannels([text_chan, media_chan])
+    conn.NewChannel(text_chan)
+    conn.NewChannel(media_chan)
 
     # A channel dispatch operation is created for the Text channel first.
 
@@ -135,25 +136,40 @@ def test(q, bus, mc):
     e_observe_text, k_observe_text = q.expect_many(
             EventPattern('dbus-method-call',
                 path=empathy.object_path,
-                interface=cs.OBSERVER, method='ObserveChannels',
+                interface=cs.OBSERVER, method='ObserveChannel',
                 handled=False),
             EventPattern('dbus-method-call',
                 path=kopete.object_path,
-                interface=cs.OBSERVER, method='ObserveChannels',
+                interface=cs.OBSERVER, method='ObserveChannel',
                 handled=False),
             )
     assert e_observe_text.args[0] == account.object_path, e_observe_text.args
     assert e_observe_text.args[1] == conn.object_path, e_observe_text.args
-    assert e_observe_text.args[3] == text_cdo_path, e_observe_text.args
-    assert e_observe_text.args[4] == [], e_observe_text.args
-    channels = e_observe_text.args[2]
-    assert len(channels) == 1, channels
-    assert (text_chan.object_path, text_channel_properties) in channels
+    assert e_observe_text.args[2] == text_chan.object_path, e_observe_text.args
+    assert e_observe_text.args[3] == text_channel_properties, e_observe_text.args
+    assert e_observe_text.args[4] == text_cdo_path, e_observe_text.args
+    assert e_observe_text.args[5] == [], e_observe_text.args
 
     assert k_observe_text.args[0] == e_observe_text.args[0], k_observe_text.args
     assert k_observe_text.args[1] == e_observe_text.args[1], k_observe_text.args
-    assert (k_observe_text.args[2] ==
-            [(text_chan.object_path, text_channel_properties)])
+    assert k_observe_text.args[2] == text_chan.object_path, k_observe_text.args
+    assert k_observe_text.args[3] == text_channel_properties, k_observe_text.args
+
+    e_approve_text, k_approve_text = q.expect_many(
+            EventPattern('dbus-method-call',
+                path=empathy.object_path,
+                interface=cs.APPROVER, method='AddDispatchOperation',
+                predicate=lambda e: e.args[0] == text_cdo_path,
+                handled=False),
+            EventPattern('dbus-method-call',
+                path=kopete.object_path,
+                interface=cs.APPROVER, method='AddDispatchOperation',
+                handled=False),
+            )
+
+    assertEquals(text_cdo_path, e_approve_text.args[0])
+    assertEquals(text_cdo_properties, e_approve_text.args[1])
+    assertEquals(k_approve_text.args, e_approve_text.args)
 
     # Now a separate CDO is created for the media channel.
 
@@ -185,46 +201,28 @@ def test(q, bus, mc):
 
     e_observe_media = q.expect('dbus-method-call',
             path=empathy.object_path,
-            interface=cs.OBSERVER, method='ObserveChannels',
+            interface=cs.OBSERVER, method='ObserveChannel',
             handled=False)
     assert e_observe_media.args[0] == account.object_path, e_observe_media.args
     assert e_observe_media.args[1] == conn.object_path, e_observe_media.args
-    assert e_observe_media.args[3] == media_cdo_path, e_observe_media.args
-    assert e_observe_media.args[4] == [], e_observe_media.args
-    channels = e_observe_media.args[2]
-    assert len(channels) == 1, channels
-    assert (media_chan.object_path, media_channel_properties) in channels
+    assert e_observe_media.args[2] == media_chan.object_path, e_observe_media.args
+    assert e_observe_media.args[3] == media_channel_properties, e_observe_media.args
+    assert e_observe_media.args[4] == media_cdo_path, e_observe_media.args
+    assert e_observe_media.args[5] == [], e_observe_media.args
 
-    # All Observers reply.
-
-    q.dbus_return(e_observe_text.message, signature='')
-    q.dbus_return(k_observe_text.message, signature='')
-    q.dbus_return(e_observe_media.message, signature='')
-
-    # The Approvers are next
-    e_approve_text, k_approve_text, e_approve_media = q.expect_many(
-            EventPattern('dbus-method-call',
-                path=empathy.object_path,
-                interface=cs.APPROVER, method='AddDispatchOperation',
-                predicate=lambda e: e.args[0] == text_cdo_path,
-                handled=False),
-            EventPattern('dbus-method-call',
-                path=kopete.object_path,
-                interface=cs.APPROVER, method='AddDispatchOperation',
-                handled=False),
-            EventPattern('dbus-method-call',
-                path=empathy.object_path,
-                interface=cs.APPROVER, method='AddDispatchOperation',
-                predicate=lambda e: e.args[0] == media_cdo_path,
-                handled=False)
-            )
-
-    assertEquals(text_cdo_path, e_approve_text.args[0])
-    assertEquals(text_cdo_properties, e_approve_text.args[1])
-    assertEquals(k_approve_text.args, e_approve_text.args)
+    e_approve_media = q.expect('dbus-method-call',
+            path=empathy.object_path,
+            interface=cs.APPROVER, method='AddDispatchOperation',
+            predicate=lambda e: e.args[0] == media_cdo_path,
+            handled=False)
 
     assertEquals(media_cdo_path, e_approve_media.args[0])
     assertEquals(media_cdo_properties, e_approve_media.args[1])
+
+    # All Observers reply.
+    q.dbus_return(e_observe_text.message, signature='')
+    q.dbus_return(k_observe_text.message, signature='')
+    q.dbus_return(e_observe_media.message, signature='')
 
     q.dbus_return(e_approve_text.message, signature='')
     q.dbus_return(k_approve_text.message, signature='')
@@ -313,7 +311,10 @@ def test(q, bus, mc):
     ext_chan = SimulatedChannel(conn, ext_channel_properties,
             destroyable=False)
 
-    conn.NewChannels([text_chan, media_chan, ext_chan, respawning_chan])
+    conn.NewChannel(text_chan)
+    conn.NewChannel(media_chan)
+    conn.NewChannel(ext_chan)
+    conn.NewChannel(respawning_chan)
 
     # No client can handle all four channels, so the bundle explodes into
     # two dispatch operations and two failures. We can only match the first
@@ -323,18 +324,18 @@ def test(q, bus, mc):
     _, _, _ = q.expect_many(
             EventPattern('dbus-method-call',
                 path=empathy.object_path,
-                interface=cs.OBSERVER, method='ObserveChannels',
-                predicate=(lambda e: e.args[2][0][0] == media_chan.object_path),
+                interface=cs.OBSERVER, method='ObserveChannel',
+                predicate=(lambda e: e.args[2] == media_chan.object_path),
                 handled=False),
             EventPattern('dbus-method-call',
                 path=empathy.object_path,
-                interface=cs.OBSERVER, method='ObserveChannels',
-                predicate=(lambda e: e.args[2][0][0] == text_chan.object_path),
+                interface=cs.OBSERVER, method='ObserveChannel',
+                predicate=(lambda e: e.args[2] == text_chan.object_path),
                 handled=False),
             EventPattern('dbus-method-call',
                 path=kopete.object_path,
-                interface=cs.OBSERVER, method='ObserveChannels',
-                predicate=(lambda e: e.args[2][0][0] == text_chan.object_path),
+                interface=cs.OBSERVER, method='ObserveChannel',
+                predicate=(lambda e: e.args[2] == text_chan.object_path),
                 handled=False),
             EventPattern('dbus-method-call',
                 path=empathy.object_path,

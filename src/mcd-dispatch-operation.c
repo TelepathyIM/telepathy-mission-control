@@ -217,7 +217,7 @@ struct _McdDispatchOperationPrivate
     gboolean invoked_observers_if_needed;
     gboolean invoked_approvers_if_needed;
 
-    /* The number of observers that have not yet returned from ObserveChannels.
+    /* The number of observers that have not yet returned from ObserveChannel.
      * Until they have done so, we can't allow the dispatch operation to
      * finish. This is a client lock.
      *
@@ -1987,9 +1987,9 @@ _mcd_dispatch_operation_run_observers (McdDispatchOperation *self)
     {
         McdClientProxy *client = MCD_CLIENT_PROXY (client_p);
         gboolean observed = FALSE;
-        const gchar *account_path, *connection_path;
-        GPtrArray *channels_array, *satisfied_requests;
-        GHashTable *request_properties;
+        const gchar *account_path, *connection_path, *chan_path;
+        GPtrArray *satisfied_requests;
+        GHashTable *request_properties, *chan_props;
 
         if (!tp_proxy_has_interface_by_id (client,
                                            TP_IFACE_QUARK_CLIENT_OBSERVER))
@@ -2018,11 +2018,8 @@ _mcd_dispatch_operation_run_observers (McdDispatchOperation *self)
 
         connection_path = _mcd_dispatch_operation_get_connection_path (self);
         account_path = _mcd_dispatch_operation_get_account_path (self);
-
-        /* TODO: there's room for optimization here: reuse the channels_array,
-         * if the observed list is the same */
-        channels_array = _mcd_tp_channel_details_build_from_tp_chan (
-            mcd_channel_get_tp_channel (self->priv->channel));
+        chan_path = mcd_channel_get_object_path (self->priv->channel);
+        chan_props = mcd_channel_dup_immutable_properties_asv (self->priv->channel);
 
         collect_satisfied_requests (self->priv->channel, &satisfied_requests,
                                     &request_properties);
@@ -2040,18 +2037,17 @@ _mcd_dispatch_operation_run_observers (McdDispatchOperation *self)
 
         _mcd_dispatch_operation_inc_observers_pending (self, client);
 
-        DEBUG ("calling ObserveChannels on %s for CDO %p",
+        DEBUG ("calling ObserveChannel on %s for CDO %p",
                tp_proxy_get_bus_name (client), self);
-        tp_cli_client_observer_call_observe_channels (
+        tp_cli_client_observer_call_observe_channel (
             (TpClient *) client, -1,
-            account_path, connection_path, channels_array,
+            account_path, connection_path, chan_path, chan_props,
             dispatch_operation_path, satisfied_requests, observer_info,
             observe_channels_cb,
             g_object_ref (self), g_object_unref, NULL);
 
         g_ptr_array_unref (satisfied_requests);
-
-        _mcd_tp_channel_details_free (channels_array);
+        g_hash_table_unref (chan_props);
     }
 
     g_hash_table_unref (observer_info);

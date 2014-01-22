@@ -110,7 +110,7 @@ struct _McdConnectionPrivate
 
     /* FALSE until the dispatcher has said it's ready for us */
     guint dispatching_started : 1;
-    /* FALSE until channels announced by NewChannel/NewChannels need to be
+    /* FALSE until channels announced by NewChannel need to be
      * dispatched */
     guint dispatched_initial_channels : 1;
 
@@ -816,34 +816,34 @@ static gboolean mcd_connection_need_dispatch (McdConnection *connection,
                                               GHashTable *props);
 
 static void
-on_new_channels (TpConnection *proxy, const GPtrArray *channels,
-                 gpointer user_data, GObject *weak_object)
+on_new_channel (TpConnection *proxy,
+                const gchar *object_path,
+                GHashTable *props,
+                gpointer user_data,
+                GObject *weak_object)
 {
     McdConnection *connection = MCD_CONNECTION (weak_object);
     McdConnectionPrivate *priv = user_data;
-    guint i;
+    GValue *value;
+    gboolean requested = FALSE;
+    gboolean only_observe = FALSE;
+    McdChannel *channel;
 
     if (DEBUGGING)
     {
-        for (i = 0; i < channels->len; i++)
+        GHashTableIter iter;
+        gpointer k, v;
+
+        DEBUG ("%s", object_path);
+
+        g_hash_table_iter_init (&iter, props);
+
+        while (g_hash_table_iter_next (&iter, &k, &v))
         {
-            GValueArray *va = g_ptr_array_index (channels, i);
-            const gchar *object_path = g_value_get_boxed (va->values);
-            GHashTable *props = g_value_get_boxed (va->values + 1);
-            GHashTableIter iter;
-            gpointer k, v;
+            gchar *repr = g_strdup_value_contents (v);
 
-            DEBUG ("%s", object_path);
-
-            g_hash_table_iter_init (&iter, props);
-
-            while (g_hash_table_iter_next (&iter, &k, &v))
-            {
-                gchar *repr = g_strdup_value_contents (v);
-
-                DEBUG("  \"%s\" => %s", (const gchar *) k, repr);
-                g_free (repr);
-            }
+            DEBUG("  \"%s\" => %s", (const gchar *) k, repr);
+            g_free (repr);
         }
     }
 
@@ -851,51 +851,38 @@ on_new_channels (TpConnection *proxy, const GPtrArray *channels,
      * FALSE: they'll also be in Channels in the GetAll(Requests) result */
     if (!priv->dispatched_initial_channels) return;
 
-    sp_timestamp ("NewChannels received");
-    for (i = 0; i < channels->len; i++)
+    sp_timestamp ("NewChannel received");
+
+    only_observe = !mcd_connection_need_dispatch (connection, object_path,
+                                                  props);
+
+    /* Don't do anything for requested channels */
+    value = g_hash_table_lookup (props, TP_IFACE_CHANNEL ".Requested");
+    if (value && g_value_get_boolean (value))
+        requested = TRUE;
+
+    /* if the channel was a request, we already have an object for it;
+     * otherwise, create a new one */
+    channel = mcd_connection_find_channel_by_path (connection, object_path);
+    if (!channel)
     {
-        GValueArray *va;
-        const gchar *object_path;
-        GHashTable *props;
-        GValue *value;
-        gboolean requested = FALSE;
-        gboolean only_observe = FALSE;
-        McdChannel *channel;
+        channel = mcd_channel_new_from_properties (proxy, object_path,
+                                                   props);
+        if (G_UNLIKELY (!channel))
+            return;
 
-        va = g_ptr_array_index (channels, i);
-        object_path = g_value_get_boxed (va->values);
-        props = g_value_get_boxed (va->values + 1);
-
-        only_observe = !mcd_connection_need_dispatch (connection, object_path,
-                                                      props);
-
-        /* Don't do anything for requested channels */
-        value = g_hash_table_lookup (props, TP_IFACE_CHANNEL ".Requested");
-        if (value && g_value_get_boolean (value))
-            requested = TRUE;
-
-        /* if the channel was a request, we already have an object for it;
-         * otherwise, create a new one */
-        channel = mcd_connection_find_channel_by_path (connection, object_path);
-        if (!channel)
-        {
-            channel = mcd_channel_new_from_properties (proxy, object_path,
-                                                       props);
-            if (G_UNLIKELY (!channel)) continue;
-
-            mcd_operation_take_mission (MCD_OPERATION (connection),
-                                        MCD_MISSION (channel));
-        }
-
-        if (!requested)
-        {
-            /* we always dispatch unrequested (incoming) channels */
-            only_observe = FALSE;
-        }
-
-        _mcd_dispatcher_add_channel (priv->dispatcher, channel, requested,
-                                     only_observe);
+        mcd_operation_take_mission (MCD_OPERATION (connection),
+                                    MCD_MISSION (channel));
     }
+
+    if (!requested)
+    {
+        /* we always dispatch unrequested (incoming) channels */
+        only_observe = FALSE;
+    }
+
+    _mcd_dispatcher_add_channel (priv->dispatcher, channel, requested,
+                                     only_observe);
 }
 
 static void
@@ -1031,13 +1018,13 @@ mcd_connection_setup_requests (McdConnection *connection)
     McdConnectionPrivate *priv = connection->priv;
 
     /*
-     * 1. connect to the NewChannels
+     * 1. connect to the NewChannel
      * 2. get existing channels
      * 3. disconnect from NewChannel
      * 4. dispatch the UNDISPATCHED
      */
-    tp_cli_connection_interface_requests_connect_to_new_channels
-        (priv->tp_conn, on_new_channels, priv, NULL,
+    tp_cli_connection_interface_requests_connect_to_new_channel
+        (priv->tp_conn, on_new_channel, priv, NULL,
          (GObject *)connection, NULL);
 
     tp_cli_dbus_properties_call_get_all (priv->tp_conn, -1,
@@ -1701,7 +1688,7 @@ _mcd_connection_get_property (GObject * obj, guint prop_id,
  * @object_path: the object path of the new channel (only for debugging)
  * @props: the properties of the new channel
  *
- * This functions must be called in response to a NewChannels signals, and is
+ * This functions must be called in response to a NewChannel signals, and is
  * responsible for deciding whether MC must handle the channels or not.
  */
 static gboolean
@@ -1940,7 +1927,7 @@ common_request_channel_cb (TpConnection *proxy, gboolean yours,
     }
 
     /* No dispatching here: the channel will be dispatched upon receiving the
-     * NewChannels signal */
+     * NewChannel signal */
 }
 
 static void

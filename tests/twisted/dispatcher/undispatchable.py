@@ -94,7 +94,7 @@ def test(q, bus, mc):
 
     e = q.expect('dbus-method-call',
             path=client.object_path,
-            interface=cs.OBSERVER, method='ObserveChannels',
+            interface=cs.OBSERVER, method='ObserveChannel',
             handled=False)
 
     sync_dbus(bus, q, mc)

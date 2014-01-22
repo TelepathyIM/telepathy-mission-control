@@ -248,7 +248,7 @@ mcp_dispatch_operation_ref_nth_channel_properties (McpDispatchOperation *self,
  * mcp_dispatch_operation_end_delay() exactly once, at which point dispatching
  * will continue and the token becomes invalid.
  *
- * This is similar to an Observer delaying the return from ObserveChannels,
+ * This is similar to an Observer delaying the return from ObserveChannel,
  * except that there is no time limit - a dispatch operation policy plugin
  * can delay the dispatch operation indefinitely.
  *

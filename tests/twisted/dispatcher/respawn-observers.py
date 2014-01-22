@@ -122,17 +122,15 @@ def test(q, bus, mc):
 
     e = q.expect('dbus-method-call',
                 path=empathy.object_path,
-                interface=cs.OBSERVER, method='ObserveChannels',
+                interface=cs.OBSERVER, method='ObserveChannel',
                 handled=False)
 
     assert e.args[0] == account.object_path, e.args
     assert e.args[1] == conn.object_path, e.args
-    assert e.args[3] == cdo_path, e.args
-    assert e.args[4] == [], e.args      # no requests satisfied
-    channels = e.args[2]
-    assert len(channels) == 1, channels
-    assert channels[0][0] == chan.object_path, channels
-    assert channels[0][1] == channel_properties, channels
+    assert e.args[2] == chan.object_path, e.args
+    assert e.args[3] == channel_properties, e.args
+    assert e.args[4] == cdo_path, e.args
+    assert e.args[5] == [], e.args      # no requests satisfied
 
     # Empathy indicates that it is ready to proceed
     q.dbus_return(e.message, bus=empathy_bus, signature='')
@@ -226,17 +224,15 @@ def test(q, bus, mc):
 
     e = q.expect('dbus-method-call',
                 path=empathy.object_path,
-                interface=cs.OBSERVER, method='ObserveChannels',
+                interface=cs.OBSERVER, method='ObserveChannel',
                 handled=False)
 
     assert e.args[0] == account.object_path, e.args
     assert e.args[1] == conn.object_path, e.args
-    assert e.args[3] == cdo2_path, e.args
-    assert e.args[4] == [], e.args      # no requests satisfied
-    channels = e.args[2]
-    assert len(channels) == 1, channels
-    assert channels[0][0] == chan2.object_path, channels
-    assert channels[0][1] == channel2_properties, channels
+    assert e.args[2] == chan2.object_path, e.args
+    assert e.args[3] == channel2_properties, e.args
+    assert e.args[4] == cdo2_path, e.args
+    assert e.args[5] == [], e.args      # no requests satisfied
 
     # Empathy indicates that it is ready to proceed
     q.dbus_return(e.message, bus=empathy_bus, signature='')
@@ -277,33 +273,29 @@ def test(q, bus, mc):
     e1, e2 = q.expect_many(
             EventPattern('dbus-method-call',
                 path=empathy.object_path,
-                interface=cs.OBSERVER, method='ObserveChannels',
-                predicate=lambda e: e.args[2][0][0] == chan.object_path,
+                interface=cs.OBSERVER, method='ObserveChannel',
+                predicate=lambda e: e.args[2] == chan.object_path,
                 handled=False),
             EventPattern('dbus-method-call',
                 path=empathy.object_path,
-                interface=cs.OBSERVER, method='ObserveChannels',
-                predicate=lambda e: e.args[2][0][0] == chan2.object_path,
+                interface=cs.OBSERVER, method='ObserveChannel',
+                predicate=lambda e: e.args[2] == chan2.object_path,
                 handled=False),
             )
 
     assert e1.args[0] == account.object_path, e1.args
     assert e1.args[1] == conn.object_path, e1.args
-    assert e1.args[4] == [], e1.args      # no requests satisfied
-    assert e1.args[5]['recovering'] == 1, e1.args # due to observer recovery
-    channels = e1.args[2]
-    assert len(channels) == 1, channels
-    assert channels[0][0] == chan.object_path, channels
-    assert channels[0][1] == channel_properties, channels
+    assert e1.args[2] == chan.object_path, e1.args
+    assert e1.args[3] == channel_properties, e1.args
+    assert e1.args[5] == [], e1.args      # no requests satisfied
+    assert e1.args[6]['recovering'] == 1, e1.args # due to observer recovery
 
     assert e2.args[0] == account.object_path, e2.args
     assert e2.args[1] == conn.object_path, e2.args
-    assert e2.args[4] == [], e2.args      # no requests satisfied
-    assert e2.args[5]['recovering'] == 1, e2.args # due to observer recovery
-    channels = e2.args[2]
-    assert len(channels) == 1, channels
-    assert channels[0][0] == chan2.object_path, channels
-    assert channels[0][1] == channel2_properties, channels
+    assert e2.args[2] == chan2.object_path, e1.args
+    assert e2.args[3] == channel2_properties, e1.args
+    assert e2.args[5] == [], e2.args      # no requests satisfied
+    assert e2.args[6]['recovering'] == 1, e2.args # due to observer recovery
 
     # Empathy indicates that it is ready to proceed
     q.dbus_return(e1.message, bus=empathy_bus, signature='')

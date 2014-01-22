@@ -168,21 +168,18 @@ def test(q, bus, unused, **kwargs):
                 path=conn.object_path, handled=True),
             EventPattern('dbus-method-call',
                 path=client.object_path,
-                interface=cs.OBSERVER, method='ObserveChannels',
+                interface=cs.OBSERVER, method='ObserveChannel',
                 handled=False),
             EventPattern('dbus-method-call',
                 interface=cs.CONN_IFACE_REQUESTS, method='CreateChannel',
                 path=conn.object_path, args=[request], handled=False),
             )
-
     assert a.args[0] == account.object_path, a.args
     assert a.args[1] == conn.object_path, a.args
-    assert a.args[3] != '/', a.args         # there is a dispatch operation
-    assert a.args[4] == [], a.args
-    channels = a.args[2]
-    assert len(channels) == 1, channels
-    assert channels[0][0] == announcement.object_path, channels
-    assert channels[0][1] == announcement_immutable, channels
+    assert a.args[2] == announcement.object_path, channels
+    assert a.args[3] == announcement_immutable, channels
+    assert a.args[4] != '/', a.args     # there is a dispatch operation
+    assert a.args[5] == [], e.args      # no requests satisfied
 
     # Time passes. A channel is returned.
 
@@ -203,17 +200,14 @@ def test(q, bus, unused, **kwargs):
     # Empathy observes the newly-created channel.
     e = q.expect('dbus-method-call',
             path=client.object_path,
-            interface=cs.OBSERVER, method='ObserveChannels',
+            interface=cs.OBSERVER, method='ObserveChannel',
             handled=False)
 
     assert e.args[0] == account.object_path, e.args
     assert e.args[1] == conn.object_path, e.args
-    assert e.args[3] == '/', e.args         # no dispatch operation
-    assert e.args[4] == [request_path], e.args
-    channels = e.args[2]
-    assert len(channels) == 1, channels
-    assert channels[0][0] == channel.object_path, channels
-    assert channels[0][1] == channel_immutable, channels
+    assert e.args[2] == channel.object_path, channel.object_path
+    assert e.args[3] == channel_immutable, channel_immutable
+    assert e.args[4] == '/', e.args     # no dispatch operation
 
     # Observer says "OK, go"
     q.dbus_return(a.message, signature='')

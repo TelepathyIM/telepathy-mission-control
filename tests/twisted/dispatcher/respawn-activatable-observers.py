@@ -138,17 +138,15 @@ def test(q, bus, mc):
     # Logger is told about the new channel
     e = q.expect('dbus-method-call',
                 path=logger.object_path,
-                interface=cs.OBSERVER, method='ObserveChannels',
+                interface=cs.OBSERVER, method='ObserveChannel',
                 handled=False)
 
     assert e.args[0] == account.object_path, e.args
     assert e.args[1] == conn.object_path, e.args
-    assert e.args[3] == cdo_path, e.args
-    assert e.args[4] == [], e.args      # no requests satisfied
-    channels = e.args[2]
-    assert len(channels) == 1, channels
-    assert channels[0][0] == chan.object_path, channels
-    assert channels[0][1] == channel_properties, channels
+    assert e.args[2] == chan.object_path, e.args
+    assert e.args[3] == channel_properties, e.args
+    assert e.args[4] == cdo_path, e.args
+    assert e.args[5] == [], e.args      # no requests satisfied
 
     # Logger indicates that it is ready to proceed
     q.dbus_return(e.message, bus=logger_bus, signature='')
@@ -210,7 +208,7 @@ def test(q, bus, mc):
 
     e = q.expect('dbus-method-call',
                 path=logger.object_path,
-                interface=cs.OBSERVER, method='ObserveChannels',
+                interface=cs.OBSERVER, method='ObserveChannel',
                 handled=False)
 
     # FIXME: assert the same things as before, except CDO (which we don't
@@ -218,12 +216,10 @@ def test(q, bus, mc):
     # that the recovering observer info key is set
     assert e.args[0] == account.object_path, e.args
     assert e.args[1] == conn.object_path, e.args
-    assert e.args[4] == [], e.args      # no requests satisfied
-    assert e.args[5]['recovering'] == 1, e.args # due to observer recovery
-    channels = e.args[2]
-    assert len(channels) == 1, channels
-    assert channels[0][0] == chan.object_path, channels
-    assert channels[0][1] == channel_properties, channels
+    assert e.args[2] == chan.object_path, e.args
+    assert e.args[3] == channel_properties, e.args
+    assert e.args[5] == [], e.args      # no requests satisfied
+    assert e.args[6]['recovering'] == 1, e.args # due to observer recovery
 
     # Logger indicates that it is ready to proceed
     q.dbus_return(e.message, bus=logger_bus, signature='')

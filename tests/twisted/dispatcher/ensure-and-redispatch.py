@@ -163,16 +163,14 @@ def test_channel_creation(q, bus, account, client, conn):
     # Observer should get told, processing waits for it
     e = q.expect('dbus-method-call',
             path=client.object_path,
-            interface=cs.OBSERVER, method='ObserveChannels',
+            interface=cs.OBSERVER, method='ObserveChannel',
             handled=False)
     assert e.args[0] == account.object_path, e.args
     assert e.args[1] == conn.object_path, e.args
-    assert e.args[3] == '/', e.args         # no dispatch operation
-    assert e.args[4] == [request_path], e.args
-    channels = e.args[2]
-    assert len(channels) == 1, channels
-    assert channels[0][0] == channel.object_path, channels
-    assert channels[0][1] == channel_immutable, channels
+    assert e.args[2] == channel.object_path, e.args
+    assert e.args[3] == channel_immutable, e.args
+    assert e.args[4] == '/', e.args    # no dispatch operation
+    assert e.args[5] == [request_path], e.args
 
     # Observer says "OK, go"
     q.dbus_return(e.message, signature='')
@@ -207,7 +205,7 @@ def test_channel_redispatch(q, bus, account, client, conn, channel,
 
     forbidden = [
             # Because we create no new channels, nothing should be observed.
-            EventPattern('dbus-method-call', method='ObserveChannels'),
+            EventPattern('dbus-method-call', method='ObserveChannel'),
             # Even though there is a better handler on a different unique
             # name, the channels must not be re-dispatched to it.
             EventPattern('dbus-method-call', method='HandleChannel',

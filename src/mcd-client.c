@@ -587,8 +587,8 @@ _mcd_client_recover_observer (McdClientProxy *self, TpChannel *channel,
     GPtrArray *satisfied_requests;
     GHashTable *observer_info;
     TpConnection *conn;
-    const gchar *connection_path;
-    GPtrArray *channels_array;
+    const gchar *connection_path, *chan_path;
+    GHashTable *chan_props;
 
     satisfied_requests = g_ptr_array_new ();
     observer_info = g_hash_table_new (g_str_hash, g_str_equal);
@@ -597,22 +597,23 @@ _mcd_client_recover_observer (McdClientProxy *self, TpChannel *channel,
         TP_HASH_TYPE_OBJECT_IMMUTABLE_PROPERTIES_MAP,
         g_hash_table_new (NULL, NULL));
 
-    channels_array = _mcd_tp_channel_details_build_from_tp_chan (channel);
     conn = tp_channel_get_connection (channel);
     connection_path = tp_proxy_get_object_path (conn);
+    chan_path = tp_proxy_get_object_path (channel);
+    chan_props = _mcd_tp_channel_dup_immutable_properties_asv (channel);
 
-    DEBUG ("calling ObserveChannels on %s for channel %p",
+    DEBUG ("calling ObserveChannel on %s for channel %p",
            tp_proxy_get_bus_name (self), channel);
 
-    tp_cli_client_observer_call_observe_channels (
+    tp_cli_client_observer_call_observe_channel (
         (TpClient *) self, -1, account_path,
-        connection_path, channels_array,
+        connection_path, chan_path, chan_props,
         "/", satisfied_requests, observer_info,
         NULL, NULL, NULL, NULL);
 
-    _mcd_tp_channel_details_free (channels_array);
     g_ptr_array_unref (satisfied_requests);
     g_hash_table_unref (observer_info);
+    g_hash_table_unref (chan_props);
 }
 
 static void
@@ -963,7 +964,7 @@ mcd_client_proxy_unique_name_cb (TpDBusDaemon *dbus_daemon,
         _mcd_client_proxy_set_inactive (self);
 
         /* To recover activatable Observers, we just need to call
-         * ObserveChannels on them. */
+         * ObserveChannel on them. */
         should_recover = self->priv->recover && self->priv->activatable;
     }
     else

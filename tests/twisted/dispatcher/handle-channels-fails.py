@@ -121,16 +121,15 @@ def test(q, bus, mc):
 
     e = q.expect('dbus-method-call',
             path=empathy.object_path,
-            interface=cs.OBSERVER, method='ObserveChannels',
+            interface=cs.OBSERVER, method='ObserveChannel',
             handled=False)
     assert e.args[0] == account.object_path, e.args
     assert e.args[1] == conn.object_path, e.args
-    assert e.args[3] == cdo_path, e.args
-    assert e.args[4] == [], e.args      # no requests satisfied
-    channels = e.args[2]
-    assert len(channels) == 1, channels
-    assert channels[0][0] == chan.object_path, channels
-    assert channels[0][1] == channel_properties, channels
+    assert e.args[2] == chan.object_path, e.args
+    assert e.args[3] == channel_properties, e.args
+    assert e.args[4] == cdo_path, e.args
+    assert e.args[5] == [], e.args      # no requests satisfied
+
 
     q.dbus_return(e.message, bus=empathy_bus, signature='')
 

@@ -107,7 +107,7 @@ def test(q, bus, mc):
             cs.tp_name_prefix + '.Client.Kopete'], handlers
 
     # The plugin realises we've been rickrolled, and responds. It calls Destroy
-    # even though neither Empathy nor Kopete has returned from ObserveChannels
+    # even though neither Empathy nor Kopete has returned from ObserveChannel
     # yet
     destruction, e, k = q.expect_many(
             EventPattern('dbus-method-call',
@@ -116,11 +116,11 @@ def test(q, bus, mc):
                 args=[], handled=False),
             EventPattern('dbus-method-call',
                 path=empathy.object_path,
-                interface=cs.OBSERVER, method='ObserveChannels',
+                interface=cs.OBSERVER, method='ObserveChannel',
                 handled=False),
             EventPattern('dbus-method-call',
                 path=kopete.object_path,
-                interface=cs.OBSERVER, method='ObserveChannels',
+                interface=cs.OBSERVER, method='ObserveChannel',
                 handled=False),
             )
     # treat the destruction like Close
@@ -182,11 +182,11 @@ def test(q, bus, mc):
     e, k = q.expect_many(
             EventPattern('dbus-method-call',
                 path=empathy.object_path,
-                interface=cs.OBSERVER, method='ObserveChannels',
+                interface=cs.OBSERVER, method='ObserveChannel',
                 handled=False),
             EventPattern('dbus-method-call',
                 path=kopete.object_path,
-                interface=cs.OBSERVER, method='ObserveChannels',
+                interface=cs.OBSERVER, method='ObserveChannel',
                 handled=False),
             )
 

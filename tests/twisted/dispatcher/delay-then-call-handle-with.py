@@ -85,7 +85,7 @@ def test(q, bus, mc):
     # Empathy, the observer, gets the channel to observe. Because it
     # has DelayApprovers=TRUE, Kopete should not have
     # AddDispatchOperation called on it until Empathy returns from
-    # ObserveChannels, but Empathy will call HandleWith(Kopete) on the
+    # ObserveChannel, but Empathy will call HandleWith(Kopete) on the
     # CDO so we should ensure ADO is never called on any approver.
     forbidden = [EventPattern('dbus-method-call',
                               interface=cs.APPROVER, method='AddDispatchOperation')]
@@ -93,7 +93,7 @@ def test(q, bus, mc):
 
     o = q.expect('dbus-method-call',
              path=empathy.object_path,
-             interface=cs.OBSERVER, method='ObserveChannels',
+             interface=cs.OBSERVER, method='ObserveChannel',
              handled=False)
 
     # Waste a little time here and there.  We can't call sync_dbus
@@ -106,7 +106,7 @@ def test(q, bus, mc):
     # HandleChannel returns.
     call_async(q, cdo_iface, 'HandleWith', cs.CLIENT + '.Kopete', 0)
 
-    # Finally return from ObserveChannels.
+    # Finally return from ObserveChannel.
     q.dbus_return(o.message, bus=bus, signature='')
 
     h = q.expect('dbus-method-call',

@@ -85,7 +85,7 @@ def test(q, bus, mc):
     # Empathy, the observer, gets the channel to observe. Because it
     # has DelayApprovers=TRUE, Kopete should not have
     # AddDispatchOperation called on it until Empathy returns from
-    # ObserveChannels.
+    # ObserveChannel.
     forbidden = [EventPattern('dbus-method-call',
             path=kopete.object_path,
             interface=cs.APPROVER, method='AddDispatchOperation')]
@@ -93,7 +93,7 @@ def test(q, bus, mc):
 
     o = q.expect('dbus-method-call',
              path=empathy.object_path,
-             interface=cs.OBSERVER, method='ObserveChannels',
+             interface=cs.OBSERVER, method='ObserveChannel',
              handled=False)
 
     # Waste a little time here and there.  We can't call sync_dbus
@@ -102,7 +102,7 @@ def test(q, bus, mc):
     call_async(q, cd_props, 'Get', cs.CD_IFACE_OP_LIST, 'DispatchOperations')
     event = q.expect('dbus-return', method='Get')
 
-    # Finally return from ObserveChannels, so now we expect ADO to be
+    # Finally return from ObserveChannel, so now we expect ADO to be
     # called on Kopete.
     q.dbus_return(o.message, bus=bus, signature='')
     q.unforbid_events(forbidden)

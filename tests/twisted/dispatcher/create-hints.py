@@ -141,17 +141,15 @@ def test_channel_creation(q, bus, account, client, conn,
         # Observer should get told, processing waits for it
         e = q.expect('dbus-method-call',
                 path=client.object_path,
-                interface=cs.OBSERVER, method='ObserveChannels',
+                interface=cs.OBSERVER, method='ObserveChannel',
                 handled=False)
         assert e.args[0] == account.object_path, e.args
         assert e.args[1] == conn.object_path, e.args
-        assert e.args[3] == '/', e.args         # no dispatch operation
-        assert e.args[4] == [request_path], e.args
-        channels = e.args[2]
-        assert len(channels) == 1, channels
-        assert channels[0][0] == channel.object_path, channels
-        assert channels[0][1] == channel_immutable, channels
-        info = e.args[5]
+        assert e.args[2] == channel.object_path, channel.object_path
+        assert e.args[3] == channel_immutable, channel_immutable
+        assert e.args[4] == '/', e.args     # no dispatch operation
+        assert e.args[5] == [request_path], e.args      # no requests satisfied
+        info = e.args[6]
         assert info['request-properties'] == {request_path: request_props}, info
 
         # Observer says "OK, go"

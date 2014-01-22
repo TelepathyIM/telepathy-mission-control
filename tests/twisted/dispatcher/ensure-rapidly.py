@@ -167,7 +167,7 @@ def test_channel_creation(q, bus, account, client, conn,
         conn.ensure_handle(cs.HT_CONTACT, 'juliet')
     channel = SimulatedChannel(conn, channel_immutable)
 
-    # Having announce() (i.e. NewChannels) come last is guaranteed by
+    # Having announce() (i.e. NewChannel) come last is guaranteed by
     # telepathy-spec (since 0.17.14). There is no other ordering guarantee.
 
     if swap_requests:
@@ -185,17 +185,15 @@ def test_channel_creation(q, bus, account, client, conn,
     # Observer should get told, processing waits for it
     e = q.expect('dbus-method-call',
             path=client.object_path,
-            interface=cs.OBSERVER, method='ObserveChannels',
+            interface=cs.OBSERVER, method='ObserveChannel',
             handled=False)
     assert e.args[0] == account.object_path, e.args
     assert e.args[1] == conn.object_path, e.args
-    assert e.args[3] == '/', e.args         # no dispatch operation
-    assert sorted(e.args[4]) == sorted([cr1.object_path,
-        cr2.object_path]), e.args
-    channels = e.args[2]
-    assert len(channels) == 1, channels
-    assert channels[0][0] == channel.object_path, channels
-    assert channels[0][1] == channel.immutable, channels
+    assert e.args[2] == channel.object_path, e.args
+    assert e.args[3] == channel.immutable, e.args
+    assert e.args[4] == '/', e.args     # no dispatch operation
+    assert sorted(e.args[5]) == sorted([cr1.object_path,
+        cr2.object_path]), e.args[5]
 
     # Observer says "OK, go"
     q.dbus_return(e.message, signature='')

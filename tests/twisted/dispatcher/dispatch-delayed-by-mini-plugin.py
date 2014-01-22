@@ -74,11 +74,11 @@ def signal_channel_expect_query(q, bus, account, conn, empathy, kopete):
     e, k = q.expect_many(
             EventPattern('dbus-method-call',
                 path=empathy.object_path,
-                interface=cs.OBSERVER, method='ObserveChannels',
+                interface=cs.OBSERVER, method='ObserveChannel',
                 handled=False),
             EventPattern('dbus-method-call',
                 path=kopete.object_path,
-                interface=cs.OBSERVER, method='ObserveChannels',
+                interface=cs.OBSERVER, method='ObserveChannel',
                 handled=False),
             )
 

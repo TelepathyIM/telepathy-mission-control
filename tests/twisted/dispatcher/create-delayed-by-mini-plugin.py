@@ -105,7 +105,7 @@ def test(q, bus, mc):
             forbidden = [
                     EventPattern('dbus-method-call', method='CreateChannel'),
                     EventPattern('dbus-method-call', method='EnsureChannel'),
-                    EventPattern('dbus-method-call', method='ObserveChannels'),
+                    EventPattern('dbus-method-call', method='ObserveChannel'),
                     EventPattern('dbus-method-call', method='AddDispatchOperation'),
                     EventPattern('dbus-method-call', method='HandleChannel'),
                     ]

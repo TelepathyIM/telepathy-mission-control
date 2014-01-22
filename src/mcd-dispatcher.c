@@ -936,7 +936,7 @@ _mcd_dispatcher_add_channel (McdDispatcher *dispatcher,
         g_return_if_fail (requested);
 
         /* these channels were requested "behind our back", so only call
-         * ObserveChannels on them */
+         * ObserveChannel on them */
         _mcd_dispatcher_enter_state_machine (dispatcher, channel, NULL,
                                              TRUE, TRUE);
         return;
