@@ -33,13 +33,6 @@
 
 G_BEGIN_DECLS
 
-G_GNUC_INTERNAL
-GPtrArray *_mcd_tp_channel_details_build_from_list (const GList *channels);
-G_GNUC_INTERNAL
-GPtrArray *_mcd_tp_channel_details_build_from_tp_chan (TpChannel *channel);
-G_GNUC_INTERNAL
-void _mcd_tp_channel_details_free (GPtrArray *channels);
-
 /* NULL-safe for @channel; @verb is for debug */
 G_GNUC_INTERNAL gboolean _mcd_tp_channel_should_close (TpChannel *channel,
                                                        const gchar *verb);
