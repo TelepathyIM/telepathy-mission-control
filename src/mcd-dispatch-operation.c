@@ -2102,7 +2102,6 @@ _mcd_dispatch_operation_run_approvers (McdDispatchOperation *self)
     while (g_hash_table_iter_next (&iter, NULL, &client_p))
     {
         McdClientProxy *client = MCD_CLIENT_PROXY (client_p);
-        GPtrArray *channel_details;
         const gchar *dispatch_operation;
         GHashTable *properties;
         gboolean matched = FALSE;
@@ -2135,8 +2134,6 @@ _mcd_dispatch_operation_run_approvers (McdDispatchOperation *self)
 
         dispatch_operation = _mcd_dispatch_operation_get_path (self);
         properties = _mcd_dispatch_operation_get_properties (self);
-        channel_details = _mcd_tp_channel_details_build_from_tp_chan (
-            mcd_channel_get_tp_channel (self->priv->channel));
 
         DEBUG ("Calling AddDispatchOperation on approver %s for CDO %s @ %p",
                tp_proxy_get_bus_name (client), dispatch_operation, self);
@@ -2148,8 +2145,6 @@ _mcd_dispatch_operation_run_approvers (McdDispatchOperation *self)
             dispatch_operation, properties,
             add_dispatch_operation_cb,
             g_object_ref (self), g_object_unref, NULL);
-
-        g_boxed_free (TP_ARRAY_TYPE_CHANNEL_DETAILS_LIST, channel_details);
     }
 
     /* This matches the approvers count set to 1 at the beginning of the
