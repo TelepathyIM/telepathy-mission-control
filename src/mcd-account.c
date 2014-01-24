@@ -3614,6 +3614,9 @@ mcd_account_get_object_path (McdAccount *account)
 /*
  * Like _mcd_account_dup_parameters(), but return the parameters as they
  * would be passed to RequestConnection for the given protocol.
+ *
+ * Returns: A GHashTable with g_strdup'ed keys and tp_g_value_slice_dup'ed
+ *  values. Be careful: callers rely on that memory allocation model.
  */
 static GHashTable *
 mcd_account_coerce_parameters (McdAccount *account,
@@ -5024,6 +5027,13 @@ _mcd_account_connection_begin (McdAccount *account,
 
     ctx->params = mcd_account_coerce_parameters (account, protocol);
     g_assert (ctx->params != NULL);
+
+    /* Inject "account-path-suffix" parameter if supported by the protocol */
+    if (tp_protocol_has_param (protocol, "account-path-suffix"))
+      {
+        g_hash_table_insert (ctx->params, g_strdup ("account-path-suffix"),
+            tp_g_value_slice_new_string (account->priv->unique_name));
+      }
     g_object_unref (protocol);
 
     _mcd_account_set_connection_status (account,
