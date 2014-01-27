@@ -14,6 +14,9 @@ Fixes:
 • Fix a crash if unable to create XDG_DATA_HOME/telepathy/mission-control
   (fd.o #72138, Sebastien Bacher)
 
+• connectivity-monitor: start watching 'use-conn' key in constructed,
+  fixing the ability to switch it off (Guillaume Desmottes)
+
 telepathy-mission-control 5.16.0 (2013-10-02)
 =============================================
 
