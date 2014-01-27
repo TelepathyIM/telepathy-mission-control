@@ -1,7 +1,18 @@
-telepathy-mission-control 5.16.1 (2013-10-02)
+telepathy-mission-control 5.16.1 (2014-01-27)
 =============================================
 
-…
+The “/Dux magnus gentis venteris saginati/” release.
+
+Fixes:
+
+• Release logind sleep/shutdown inhibitor correctly, fixing slow
+  sleep/shutdown (fd.o #73599, Michael Kuhn)
+
+• Avoid assertion failure for offline accounts that support power saving
+  (fd.o #72652, John Brooks)
+
+• Fix a crash if unable to create XDG_DATA_HOME/telepathy/mission-control
+  (fd.o #72138, Sebastien Bacher)
 
 telepathy-mission-control 5.16.0 (2013-10-02)
 =============================================
