@@ -315,6 +315,20 @@ mcd_account_loaded (McdAccount *account)
     g_return_if_fail (!account->priv->loaded);
     account->priv->loaded = TRUE;
 
+    if (account->priv->invalid_reason == NULL)
+    {
+        DEBUG ("account %s is now loaded and valid",
+               account->priv->unique_name);
+    }
+    else
+    {
+        DEBUG ("account %s is now loaded, but not valid: %s #%d: %s",
+               account->priv->unique_name,
+               g_quark_to_string (account->priv->invalid_reason->domain),
+               account->priv->invalid_reason->code,
+               account->priv->invalid_reason->message);
+    }
+
     /* invoke all the callbacks */
     g_object_ref (account);
 
@@ -799,10 +813,29 @@ _mcd_account_load (McdAccount *account, McdAccountLoadCb callback,
                    gpointer user_data)
 {
     if (account->priv->loaded)
+    {
+        if (account->priv->invalid_reason == NULL)
+        {
+            DEBUG ("account %s already loaded and valid",
+                   account->priv->unique_name);
+        }
+        else
+        {
+            DEBUG ("account %s already loaded, but not valid: %s #%d: %s",
+                   account->priv->unique_name,
+                   g_quark_to_string (account->priv->invalid_reason->domain),
+                   account->priv->invalid_reason->code,
+                   account->priv->invalid_reason->message);
+        }
+
         callback (account, NULL, user_data);
+    }
     else
+    {
+        DEBUG ("account %s not yet loaded", account->priv->unique_name);
         _mcd_object_call_when_ready (account, account_ready_quark,
                                      (McdReadyCb)callback, user_data);
+    }
 }
 
 static void
