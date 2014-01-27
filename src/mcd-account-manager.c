@@ -1510,10 +1510,9 @@ _mcd_account_manager_setup (McdAccountManager *account_manager)
      * It was added to uncork_storage_plugins() in 3d5b5e7a248d
      * without explanation */
     g_hash_table_iter_init (&iter, account_manager->priv->accounts);
-    while (g_hash_table_iter_next (&iter, NULL, &v))
+    while (g_hash_table_iter_next (&iter, &k, NULL))
     {
-        mcd_storage_commit (storage,
-            mcd_account_get_unique_name (v));
+        mcd_storage_commit (storage, k);
     }
 
     /* uncork signals from storage plugins */
