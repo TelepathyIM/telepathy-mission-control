@@ -25,6 +25,8 @@
 #include <glib-object.h>
 #include <telepathy-glib/telepathy-glib.h>
 
+#define MCP_API_VERSION_5_18 (518)
+
 typedef enum {
     MCP_PARAMETER_FLAG_NONE = 0,
 } McpParameterFlags;
