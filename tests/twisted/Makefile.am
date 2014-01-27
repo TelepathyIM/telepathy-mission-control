@@ -75,7 +75,10 @@ TWISTED_BASIC_TESTS = \
 TWISTED_SPECIAL_BUILD_TESTS = \
 	account-manager/connectivity.py \
 	account-storage/default-keyring-storage.py \
-	account-storage/diverted-storage.py
+	account-storage/diverted-storage.py \
+	account-storage/5-12.py \
+	account-storage/5-14.py \
+	$(NULL)
 
 # Tests that are usually too slow to run.
 TWISTED_SLOW_TESTS = \
@@ -105,6 +108,7 @@ TWISTED_OTHER_FILES = \
 	fakeconnectivity.py \
 	mctest.py \
 	servicetest.py \
+	account-storage/storage_helper.py \
 	telepathy/clients/README \
 	telepathy/clients/AbiWord.client \
 	telepathy/clients/Logger.client \

@@ -32,31 +32,8 @@ from mctest import (
     exec_test, create_fakecm_account, get_fakecm_account, connect_to_mc,
     keyfile_read, tell_mc_to_die, resuscitate_mc
     )
+from storage_helper import (account_store)
 import constants as cs
-
-# This doesn't escape its parameters before passing them to the shell,
-# so be careful.
-def account_store(op, backend, key=None, value=None,
-        account='fakecm/fakeprotocol/dontdivert_40example_2ecom0'):
-    cmd = [ '../account-store', op, backend, account ]
-    if key:
-        cmd.append(key)
-        if value:
-            cmd.append(value)
-
-    lines = os.popen(' '.join(cmd)).read()
-    ret = []
-    for line in lines.split('\n'):
-        if line.startswith('** '):
-            continue
-
-        if line:
-            ret.append(line)
-
-    if len(ret) > 0:
-        return ret[0]
-    else:
-        return None
 
 def test(q, bus, mc):
     ctl_dir = os.environ['MC_ACCOUNT_DIR']
@@ -278,35 +255,6 @@ def test(q, bus, mc):
 
     pwd = account_store('get', 'variant-file', 'param-password')
     assertEquals(None, pwd)
-
-    # Write out an account configuration in the old keyfile, to test
-    # migration from there
-    os.remove(new_variant_file_name)
-    os.remove(new_variant_file_name.replace('.account', 'masked.account'))
-    os.remove(new_variant_file_name.replace('.account', 'priority.account'))
-    os.remove(low_prio_variant_file_name)
-    os.remove(low_prio_variant_file_name.replace('.account', 'masked.account'))
-    os.remove(low_prio_variant_file_name.replace('.account', 'priority.account'))
-    open(old_key_file_name, 'w').write(
-r"""# Telepathy accounts
-[%s]
-manager=fakecm
-protocol=fakeprotocol
-param-account=dontdivert@example.com
-DisplayName=Ye olde account
-AutomaticPresence=2;available;;
-""" % group)
-
-    account_manager, properties, interfaces = resuscitate_mc(q, bus, mc)
-    account = get_fakecm_account(bus, mc, account_path)
-    account_iface = dbus.Interface(account, cs.ACCOUNT)
-
-    # This time it *does* get deleted automatically during MC startup,
-    # after copying its contents to the new name/format
-    assert not os.path.exists(old_key_file_name)
-    assert not os.path.exists(low_prio_variant_file_name)
-    assertEquals("'Ye olde account'",
-            account_store('get', 'variant-file', 'DisplayName'))
 
 if __name__ == '__main__':
     ctl_dir = os.environ['MC_ACCOUNT_DIR']
