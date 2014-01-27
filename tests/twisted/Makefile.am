@@ -74,10 +74,11 @@ TWISTED_BASIC_TESTS = \
 # account-storage/*.py need their own instances.
 TWISTED_SPECIAL_BUILD_TESTS = \
 	account-manager/connectivity.py \
-	account-storage/default-keyring-storage.py \
 	account-storage/diverted-storage.py \
 	account-storage/5-12.py \
 	account-storage/5-14.py \
+	account-storage/create-new.py \
+	account-storage/load-keyfiles.py \
 	$(NULL)
 
 # Tests that are usually too slow to run.
