@@ -1051,7 +1051,7 @@ command_auto_presence (TpAccount *account)
                                              command.presence.status,
                                              command.presence.message,
                                              callback_for_async,
-                                             tp_account_request_presence_finish);
+                                             tp_account_set_automatic_presence_finish);
 
     return TRUE;
 }
