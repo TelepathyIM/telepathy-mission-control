@@ -22,6 +22,8 @@ import errno
 import os
 import os.path
 
+import dbus
+
 from servicetest import (
     assertEquals, assertContains, assertLength,
     )
@@ -63,10 +65,28 @@ def test_keyfile(q, bus, mc, how_old='5.12'):
         # code paths.
         dot_mission_control = os.environ['MC_ACCOUNT_DIR']
         old_key_file_name = os.path.join(dot_mission_control, 'accounts.cfg')
+
+        os.makedirs(dot_mission_control +
+            '/fakecm/fakeprotocol/dontdivert1_40example_2ecom0')
+        avatar_bin = open(dot_mission_control +
+            '/fakecm/fakeprotocol/dontdivert1_40example_2ecom0/avatar.bin',
+            'w')
+        avatar_bin.write('hello, world')
+        avatar_bin.close()
     elif how_old == '5.14':
         # Same format, different location.
         old_key_file_name = os.path.join(os.environ['XDG_DATA_HOME'],
                 'telepathy', 'mission-control', 'accounts.cfg')
+
+        # exercise override of an avatar in XDG_DATA_DIRS
+        avatar_dir = (os.environ['XDG_DATA_DIRS'].split(':')[0] +
+            '/telepathy/mission-control')
+        os.makedirs(avatar_dir)
+        avatar_bin = open(avatar_dir +
+            '/fakecm-fakeprotocol-dontdivert1_40example_2ecom0.avatar',
+            'w')
+        avatar_bin.write('hello, world')
+        avatar_bin.close()
     else:
         raise AssertionError('Unsupported value for how_old')
 
@@ -95,6 +115,8 @@ param-account=dontdivert1@example.com
 param-password=1
 DisplayName=First among equals
 AutomaticPresence=2;available;;
+AvatarMime=text/plain
+avatar_token=hello, world
 
 [%s]
 manager=fakecm
@@ -136,6 +158,9 @@ AutomaticPresence=2;available;;
             account.Properties.Get(cs.ACCOUNT, 'Parameters')['account'])
     assertEquals('First among equals',
             account.Properties.Get(cs.ACCOUNT, 'DisplayName'))
+    assertEquals((dbus.ByteArray('hello, world'), 'text/plain'),
+            account.Properties.Get(cs.ACCOUNT_IFACE_AVATAR, 'Avatar',
+                byte_arrays=True))
 
     assertContains(cs.ACCOUNT_PATH_PREFIX + a2_tail,
             properties['ValidAccounts'])

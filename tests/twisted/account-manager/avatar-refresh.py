@@ -90,15 +90,6 @@ class Account(object):
                     avatar_bin = open(avatar_filename, 'w')
                     avatar_bin.write(local_avatar)
                     avatar_bin.close()
-                elif not avatars_persist:
-                    self.avatar_location = 'old'
-                    # exercise migration from ~/.mission-control in a
-                    # situation where MC should "win"
-                    os.makedirs(accounts_dir + '/' + self.id)
-                    avatar_bin = open(
-                            accounts_dir + '/' + self.id + '/avatar.bin', 'w')
-                    avatar_bin.write(local_avatar)
-                    avatar_bin.close()
                 else:
                     # store it in the normal location
                     self.avatar_location = 'home'
@@ -258,18 +249,7 @@ class Account(object):
             self.test_migration(bus, q, conn, account_proxy)
 
     def test_migration(self, bus, q, conn, account_proxy):
-        if self.avatar_location == 'old':
-            # The avatar got migrated to the new location.
-            assert not os.path.exists(os.environ['MC_ACCOUNT_DIR'] + '/' +
-                    self.id + '/avatar.bin')
-            assert not os.path.exists(os.environ['MC_ACCOUNT_DIR'] + '/fakecm')
-            avatar_filename = self.id
-            avatar_filename = avatar_filename.replace('/', '-') + '.avatar'
-            avatar_filename = (os.environ['XDG_DATA_HOME'] +
-                '/telepathy/mission-control/' + avatar_filename)
-            assertEquals(conn.avatar[0], ''.join(open(avatar_filename,
-                'r').readlines()))
-        elif self.avatar_location == 'datadir' and self.winner == 'service':
+        if self.avatar_location == 'datadir' and self.winner == 'service':
             # The avatar wasn't deleted from $XDG_DATA_DIRS, but it was
             # overridden.
             assert not os.path.exists(os.environ['MC_ACCOUNT_DIR'] + '/' +
