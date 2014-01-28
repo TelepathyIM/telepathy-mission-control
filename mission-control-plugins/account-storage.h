@@ -31,6 +31,16 @@ G_BEGIN_DECLS
 #define MCP_ACCOUNT_STORAGE_PLUGIN_PRIO_DEFAULT   0
 #define MCP_ACCOUNT_STORAGE_PLUGIN_PRIO_NORMAL    100
 
+typedef enum /*< flags >*/
+{
+    MCP_PARAMETER_FLAG_NONE = 0
+} McpParameterFlags;
+
+typedef enum /*< flags >*/
+{
+    MCP_ATTRIBUTE_FLAG_NONE = 0
+} McpAttributeFlags;
+
 typedef enum {
     MCP_ACCOUNT_STORAGE_SET_RESULT_FAILED = 0,
     MCP_ACCOUNT_STORAGE_SET_RESULT_CHANGED,

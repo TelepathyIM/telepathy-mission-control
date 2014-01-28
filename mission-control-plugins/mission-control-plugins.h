@@ -27,14 +27,6 @@
 
 #define MCP_API_VERSION_5_18 (518)
 
-typedef enum {
-    MCP_PARAMETER_FLAG_NONE = 0,
-} McpParameterFlags;
-
-typedef enum {
-    MCP_ATTRIBUTE_FLAG_NONE = 0
-} McpAttributeFlags;
-
 #define _MCP_IN_MISSION_CONTROL_PLUGINS_H
 #include <mission-control-plugins/account.h>
 #include <mission-control-plugins/account-storage.h>
