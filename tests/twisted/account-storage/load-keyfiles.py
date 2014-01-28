@@ -32,6 +32,9 @@ from mctest import (
     MC, exec_test, get_fakecm_account, connect_to_mc,
     SimulatedConnectionManager,
     )
+from storage_helper import (
+    account_store,
+    )
 import constants as cs
 
 def test(q, bus, mc):
@@ -43,7 +46,7 @@ def test(q, bus, mc):
             'telepathy', 'mission-control', 'accounts.cfg')
 
     # We do several scenarios in one MC run, to speed up testing a bit.
-    scenarios = ('low', 'priority', 'masked')
+    scenarios = ('low', 'priority', 'masked', 'migration', 'absentcm')
 
     variant_file_names = {}
     low_prio_variant_file_names = {}
@@ -86,6 +89,39 @@ def test(q, bus, mc):
     'account': <'dontdivertlow@example.com'>,
     'password': <'password_in_variant_file'>,
     'snakes': <uint32 42>
+    }>
+}
+""")
+
+    # This is in a lower-priority location and we don't know the
+    # parameters' types yet
+    open(low_prio_variant_file_names['migration'], 'w').write(
+"""{
+'manager': <'fakecm'>,
+'protocol': <'fakeprotocol'>,
+'DisplayName': <'Account in a low-priority location with KeyFileParameters'>,
+'AutomaticPresence': <(uint32 2, 'available', '')>,
+'KeyFileParameters': <{
+    'account': 'dontdivertmigration@example.com',
+    'password': 'password_in_variant_file',
+    'snakes': '42'
+    }>
+}
+""")
+
+    # This is in a lower-priority location, and we don't know the
+    # parameters' types, and we can't learn them by asking the CM
+    # because it isn't installed
+    open(low_prio_variant_file_names['absentcm'], 'w').write(
+"""{
+'manager': <'absentcm'>,
+'protocol': <'absentprotocol'>,
+'DisplayName': <'Account in a low-priority location with absent CM'>,
+'AutomaticPresence': <(uint32 2, 'available', '')>,
+'KeyFileParameters': <{
+    'account': 'dontdivertabsentcm@example.com',
+    'password': 'hello',
+    'snakes': '42'
     }>
 }
 """)
@@ -135,10 +171,13 @@ def test(q, bus, mc):
     for s in scenarios:
         if s == 'masked':
             assertDoesNotContain(account_paths[s], properties['ValidAccounts'])
+            assertDoesNotContain(account_paths[s], properties['InvalidAccounts'])
+        elif s == 'absentcm':
+            assertContains(account_paths[s], properties['InvalidAccounts'])
+            assertDoesNotContain(account_paths[s], properties['ValidAccounts'])
         else:
             assertContains(account_paths[s], properties['ValidAccounts'])
-
-        assertDoesNotContain(account_paths[s], properties['InvalidAccounts'])
+            assertDoesNotContain(account_paths[s], properties['InvalidAccounts'])
 
     accounts = {}
     account_ifaces = {}
@@ -148,6 +187,9 @@ def test(q, bus, mc):
             accounts[s] = get_fakecm_account(bus, mc, account_paths[s])
             account_ifaces[s] = dbus.Interface(accounts[s], cs.ACCOUNT)
 
+        if s not in ('masked', 'absentcm'):
+            # We can't get untyped parameters if we don't know what types
+            # the CM gives them.
             assertEquals(42, accounts[s].Properties.Get(cs.ACCOUNT,
                 'Parameters')['snakes'])
             assertEquals(dbus.UInt32,
@@ -197,6 +239,36 @@ def test(q, bus, mc):
 
     # The masked account is still masked
     assert open(variant_file_names['masked'], 'r').read() == ''
+
+    # Teach the one that knows its CM that the 'password' is a string.
+    # This results in the higher-priority file being written out.
+    account_ifaces['migration'].UpdateParameters({'password': 'hello'}, [])
+    q.expect('dbus-signal',
+            path=account_paths['migration'],
+            signal='AccountPropertyChanged',
+            interface=cs.ACCOUNT,
+            predicate=(lambda e:
+                'Parameters' in e.args[0]),
+            )
+    # Check the account has copied (not moved! XDG_DATA_DIRS are,
+    # conceptually, read-only) 'migration' from the old to the new name
+    assert not os.path.exists(old_key_file_name)
+    assert not os.path.exists(newer_key_file_name)
+    assert os.path.exists(low_prio_variant_file_names['migration'])
+    assert os.path.exists(variant_file_names['migration'])
+    assertEquals("'hello'", account_store('get', 'variant-file',
+        'param-password', account=tails['migration']))
+    # Parameters whose types are still unknown are copied too, but their
+    # types are still unknown
+    assertEquals("keyfile-escaped '42'", account_store('get', 'variant-file',
+        'param-snakes', account=tails['migration']))
+
+    # 'absentcm' is still only in the low-priority location: we can't
+    # known the types of its parameters
+    assert not os.path.exists(old_key_file_name)
+    assert not os.path.exists(newer_key_file_name)
+    assert os.path.exists(low_prio_variant_file_names['absentcm'])
+    assert not os.path.exists(variant_file_names['absentcm'])
 
 if __name__ == '__main__':
     exec_test(test, {}, preload_mc=False, use_fake_accounts_service=False)
