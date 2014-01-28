@@ -203,26 +203,15 @@ set_parameter (McpAccountStorage *self,
 
       old = g_hash_table_lookup (sa->parameters, parameter);
 
-      if (old == NULL)
-        {
-          /* it might still be in untyped_parameters? */
-          const gchar *escaped = g_hash_table_lookup (sa->untyped_parameters,
-              parameter);
-          gchar *new = mcp_account_manager_escape_variant_for_keyfile (
-              am, val);
-
-          if (!tp_strdiff (escaped, new))
-            {
-              g_free (new);
-              return MCP_ACCOUNT_STORAGE_SET_RESULT_UNCHANGED;
-            }
-
-          g_free (new);
-        }
-      else if (g_variant_equal (old, val))
+      if (old != NULL && g_variant_equal (old, val))
         {
           return MCP_ACCOUNT_STORAGE_SET_RESULT_UNCHANGED;
         }
+
+      /* We haven't checked whether it's in untyped_parameters with the
+       * same value - but if it is, we want to migrate it to parameters
+       * anyway (in order to record its type), so treat it as having
+       * actually changed. */
 
       g_hash_table_remove (sa->untyped_parameters, parameter);
       g_hash_table_insert (sa->parameters, g_strdup (parameter),

@@ -82,10 +82,10 @@ def test(q, bus, mc):
 'protocol': <'fakeprotocol'>,
 'DisplayName': <'Account in a low-priority location'>,
 'AutomaticPresence': <(uint32 2, 'available', '')>,
-'KeyFileParameters': <{
-    'account': 'dontdivertlow@example.com',
-    'password': 'password_in_variant_file',
-    'snakes': '42'
+'Parameters': <{
+    'account': <'dontdivertlow@example.com'>,
+    'password': <'password_in_variant_file'>,
+    'snakes': <uint32 42>
     }>
 }
 """)
