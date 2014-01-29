@@ -783,7 +783,7 @@ mcd_account_delete_finish (McdAccount *self,
     GAsyncResult *result,
     GError **error)
 {
-  g_return_val_if_fail (g_task_is_valid (result, self), NULL);
+  g_return_val_if_fail (g_task_is_valid (result, self), FALSE);
 
   return g_task_propagate_boolean (G_TASK (result), error);
 }
