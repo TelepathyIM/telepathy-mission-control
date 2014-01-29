@@ -55,6 +55,18 @@ Fixes:
   suspending" on systems with either systemd-logind, or a reimplementation
   with the same D-Bus API. (fd.o #70458, Simon)
 
+• Release logind sleep/shutdown inhibitor correctly, fixing slow
+  sleep/shutdown (fd.o #73599, Michael Kuhn)
+
+• Avoid assertion failure for offline accounts that support power saving
+  (fd.o #72652, John Brooks)
+
+• Fix a crash if unable to create XDG_DATA_HOME/telepathy/mission-control
+  (fd.o #72138, Sebastien Bacher)
+
+• connectivity-monitor: start watching 'use-conn' key in constructed,
+  fixing the ability to switch it off (Guillaume Desmottes)
+
 telepathy-mission-control 5.16.0 (2013-10-02)
 =============================================
 
