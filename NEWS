@@ -81,6 +81,8 @@ Fixes:
 • connectivity-monitor: start watching 'use-conn' key in constructed,
   fixing the ability to switch it off (Guillaume Desmottes)
 
+• don't crash in 'mc-tool auto-presence' subcommand (fd.o #74187, Simon)
+
 telepathy-mission-control 5.16.0 (2013-10-02)
 =============================================
 
