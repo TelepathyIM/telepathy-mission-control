@@ -699,7 +699,7 @@ mcp_account_storage_delete_async (McpAccountStorage *storage,
   g_return_if_fail (iface != NULL);
   g_return_if_fail (iface->delete_async != NULL);
 
-  iface->delete_async (storage, am, account, callback, user_data);
+  iface->delete_async (storage, am, account, cancellable, callback, user_data);
 }
 
 /**
