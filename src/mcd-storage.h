@@ -64,7 +64,7 @@ void mcd_storage_connect_signal (const gchar *signal,
 
 void mcd_storage_load (McdStorage *storage);
 
-GStrv mcd_storage_dup_accounts (McdStorage *storage, gsize *n);
+GHashTable *mcd_storage_get_accounts (McdStorage *storage);
 
 gboolean mcd_storage_set_string (McdStorage *storage,
     const gchar *account,
@@ -91,6 +91,7 @@ gchar *mcd_storage_create_account (McdStorage *storage,
     const gchar *manager,
     const gchar *protocol,
     const gchar *identification,
+    McpAccountStorage **plugin_out,
     GError **error);
 
 void mcd_storage_delete_account (McdStorage *storage, const gchar *account);

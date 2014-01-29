@@ -80,7 +80,8 @@ GType mcd_account_get_type (void);
 
 McdAccount *mcd_account_new (McdAccountManager *account_manager,
     const gchar *name,
-    McdConnectivityMonitor *minotaur);
+    McdConnectivityMonitor *minotaur,
+    McpAccountStorage *storage_plugin);
 
 void mcd_account_delete_async (McdAccount *account,
     McdDBusPropSetFlags flags,
@@ -158,6 +159,8 @@ void mcd_account_set_waiting_for_connectivity (McdAccount *self,
 void mcd_account_connection_proceed (McdAccount *account, gboolean success);
 void mcd_account_connection_proceed_with_reason
     (McdAccount *account, gboolean success, TpConnectionStatusReason reason);
+
+McpAccountStorage *mcd_account_get_storage_plugin (McdAccount *account);
 
 G_END_DECLS
 

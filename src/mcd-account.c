@@ -181,6 +181,7 @@ enum
     PROP_DBUS_DAEMON,
     PROP_CONNECTIVITY_MONITOR,
     PROP_STORAGE,
+    PROP_STORAGE_PLUGIN,
     PROP_NAME,
 };
 
@@ -2092,58 +2093,16 @@ get_supersedes (TpSvcDBusProperties *svc,
   g_value_set_boxed (value, self->priv->supersedes);
 }
 
-static McpAccountStorage *
-get_storage_plugin (McdAccount *account)
-{
-  McdAccountPrivate *priv = account->priv;
-  const gchar *account_name = mcd_account_get_unique_name (account);
-
-  if (priv->storage_plugin != NULL)
-    return priv->storage_plugin;
-
-  priv->storage_plugin = mcd_storage_get_plugin (priv->storage, account_name);
-
-  if (priv->storage_plugin != NULL)
-      g_object_ref (priv->storage_plugin);
-
-   return priv->storage_plugin;
-}
-
 static void
 get_storage_provider (TpSvcDBusProperties *self,
     const gchar *name, GValue *value)
 {
   McdAccount *account = MCD_ACCOUNT (self);
-  McpAccountStorage *storage_plugin = get_storage_plugin (account);
 
   g_value_init (value, G_TYPE_STRING);
 
-  if (storage_plugin != NULL)
-    g_value_set_string (value, mcp_account_storage_provider (storage_plugin));
-  else
-    g_value_set_static_string (value, "");
-}
-
-static gboolean
-set_storage_provider (TpSvcDBusProperties *self,
-    const gchar *name,
-    const GValue *value,
-    McdDBusPropSetFlags flags,
-    GError **error)
-{
-  McdAccount *account = MCD_ACCOUNT (self);
-  McpAccountStorage *storage_plugin = get_storage_plugin (account);
-  const gchar *current_provider = mcp_account_storage_provider (storage_plugin);
-
-  if (!G_VALUE_HOLDS_STRING (value) ||
-      tp_strdiff (g_value_get_string (value), current_provider))
-    {
-      g_set_error (error, TP_ERROR, TP_ERROR_INVALID_ARGUMENT,
-          "Cannot change provider, it is defined at account creation only");
-      return FALSE;
-    }
-
-  return TRUE;
+  g_value_set_string (value,
+      mcp_account_storage_provider (account->priv->storage_plugin));
 }
 
 static void
@@ -2152,22 +2111,13 @@ get_storage_identifier (TpSvcDBusProperties *self,
 {
 
   McdAccount *account = MCD_ACCOUNT (self);
-  McpAccountStorage *storage_plugin = get_storage_plugin (account);
   GValue identifier = G_VALUE_INIT;
 
   g_value_init (value, G_TYPE_VALUE);
 
-  if (storage_plugin != NULL)
-    {
-      mcp_account_storage_get_identifier (
-          storage_plugin, account->priv->unique_name, &identifier);
-    }
-  else
-    {
-      g_value_init (&identifier, G_TYPE_UINT);
-
-      g_value_set_uint (&identifier, 0);
-    }
+  mcp_account_storage_get_identifier (
+      account->priv->storage_plugin, account->priv->unique_name,
+      &identifier);
 
   g_value_set_boxed (value, &identifier);
 
@@ -2180,15 +2130,11 @@ get_storage_specific_info (TpSvcDBusProperties *self,
 {
   GHashTable *storage_specific_info;
   McdAccount *account = MCD_ACCOUNT (self);
-  McpAccountStorage *storage_plugin = get_storage_plugin (account);
 
   g_value_init (value, TP_HASH_TYPE_STRING_VARIANT_MAP);
 
-  if (storage_plugin != NULL)
-    storage_specific_info = mcp_account_storage_get_additional_info (
-        storage_plugin, account->priv->unique_name);
-  else
-    storage_specific_info = g_hash_table_new (g_str_hash, g_str_equal);
+  storage_specific_info = mcp_account_storage_get_additional_info (
+      account->priv->storage_plugin, account->priv->unique_name);
 
   g_value_take_boxed (value, storage_specific_info);
 }
@@ -2196,11 +2142,7 @@ get_storage_specific_info (TpSvcDBusProperties *self,
 static TpStorageRestrictionFlags
 mcd_account_get_storage_restrictions (McdAccount *self)
 {
-  McpAccountStorage *storage_plugin = get_storage_plugin (self);
-
-  g_return_val_if_fail (storage_plugin != NULL, 0);
-
-  return mcp_account_storage_get_restrictions (storage_plugin,
+  return mcp_account_storage_get_restrictions (self->priv->storage_plugin,
       self->priv->unique_name);
 }
 
@@ -2244,7 +2186,7 @@ static const McdDBusProp account_avatar_properties[] = {
 };
 
 static const McdDBusProp account_storage_properties[] = {
-    { "StorageProvider", set_storage_provider, get_storage_provider },
+    { "StorageProvider", NULL, get_storage_provider },
     { "StorageIdentifier", NULL, get_storage_identifier },
     { "StorageSpecificInformation", NULL, get_storage_specific_info },
     { "StorageRestrictions", NULL, get_storage_restrictions },
@@ -3457,6 +3399,11 @@ set_property (GObject *obj, guint prop_id,
         priv->storage = g_value_dup_object (val);
 	break;
 
+    case PROP_STORAGE_PLUGIN:
+        g_assert (priv->storage_plugin == NULL);
+        priv->storage_plugin = g_value_dup_object (val);
+        break;
+
       case PROP_DBUS_DAEMON:
         g_assert (priv->dbus_daemon == NULL);
         priv->dbus_daemon = g_value_dup_object (val);
@@ -3721,6 +3668,12 @@ mcd_account_class_init (McdAccountClass * klass)
                                G_PARAM_WRITABLE | G_PARAM_CONSTRUCT_ONLY));
 
     g_object_class_install_property
+        (object_class, PROP_STORAGE_PLUGIN,
+         g_param_spec_object ("storage-plugin", "storage-plugin",
+                               "Storage plugin", MCP_TYPE_ACCOUNT_STORAGE,
+                               G_PARAM_WRITABLE | G_PARAM_CONSTRUCT_ONLY));
+
+    g_object_class_install_property
         (object_class, PROP_NAME,
          g_param_spec_string ("name", "Unique name", "Unique name",
                               NULL,
@@ -3796,7 +3749,8 @@ mcd_account_init (McdAccount *account)
 McdAccount *
 mcd_account_new (McdAccountManager *account_manager,
     const gchar *name,
-    McdConnectivityMonitor *connectivity)
+    McdConnectivityMonitor *connectivity,
+    McpAccountStorage *storage_plugin)
 {
     gpointer *obj;
     McdStorage *storage = mcd_account_manager_get_storage (account_manager);
@@ -3804,6 +3758,7 @@ mcd_account_new (McdAccountManager *account_manager,
 
     obj = g_object_new (MCD_TYPE_ACCOUNT,
                         "storage", storage,
+                        "storage-plugin", storage_plugin,
                         "dbus-daemon", dbus,
                         "connectivity-monitor", connectivity,
 			"name", name,
@@ -3815,6 +3770,12 @@ McdStorage *
 _mcd_account_get_storage (McdAccount *account)
 {
     return account->priv->storage;
+}
+
+McpAccountStorage *
+mcd_account_get_storage_plugin (McdAccount *account)
+{
+    return account->priv->storage_plugin;
 }
 
 /*

@@ -535,30 +535,17 @@ mcd_storage_load (McdStorage *self)
 }
 
 /*
- * mcd_storage_dup_accounts:
+ * mcd_storage_get_accounts:
  * @storage: An object implementing the #McdStorage interface
  * @n: place for the number of accounts to be written to (or %NULL)
  *
- * Returns: a newly allocated GStrv containing the unique account names,
- * which must be freed by the caller with g_strfreev().
+ * Returns: (transfer container) (element-type utf8 Mcp.AccountStorage): a
+ *  map from account object path tail to plugin
  */
-GStrv
-mcd_storage_dup_accounts (McdStorage *self,
-    gsize *n)
+GHashTable *
+mcd_storage_get_accounts (McdStorage *self)
 {
-  GPtrArray *ret = g_ptr_array_new ();
-  GHashTableIter iter;
-  gpointer k;
-
-  g_hash_table_iter_init (&iter, self->accounts);
-
-  while (g_hash_table_iter_next (&iter, &k, NULL))
-    {
-      g_ptr_array_add (ret, g_strdup (k));
-    }
-
-  g_ptr_array_add (ret, NULL);
-  return (GStrv) g_ptr_array_free (ret, FALSE);
+  return g_hash_table_ref (self->accounts);
 }
 
 /*
@@ -1684,6 +1671,7 @@ mcd_keyfile_set_variant (GKeyFile *keyfile,
  * @manager: the name of the manager
  * @protocol: the name of the protocol
  * @identification: the result of IdentifyAccount
+ * @plugin_out: (out) (transfer full): the plugin we used
  * @error: a #GError to fill when returning %NULL
  *
  * Create a new account in storage. This should not store any
@@ -1699,11 +1687,15 @@ mcd_storage_create_account (McdStorage *self,
     const gchar *manager,
     const gchar *protocol,
     const gchar *identification,
+    McpAccountStorage **plugin_out,
     GError **error)
 {
   GList *store;
   McpAccountManager *ma = MCP_ACCOUNT_MANAGER (self);
   gchar *ret;
+
+  if (plugin_out != NULL)
+    *plugin_out = NULL;
 
   g_return_val_if_fail (MCD_IS_STORAGE (self), NULL);
   g_return_val_if_fail (!tp_str_empty (manager), NULL);
@@ -1723,6 +1715,9 @@ mcd_storage_create_account (McdStorage *self,
               if (mcd_storage_add_account_from_plugin (self, plugin, ret,
                     error))
                 {
+                  if (plugin_out != NULL)
+                    *plugin_out = g_object_ref (plugin);
+
                   return ret;
                 }
               else
@@ -1754,6 +1749,9 @@ mcd_storage_create_account (McdStorage *self,
           if (mcd_storage_add_account_from_plugin (self, plugin, ret,
                 error))
             {
+              if (plugin_out != NULL)
+                *plugin_out = g_object_ref (plugin);
+
               return ret;
             }
           else

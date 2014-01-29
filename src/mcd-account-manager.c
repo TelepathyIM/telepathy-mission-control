@@ -110,6 +110,7 @@ typedef struct
     gchar *cm_name;
     gchar *protocol_name;
     gchar *display_name;
+    gchar *provider;
     GHashTable *parameters;
     GHashTable *properties;
     McdGetAccountCb callback;
@@ -282,7 +283,7 @@ created_cb (GObject *storage_plugin_obj,
     /* actually fetch the data into our cache from the plugin: */
     if (mcd_storage_add_account_from_plugin (storage, plugin, name, &error))
     {
-        account = mcd_account_new (am, name, priv->minotaur);
+        account = mcd_account_new (am, name, priv->minotaur, plugin);
         g_assert (MCD_IS_ACCOUNT (account));
 
         lad = g_slice_new (McdLoadAccountsData);
@@ -686,6 +687,7 @@ mcd_create_account_data_free (McdCreateAccountData *cad)
     if (cad->destroy != NULL)
         cad->destroy (cad->user_data);
 
+    g_free (cad->provider);
     g_free (cad->cm_name);
     g_free (cad->protocol_name);
     g_free (cad->display_name);
@@ -831,10 +833,10 @@ identify_account_cb (GObject *source_object,
 {
     McdStorage *storage = MCD_STORAGE (source_object);
     McdCreateAccountData *cad = user_data;
-    const gchar *provider;
     gchar *id;
     gchar *unique_name;
     McdAccount *account;
+    McpAccountStorage *plugin;
 
     id = mcp_account_manager_identify_account_finish (
         MCP_ACCOUNT_MANAGER (storage), result, &cad->error);
@@ -846,12 +848,9 @@ identify_account_cb (GObject *source_object,
         return;
     }
 
-    provider = tp_asv_get_string (cad->properties,
-                                  TP_PROP_ACCOUNT_INTERFACE_STORAGE_STORAGE_PROVIDER);
-
-    unique_name = mcd_storage_create_account (storage, provider,
+    unique_name = mcd_storage_create_account (storage, cad->provider,
                                               cad->cm_name, cad->protocol_name,
-                                              id, &cad->error);
+                                              id, &plugin, &cad->error);
 
     if (unique_name == NULL)
     {
@@ -874,8 +873,10 @@ identify_account_cb (GObject *source_object,
                                 cad->display_name);
 
     account = mcd_account_new (cad->account_manager, unique_name,
-                               cad->account_manager->priv->minotaur);
+                               cad->account_manager->priv->minotaur,
+                               plugin);
     g_free (unique_name);
+    g_object_unref (plugin);
 
     if (G_LIKELY (account))
     {
@@ -918,17 +919,32 @@ _mcd_account_manager_create_account (McdAccountManager *account_manager,
         return;
     }
 
-    cad = g_slice_new (McdCreateAccountData);
+    cad = g_slice_new0 (McdCreateAccountData);
     cad->account_manager = account_manager;
     cad->cm_name = g_strdup (manager);
     cad->protocol_name = g_strdup (protocol);
     cad->display_name = g_strdup (display_name);
     cad->parameters = g_hash_table_ref (params);
-    cad->properties = (properties ? g_hash_table_ref (properties) : NULL);
     cad->callback = callback;
     cad->user_data = user_data;
     cad->destroy = destroy;
     cad->error = NULL;
+
+    if (properties != NULL)
+    {
+        cad->properties = g_hash_table_new_full (g_str_hash, g_str_equal,
+            g_free, (GDestroyNotify) tp_g_value_slice_free);
+
+        tp_g_hash_table_update (cad->properties, properties,
+            (GBoxedCopyFunc) g_strdup,
+            (GBoxedCopyFunc) tp_g_value_slice_dup);
+
+        /* special case: "construct-only" */
+        cad->provider = g_strdup (tp_asv_get_string (cad->properties,
+              TP_PROP_ACCOUNT_INTERFACE_STORAGE_STORAGE_PROVIDER));
+        g_hash_table_remove (cad->properties,
+            TP_PROP_ACCOUNT_INTERFACE_STORAGE_STORAGE_PROVIDER);
+    }
 
     g_value_init (&value, TP_HASH_TYPE_STRING_VARIANT_MAP);
     g_value_set_static_boxed (&value, params);
@@ -1405,9 +1421,9 @@ _mcd_account_manager_setup (McdAccountManager *account_manager)
 {
     McdAccountManagerPrivate *priv = account_manager->priv;
     McdStorage *storage = priv->storage;
-    gchar **accounts, **name;
+    GHashTable *accounts;
     GHashTableIter iter;
-    gpointer v;
+    gpointer k, v;
 
     /* for simplicity we don't support re-entrant setup */
     g_return_if_fail (priv->setup_lock == 0);
@@ -1418,29 +1434,35 @@ _mcd_account_manager_setup (McdAccountManager *account_manager)
                               list_connection_names_cb, NULL, NULL,
                               (GObject *)account_manager);
 
-    accounts = mcd_storage_dup_accounts (storage, NULL);
+    accounts = mcd_storage_get_accounts (storage);
+    g_hash_table_iter_init (&iter, accounts);
 
-    for (name = accounts; *name != NULL; name++)
+    while (g_hash_table_iter_next (&iter, &k, &v))
     {
         gboolean plausible = FALSE;
         const gchar *manager = NULL;
         const gchar *protocol = NULL;
+        const gchar *account_name = k;
+        McpAccountStorage *plugin = v;
         McdAccount *account = mcd_account_manager_lookup_account (
-            account_manager, *name);
+            account_manager, account_name);
 
         if (account != NULL)
         {
-            /* FIXME: this shouldn't really happen */
-            DEBUG ("already have account %p called '%s'; skipping", account, *name);
+            /* FIXME: can't happen? We shouldn't create any accounts before
+             * we got here, and there can't be any duplicates in @accounts */
+            DEBUG ("already have account %p called '%s'; skipping",
+                account, account_name);
             continue;
         }
 
-        account = mcd_account_new (account_manager, *name, priv->minotaur);
+        account = mcd_account_new (account_manager, account_name,
+            priv->minotaur, plugin);
 
         if (G_UNLIKELY (!account))
         {
             g_warning ("%s: account %s failed to instantiate", G_STRFUNC,
-                       *name);
+                       account_name);
             continue;
         }
 
@@ -1455,7 +1477,7 @@ _mcd_account_manager_setup (McdAccountManager *account_manager)
             const gchar *dbg_protocol = (protocol == NULL) ? "(nil)" : protocol;
 
             g_warning ("%s: account %s has implausible manager/protocol: %s/%s",
-                       G_STRFUNC, *name, dbg_manager, dbg_protocol);
+                       G_STRFUNC, account_name, dbg_manager, dbg_protocol);
             g_object_unref (account);
             continue;
         }
@@ -1466,7 +1488,8 @@ _mcd_account_manager_setup (McdAccountManager *account_manager)
                            g_object_ref (account_manager));
         g_object_unref (account);
     }
-    g_strfreev (accounts);
+
+    g_hash_table_unref (accounts);
 
     uncork_storage_plugins (account_manager);
 
@@ -1753,15 +1776,8 @@ mcd_account_manager_write_conf_async (McdAccountManager *account_manager,
     }
     else
     {
-        GStrv groups;
-        gsize n_accounts = 0;
-
-        groups = mcd_storage_dup_accounts (storage, &n_accounts);
-        DEBUG ("updating all %" G_GSIZE_FORMAT " accounts", n_accounts);
-
+        DEBUG ("updating all accounts");
         mcd_storage_commit (storage, NULL);
-
-        g_strfreev (groups);
     }
 
     if (callback != NULL)
