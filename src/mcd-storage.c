@@ -1856,7 +1856,7 @@ mcd_storage_commit (McdStorage *self, const gchar *account)
   if (account != NULL)
     {
       plugin = g_hash_table_lookup (self->accounts, account);
-      g_return_val_if_fail (plugin != NULL, FALSE);
+      g_return_if_fail (plugin != NULL);
 
       pname = mcp_account_storage_name (plugin);
 
