@@ -157,7 +157,7 @@ AC_SUBST(DBUS_CFLAGS)
 AC_SUBST(DBUS_LIBS)
 
 PKG_CHECK_MODULES([TELEPATHY],
-  [telepathy-glib-1 >= 0.99.6, telepathy-glib-1-dbus >= 0.99.6])
+  [telepathy-glib-1 >= 0.99.7, telepathy-glib-1-dbus >= 0.99.7])
 AC_DEFINE([TP_VERSION_MIN_REQUIRED], [TP_VERSION_1_0],
   [Ignore post-1.0 deprecations])
 AC_DEFINE([TP_VERSION_MAX_ALLOWED], [TP_VERSION_1_0],
