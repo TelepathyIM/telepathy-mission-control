@@ -92,6 +92,8 @@ struct _McdAccountManagerPrivate
     gchar *account_connections_file; /* in account_connections_dir */
 
     gboolean dbus_registered;
+    /* 1 per thing we need to do before we can take the AccountManager name */
+    gint setup_lock;
 };
 
 typedef struct
@@ -134,13 +136,17 @@ enum
 static guint write_conf_id = 0;
 
 static void register_dbus_service (McdAccountManager *account_manager);
+static void release_setup_lock (McdAccountManager *account_manager);
+static void setup_account_loaded (McdAccount *account,
+    const GError *error,
+    gpointer user_data);
 
 static void release_load_accounts_lock (McdLoadAccountsData *lad);
 static void add_account (McdAccountManager *manager, McdAccount *account,
     const gchar *source);
-static void account_loaded (McdAccount *account,
-                            const GError *error,
-                            gpointer user_data);
+static void async_account_loaded (McdAccount *account,
+    const GError *error,
+    gpointer user_data);
 
 static void
 async_altered_one_manager_cb (McdManager *cm,
@@ -227,6 +233,11 @@ async_created_manager_cb (McdManager *cm, const GError *error, gpointer data)
     McpAccountStorage *plugin = lad->storage_plugin;
     const gchar *name = NULL;
 
+    g_assert (lad->account_lock > 0);
+    g_assert (MCD_IS_ACCOUNT (lad->account));
+    g_assert (MCD_IS_ACCOUNT_MANAGER (lad->account_manager));
+    g_assert (MCP_IS_ACCOUNT_STORAGE (lad->storage_plugin));
+
     if (cm != NULL)
         name = mcd_manager_get_name (cm);
 
@@ -239,7 +250,7 @@ async_created_manager_cb (McdManager *cm, const GError *error, gpointer data)
     add_account (am, account, mcp_account_storage_name (plugin));
 
     /* this will free the McdLoadAccountsData, don't use it after this */
-    _mcd_account_load (account, account_loaded, lad);
+    _mcd_account_load (account, async_account_loaded, lad);
 
     /* this triggers the final parameter check which results in dbus signals *
      * being fired and (potentially) the account going online automatically  */
@@ -260,21 +271,23 @@ created_cb (GObject *storage_plugin_obj,
     McpAccountStorage *plugin = MCP_ACCOUNT_STORAGE (storage_plugin_obj);
     McdAccountManager *am = MCD_ACCOUNT_MANAGER (data);
     McdAccountManagerPrivate *priv = MCD_ACCOUNT_MANAGER_PRIV (am);
-    McdLoadAccountsData *lad = g_slice_new (McdLoadAccountsData);
+    McdLoadAccountsData *lad = NULL;
     McdAccount *account = NULL;
     McdStorage *storage = priv->storage;
     McdMaster *master = mcd_master_get_default ();
     McdManager *cm = NULL;
     const gchar *cm_name = NULL;
 
-    lad->account_manager = am;
-    lad->storage_plugin = plugin;
-    lad->account_lock = 1; /* will be released at the end of this function */
-
     /* actually fetch the data into our cache from the plugin: */
     if (mcd_storage_add_account_from_plugin (storage, plugin, name))
     {
         account = mcd_account_new (am, name, priv->minotaur);
+        g_assert (MCD_IS_ACCOUNT (account));
+
+        lad = g_slice_new (McdLoadAccountsData);
+        lad->account_manager = am;
+        lad->storage_plugin = plugin;
+        lad->account_lock = 1; /* released at the end of this function */
         lad->account = account;
     }
     else
@@ -309,7 +322,8 @@ created_cb (GObject *storage_plugin_obj,
     }
 
 finish:
-    release_load_accounts_lock (lad);
+    if (lad != NULL)
+        release_load_accounts_lock (lad);
 }
 
 static void
@@ -1062,6 +1076,19 @@ write_conf (gpointer userdata)
 }
 
 static void
+release_setup_lock (McdAccountManager *self)
+{
+    g_return_if_fail (self->priv->setup_lock > 0);
+    self->priv->setup_lock--;
+    DEBUG ("called, count is now %d", self->priv->setup_lock);
+
+    if (self->priv->setup_lock == 0)
+    {
+        register_dbus_service (self);
+    }
+}
+
+static void
 release_load_accounts_lock (McdLoadAccountsData *lad)
 {
     g_return_if_fail (lad->account_lock > 0);
@@ -1070,13 +1097,14 @@ release_load_accounts_lock (McdLoadAccountsData *lad)
 
     if (lad->account_lock == 0)
     {
-        register_dbus_service (lad->account_manager);
         g_slice_free (McdLoadAccountsData, lad);
     }
 }
 
 static void
-account_loaded (McdAccount *account, const GError *error, gpointer user_data)
+async_account_loaded (McdAccount *account,
+    const GError *error,
+    gpointer user_data)
 {
     McdLoadAccountsData *lad = user_data;
 
@@ -1088,6 +1116,24 @@ account_loaded (McdAccount *account, const GError *error, gpointer user_data)
     }
 
     release_load_accounts_lock (lad);
+}
+
+static void
+setup_account_loaded (McdAccount *account,
+    const GError *error,
+    gpointer user_data)
+{
+    McdAccountManager *self = MCD_ACCOUNT_MANAGER (user_data);
+
+    if (error)
+    {
+        g_warning ("%s: got error: %s", G_STRFUNC, error->message);
+        g_hash_table_remove (self->priv->accounts,
+                             mcd_account_get_unique_name (account));
+    }
+
+    release_setup_lock (self);
+    g_object_unref (self);
 }
 
 static void
@@ -1103,31 +1149,28 @@ typedef struct
 {
     McdAccountManager *self;
     McdAccount *account;
-    McdLoadAccountsData *lad;
 } MigrateCtx;
 
 static MigrateCtx *
 migrate_ctx_new (McdAccountManager *self,
-                 McdAccount *account,
-                 McdLoadAccountsData *lad)
+                 McdAccount *account)
 {
     MigrateCtx *ctx = g_slice_new (MigrateCtx);
 
     ctx->self = g_object_ref (self);
     ctx->account = g_object_ref (account);
-    ctx->lad = lad;
 
     /* Lock attempting to migrate the account */
-    lad->account_lock++;
+    self->priv->setup_lock++;
     return ctx;
 }
 
 static void
 migrate_ctx_free (MigrateCtx *ctx)
 {
+    release_setup_lock (ctx->self);
     g_object_unref (ctx->self);
     g_object_unref (ctx->account);
-    release_load_accounts_lock (ctx->lad);
     g_slice_free (MigrateCtx, ctx);
 }
 
@@ -1295,12 +1338,11 @@ error:
 
 static void
 migrate_butterfly_account (McdAccountManager *self,
-                           McdAccount *account,
-                           McdLoadAccountsData *lad)
+                           McdAccount *account)
 {
     MigrateCtx *ctx;
 
-    ctx = migrate_ctx_new (self, account, lad);
+    ctx = migrate_ctx_new (self, account);
 
     _mcd_account_load (account, butterfly_account_loaded, ctx);
 }
@@ -1308,8 +1350,7 @@ migrate_butterfly_account (McdAccountManager *self,
 /* Migrate some specific type of account. If something went wrong during the
  * migration we disable it. */
 static void
-migrate_accounts (McdAccountManager *self,
-                  McdLoadAccountsData *lad)
+migrate_accounts (McdAccountManager *self)
 {
     McdAccountManagerPrivate *priv = self->priv;
     GHashTableIter iter;
@@ -1327,7 +1368,7 @@ migrate_accounts (McdAccountManager *self,
             continue;
 
         if (!tp_strdiff (tp_connection_manager_get_name (cm), "butterfly"))
-            migrate_butterfly_account (self, account, lad);
+            migrate_butterfly_account (self, account);
     }
 }
 
@@ -1343,18 +1384,18 @@ _mcd_account_manager_setup (McdAccountManager *account_manager)
 {
     McdAccountManagerPrivate *priv = account_manager->priv;
     McdStorage *storage = priv->storage;
-    McdLoadAccountsData *lad;
     gchar **accounts, **name;
     GHashTableIter iter;
     gpointer v;
 
+    /* for simplicity we don't support re-entrant setup */
+    g_return_if_fail (priv->setup_lock == 0);
+
+    priv->setup_lock = 1; /* will be released at the end of this function */
+
     tp_list_connection_names (priv->dbus_daemon,
                               list_connection_names_cb, NULL, NULL,
                               (GObject *)account_manager);
-
-    lad = g_slice_new (McdLoadAccountsData);
-    lad->account_manager = account_manager;
-    lad->account_lock = 1; /* will be released at the end of this function */
 
     accounts = mcd_storage_dup_accounts (storage, NULL);
 
@@ -1398,18 +1439,19 @@ _mcd_account_manager_setup (McdAccountManager *account_manager)
             continue;
         }
 
-        lad->account_lock++;
-        add_account (lad->account_manager, account, "keyfile");
-        _mcd_account_load (account, account_loaded, lad);
+        priv->setup_lock++;
+        add_account (account_manager, account, "keyfile");
+        _mcd_account_load (account, setup_account_loaded,
+                           g_object_ref (account_manager));
         g_object_unref (account);
     }
     g_strfreev (accounts);
 
     uncork_storage_plugins (account_manager);
 
-    migrate_accounts (account_manager, lad);
+    migrate_accounts (account_manager);
 
-    release_load_accounts_lock (lad);
+    release_setup_lock (account_manager);
 
     g_hash_table_iter_init (&iter, account_manager->priv->accounts);
 
