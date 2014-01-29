@@ -1,7 +1,9 @@
 telepathy-mission-control 5.16.2 (UNRELEASED)
 =============================================
 
-...
+Fixes:
+
+• don't crash in 'mc-tool auto-presence' subcommand (fd.o #74187, Simon)
 
 telepathy-mission-control 5.16.1 (2014-01-27)
 =============================================
