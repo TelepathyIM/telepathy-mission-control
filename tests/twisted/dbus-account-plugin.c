@@ -27,6 +27,8 @@
 #include <telepathy-glib/telepathy-glib-dbus.h>
 
 #define DEBUG(format, ...) g_debug ("%s: " format, G_STRFUNC, ##__VA_ARGS__)
+#define CRITICAL(format, ...) \
+  g_critical ("%s: " format, G_STRFUNC, ##__VA_ARGS__)
 
 #define TESTDOT "org.freedesktop.Telepathy.Test."
 #define TESTSLASH "/org/freedesktop/Telepathy/Test/"
@@ -54,7 +56,7 @@ typedef struct {
     GHashTable *parameter_flags;
     /* set of strings */
     GHashTable *uncommitted_parameters;
-    enum { UNCOMMITTED_CREATION, UNCOMMITTED_DELETION } flags;
+    enum { UNCOMMITTED_CREATION = 1 } flags;
     TpStorageRestrictionFlags restrictions;
 } Account;
 
@@ -183,7 +185,6 @@ ensure_account (TestDBusAccountPlugin *self,
       g_hash_table_insert (self->accounts, g_strdup (account_name), account);
     }
 
-  account->flags &= ~UNCOMMITTED_DELETION;
   return account;
 }
 
@@ -211,18 +212,14 @@ service_vanished_cb (GDBusConnection *bus,
 {
   TestDBusAccountPlugin *self = TEST_DBUS_ACCOUNT_PLUGIN (user_data);
   GHashTableIter iter;
-  gpointer k, v;
+  gpointer k;
 
   self->active = FALSE;
   g_hash_table_iter_init (&iter, self->accounts);
 
-  while (g_hash_table_iter_next (&iter, &k, &v))
+  while (g_hash_table_iter_next (&iter, &k, NULL))
     {
-      Account *account = v;
-
-      if ((account->flags & UNCOMMITTED_DELETION) == 0)
-        mcp_account_storage_emit_deleted (MCP_ACCOUNT_STORAGE (self), k);
-
+      mcp_account_storage_emit_deleted (MCP_ACCOUNT_STORAGE (self), k);
       g_hash_table_iter_remove (&iter);
     }
 
@@ -376,7 +373,7 @@ test_dbus_account_plugin_process_account_deletion (TestDBusAccountPlugin *self,
 
   if (account == NULL)
     {
-      g_warning ("accounts service deleted %s but we don't "
+      CRITICAL ("accounts service deleted %s but we don't "
           "have any record of that account", account_name);
     }
   else
@@ -414,7 +411,7 @@ test_dbus_account_plugin_process_attributes (TestDBusAccountPlugin *self,
 
   if (account == NULL)
     {
-      g_warning ("accounts service altered %s but we don't "
+      CRITICAL ("accounts service altered %s but we don't "
           "have any record of that account", account_name);
     }
   else
@@ -448,8 +445,6 @@ test_dbus_account_plugin_process_attributes (TestDBusAccountPlugin *self,
 
               g_hash_table_insert (account->attributes,
                   g_strdup (attr), g_variant_ref (value));
-              mcp_account_manager_set_attribute (self->feedback,
-                  account_name, attr, value, flags);
               mcp_account_storage_emit_altered_one (
                   MCP_ACCOUNT_STORAGE (self), account_name, attr);
 
@@ -473,8 +468,6 @@ test_dbus_account_plugin_process_attributes (TestDBusAccountPlugin *self,
               DEBUG ("%s deleted", attr);
 
               g_hash_table_remove (account->attributes, attr);
-              mcp_account_manager_set_attribute (self->feedback,
-                  account_name, attr, NULL, 0);
               mcp_account_storage_emit_altered_one (
                   MCP_ACCOUNT_STORAGE (self), account_name, attr);
 
@@ -525,7 +518,7 @@ test_dbus_account_plugin_process_parameters (TestDBusAccountPlugin *self,
 
   if (account == NULL)
     {
-      g_warning ("accounts service altered %s but we don't "
+      CRITICAL ("accounts service altered %s but we don't "
           "have any record of that account", account_name);
     }
   else
@@ -557,8 +550,6 @@ test_dbus_account_plugin_process_parameters (TestDBusAccountPlugin *self,
               g_hash_table_insert (account->parameters,
                   g_strdup (param), g_variant_ref (value));
               key = g_strdup_printf ("param-%s", param);
-              mcp_account_manager_set_parameter (self->feedback,
-                  account_name, param, value, flags);
               mcp_account_storage_emit_altered_one (
                   MCP_ACCOUNT_STORAGE (self), account_name, key);
               g_free (key);
@@ -586,11 +577,10 @@ test_dbus_account_plugin_process_parameters (TestDBusAccountPlugin *self,
               (stored == NULL ||
                !g_variant_equal (value, stored)))
             {
+              g_hash_table_remove (account->parameters, param);
               g_hash_table_insert (account->untyped_parameters,
                   g_strdup (param), g_strdup (escaped));
               key = g_strdup_printf ("param-%s", param);
-              mcp_account_manager_set_value (self->feedback,
-                  account_name, key, escaped);
               mcp_account_storage_emit_altered_one (
                   MCP_ACCOUNT_STORAGE (self), account_name, key);
               g_free (key);
@@ -620,8 +610,6 @@ test_dbus_account_plugin_process_parameters (TestDBusAccountPlugin *self,
               g_hash_table_remove (account->untyped_parameters,
                   param);
               key = g_strdup_printf ("param-%s", param);
-              mcp_account_manager_set_parameter (self->feedback,
-                  account_name, param, NULL, 0);
               mcp_account_storage_emit_altered_one (
                   MCP_ACCOUNT_STORAGE (self), account_name, key);
               g_free (key);
@@ -760,8 +748,8 @@ parameters_changed_cb (GDBusConnection *bus,
 }
 
 static GList *
-test_dbus_account_plugin_list (const McpAccountStorage *storage,
-    const McpAccountManager *am)
+test_dbus_account_plugin_list (McpAccountStorage *storage,
+    McpAccountManager *am)
 {
   TestDBusAccountPlugin *self = TEST_DBUS_ACCOUNT_PLUGIN (storage);
   GError *error = NULL;
@@ -870,8 +858,8 @@ test_dbus_account_plugin_list (const McpAccountStorage *storage,
 }
 
 static void
-test_dbus_account_plugin_ready (const McpAccountStorage *storage,
-    const McpAccountManager *am)
+test_dbus_account_plugin_ready (McpAccountStorage *storage,
+    McpAccountManager *am)
 {
   TestDBusAccountPlugin *self = TEST_DBUS_ACCOUNT_PLUGIN (storage);
 
@@ -885,8 +873,8 @@ test_dbus_account_plugin_ready (const McpAccountStorage *storage,
 }
 
 static gchar *
-test_dbus_account_plugin_create (const McpAccountStorage *storage,
-    const McpAccountManager *am,
+test_dbus_account_plugin_create (McpAccountStorage *storage,
+    McpAccountManager *am,
     const gchar *manager,
     const gchar *protocol,
     const gchar *identifier,
@@ -908,218 +896,139 @@ test_dbus_account_plugin_create (const McpAccountStorage *storage,
   return name;
 }
 
-static gboolean
-test_dbus_account_plugin_delete (const McpAccountStorage *storage,
-    const McpAccountManager *am,
+static void delete_account_cb (GObject *source_object,
+    GAsyncResult *res,
+    gpointer user_data);
+
+static void
+test_dbus_account_plugin_delete_async (McpAccountStorage *storage,
+    McpAccountManager *am,
     const gchar *account_name,
-    const gchar *key)
+    GCancellable *cancellable,
+    GAsyncReadyCallback callback,
+    gpointer user_data)
 {
   TestDBusAccountPlugin *self = TEST_DBUS_ACCOUNT_PLUGIN (storage);
   Account *account = lookup_account (self, account_name);
+  GTask *task = g_task_new (self, cancellable, callback, user_data);
+
+  g_task_set_task_data (task, g_strdup (user_data), g_free);
 
   DEBUG ("called");
 
-  if (account == NULL || !self->active)
-    return FALSE;
+  g_return_if_fail (self->active);
+  g_return_if_fail (account != NULL);
 
-  if (key == NULL)
-    {
-      account->flags |= UNCOMMITTED_DELETION;
-      g_hash_table_remove_all (account->attributes);
-      g_hash_table_remove_all (account->parameters);
-      g_hash_table_remove_all (account->untyped_parameters);
-      g_hash_table_remove_all (account->attribute_flags);
-      g_hash_table_remove_all (account->parameter_flags);
+  /* deletion used to be delayed, so the regression tests will expect this
+   * to happen - leave them unmodified for now */
+  g_dbus_connection_emit_signal (self->bus, NULL,
+      TEST_DBUS_ACCOUNT_PLUGIN_PATH, TEST_DBUS_ACCOUNT_PLUGIN_IFACE,
+      "DeferringDelete", g_variant_new_parsed ("(%o,)", account->path),
+      NULL);
+  g_dbus_connection_emit_signal (self->bus, NULL,
+      TEST_DBUS_ACCOUNT_PLUGIN_PATH, TEST_DBUS_ACCOUNT_PLUGIN_IFACE,
+      "CommittingOne", g_variant_new_parsed ("(%o,)", account->path), NULL);
 
-      account->flags &= ~UNCOMMITTED_CREATION;
-      g_hash_table_remove_all (account->uncommitted_attributes);
-      g_hash_table_remove_all (account->uncommitted_parameters);
-
-      g_dbus_connection_emit_signal (self->bus, NULL,
-          TEST_DBUS_ACCOUNT_PLUGIN_PATH, TEST_DBUS_ACCOUNT_PLUGIN_IFACE,
-          "DeferringDelete", g_variant_new_parsed ("(%o,)", account->path),
-          NULL);
-    }
-  else if (g_str_has_prefix (key, "param-"))
-    {
-      g_hash_table_remove (account->parameters, key + 6);
-      g_hash_table_remove (account->untyped_parameters, key + 6);
-      g_hash_table_remove (account->parameter_flags, key + 6);
-      g_hash_table_add (account->uncommitted_parameters, g_strdup (key + 6));
-
-      g_dbus_connection_emit_signal (self->bus, NULL,
-          TEST_DBUS_ACCOUNT_PLUGIN_PATH, TEST_DBUS_ACCOUNT_PLUGIN_IFACE,
-          "DeferringDeleteParameter",
-          g_variant_new_parsed ("(%o, %s)", account->path, key + 6), NULL);
-    }
-  else
-    {
-      g_hash_table_remove (account->attributes, key);
-      g_hash_table_remove (account->attribute_flags, key);
-      g_hash_table_add (account->uncommitted_attributes, g_strdup (key));
-
-      g_dbus_connection_emit_signal (self->bus, NULL,
-          TEST_DBUS_ACCOUNT_PLUGIN_PATH, TEST_DBUS_ACCOUNT_PLUGIN_IFACE,
-          "DeferringDeleteAttribute",
-          g_variant_new_parsed ("(%o, %s)", account->path, key), NULL);
-    }
-
-  return TRUE;
+  g_dbus_connection_call (self->bus,
+      TEST_DBUS_ACCOUNT_SERVICE,
+      TEST_DBUS_ACCOUNT_SERVICE_PATH,
+      TEST_DBUS_ACCOUNT_SERVICE_IFACE,
+      "DeleteAccount",
+      g_variant_new_parsed ("(%s,)", account_name),
+      G_VARIANT_TYPE_UNIT,
+      G_DBUS_CALL_FLAGS_NONE,
+      -1,
+      NULL, /* no cancellable */
+      delete_account_cb,
+      task);
 }
 
 static gboolean
-test_dbus_account_plugin_get (const McpAccountStorage *storage,
-    const McpAccountManager *am,
+test_dbus_account_plugin_delete_finish (McpAccountStorage *storage,
+    GAsyncResult *res,
+    GError **error)
+{
+  return g_task_propagate_boolean (G_TASK (res), error);
+}
+
+static GVariant *
+test_dbus_account_plugin_get_attribute (McpAccountStorage *storage,
+    McpAccountManager *am,
     const gchar *account_name,
-    const gchar *key)
+    const gchar *attribute,
+    const GVariantType *type,
+    McpAttributeFlags *flags)
 {
   TestDBusAccountPlugin *self = TEST_DBUS_ACCOUNT_PLUGIN (storage);
   Account *account = lookup_account (self, account_name);
+  GVariant *v;
 
-  if (!self->active || account == NULL || (account->flags & UNCOMMITTED_DELETION))
-    return FALSE;
+  if (flags != NULL)
+    *flags = 0;
 
-  if (key == NULL)
+  g_return_val_if_fail (self->active, NULL);
+  g_return_val_if_fail (account != NULL, NULL);
+
+  v = g_hash_table_lookup (account->attributes, attribute);
+
+  g_dbus_connection_emit_signal (self->bus, NULL,
+      TEST_DBUS_ACCOUNT_PLUGIN_PATH, TEST_DBUS_ACCOUNT_PLUGIN_IFACE,
+      "GetAttribute",
+      g_variant_new_parsed ("(%o, %s)", account->path, attribute), NULL);
+
+  if (v != NULL)
     {
-      GHashTableIter iter;
-      gpointer k, v;
-
-      /* get everything */
-      g_dbus_connection_emit_signal (self->bus, NULL,
-          TEST_DBUS_ACCOUNT_PLUGIN_PATH, TEST_DBUS_ACCOUNT_PLUGIN_IFACE,
-          "GetAllKeys",
-          g_variant_new_parsed ("(%o,)", account->path), NULL);
-
-      g_hash_table_iter_init (&iter, account->attributes);
-
-      while (g_hash_table_iter_next (&iter, &k, &v))
-        {
-          gchar *escaped = mcp_account_manager_escape_variant_for_keyfile (am,
-              v);
-
-          mcp_account_manager_set_value (am, account_name, k, escaped);
-          g_free (escaped);
-        }
-
-      g_hash_table_iter_init (&iter, account->untyped_parameters);
-
-      while (g_hash_table_iter_next (&iter, &k, &v))
-        {
-          gchar *param_foo;
-          McpParameterFlags flags;
-
-          param_foo = g_strdup_printf ("param-%s", (const gchar *) k);
-          mcp_account_manager_set_value (am, account_name, param_foo, v);
-
-          flags = GPOINTER_TO_UINT (g_hash_table_lookup (
-                account->parameter_flags, k));
-
-          if (flags & MCP_PARAMETER_FLAG_SECRET)
-            mcp_account_manager_parameter_make_secret (am, account_name,
-                param_foo);
-
-          g_free (param_foo);
-        }
-
-      g_hash_table_iter_init (&iter, account->parameters);
-
-      while (g_hash_table_iter_next (&iter, &k, &v))
-        {
-          gchar *param_foo;
-          guint32 flags;
-          gchar *escaped = mcp_account_manager_escape_variant_for_keyfile (am,
-              v);
-
-          param_foo = g_strdup_printf ("param-%s", (const gchar *) k);
-          mcp_account_manager_set_value (am, account_name, param_foo, escaped);
-          g_free (escaped);
-
-          flags = GPOINTER_TO_UINT (g_hash_table_lookup (account->parameter_flags,
-                k));
-
-          if (flags & MCP_PARAMETER_FLAG_SECRET)
-            mcp_account_manager_parameter_make_secret (am, account_name,
-                param_foo);
-
-          g_free (param_foo);
-        }
-
-      return TRUE;
-    }
-
-  /* get one parameter */
-
-  if (g_str_has_prefix (key, "param-"))
-    {
-      GVariant *v = g_hash_table_lookup (account->parameters, key + 6);
-      const gchar *s = g_hash_table_lookup (account->untyped_parameters, key + 6);
-      guint32 flags = GPOINTER_TO_UINT (
-          g_hash_table_lookup (account->parameter_flags, key + 6));
-
-      g_dbus_connection_emit_signal (self->bus, NULL,
-          TEST_DBUS_ACCOUNT_PLUGIN_PATH, TEST_DBUS_ACCOUNT_PLUGIN_IFACE,
-          "GetParameter",
-          g_variant_new_parsed ("(%o, %s)", account->path, key + 6), NULL);
-
-      if (flags & MCP_PARAMETER_FLAG_SECRET)
-        mcp_account_manager_parameter_make_secret (am, account_name, key);
-
-      if (v != NULL)
-        {
-          gchar *escaped = mcp_account_manager_escape_variant_for_keyfile (am,
-              v);
-
-          mcp_account_manager_set_value (am, account_name, key, escaped);
-          g_free (escaped);
-        }
-      else if (s != NULL)
-        {
-          mcp_account_manager_set_value (am, account_name, key, s);
-        }
-      else
-        {
-          return FALSE;
-        }
+      return g_variant_ref (v);
     }
   else
     {
-      GVariant *v = g_hash_table_lookup (account->attributes, key);
-
-      g_dbus_connection_emit_signal (self->bus, NULL,
-          TEST_DBUS_ACCOUNT_PLUGIN_PATH, TEST_DBUS_ACCOUNT_PLUGIN_IFACE,
-          "GetAttribute",
-          g_variant_new_parsed ("(%o, %s)", account->path, key), NULL);
-
-      if (v != NULL)
-        {
-          gchar *escaped = mcp_account_manager_escape_variant_for_keyfile (am,
-              v);
-
-          mcp_account_manager_set_value (am, account_name, key, escaped);
-          g_free (escaped);
-        }
-      else
-        {
-          return FALSE;
-        }
+      return NULL;
     }
-
-  return TRUE;
 }
 
-static gboolean
-test_dbus_account_plugin_set (const McpAccountStorage *storage,
-    const McpAccountManager *am,
+static GVariant *
+test_dbus_account_plugin_get_parameter (McpAccountStorage *storage,
+    McpAccountManager *am,
     const gchar *account_name,
-    const gchar *key,
-    const gchar *value)
+    const gchar *parameter,
+    const GVariantType *type,
+    McpParameterFlags *flags)
 {
-  /* Now that we implement set_attribute and set_parameter, this no longer
-   * needs a real implementation. */
-  return FALSE;
+  TestDBusAccountPlugin *self = TEST_DBUS_ACCOUNT_PLUGIN (storage);
+  Account *account = lookup_account (self, account_name);
+  GVariant *v;
+  const gchar *s;
+
+  if (flags != NULL)
+    *flags = 0;
+
+  g_return_val_if_fail (self->active, NULL);
+  g_return_val_if_fail (account != NULL, NULL);
+
+  g_dbus_connection_emit_signal (self->bus, NULL,
+      TEST_DBUS_ACCOUNT_PLUGIN_PATH, TEST_DBUS_ACCOUNT_PLUGIN_IFACE,
+      "GetParameter",
+      g_variant_new_parsed ("(%o, %s)", account->path, parameter), NULL);
+
+  v = g_hash_table_lookup (account->parameters, parameter);
+  s = g_hash_table_lookup (account->untyped_parameters, parameter);
+
+  if (v != NULL)
+    {
+      return g_variant_ref (v);
+    }
+  else if (s != NULL)
+    {
+      return mcp_account_manager_unescape_variant_from_keyfile (am,
+          s, type, NULL);
+    }
+  else
+    {
+      return NULL;
+    }
 }
 
-static gboolean
+static McpAccountStorageSetResult
 test_dbus_account_plugin_set_attribute (McpAccountStorage *storage,
     McpAccountManager *am,
     const gchar *account_name,
@@ -1129,17 +1038,40 @@ test_dbus_account_plugin_set_attribute (McpAccountStorage *storage,
 {
   TestDBusAccountPlugin *self = TEST_DBUS_ACCOUNT_PLUGIN (storage);
   Account *account = lookup_account (self, account_name);
+  GVariant *old;
+  guint old_flags;
 
   g_return_val_if_fail (account_name != NULL, FALSE);
   g_return_val_if_fail (attribute != NULL, FALSE);
-  /* for deletions, MC would call delete() instead */
-  g_return_val_if_fail (value != NULL, FALSE);
 
   DEBUG ("%s of %s", attribute, account_name);
 
-  if (!self->active || account == NULL ||
-      (account->flags & UNCOMMITTED_DELETION))
-    return FALSE;
+  g_return_val_if_fail (self->active, MCP_ACCOUNT_STORAGE_SET_RESULT_FAILED);
+  g_return_val_if_fail (account != NULL, MCP_ACCOUNT_STORAGE_SET_RESULT_FAILED);
+
+  if (value == NULL)
+    {
+      if (!g_hash_table_contains (account->attributes, attribute))
+        return MCP_ACCOUNT_STORAGE_SET_RESULT_UNCHANGED;
+
+      g_hash_table_remove (account->attributes, attribute);
+      g_hash_table_remove (account->attribute_flags, attribute);
+      g_hash_table_add (account->uncommitted_attributes, g_strdup (attribute));
+
+      g_dbus_connection_emit_signal (self->bus, NULL,
+          TEST_DBUS_ACCOUNT_PLUGIN_PATH, TEST_DBUS_ACCOUNT_PLUGIN_IFACE,
+          "DeferringDeleteAttribute",
+          g_variant_new_parsed ("(%o, %s)", account->path, attribute), NULL);
+
+      return MCP_ACCOUNT_STORAGE_SET_RESULT_CHANGED;
+    }
+
+  old = g_hash_table_lookup (account->attributes, attribute);
+  old_flags = GPOINTER_TO_UINT (g_hash_table_lookup (
+        account->attribute_flags, attribute));
+
+  if (old != NULL && g_variant_equal (old, value) && old_flags == flags)
+    return MCP_ACCOUNT_STORAGE_SET_RESULT_UNCHANGED;
 
   g_hash_table_insert (account->attributes, g_strdup (attribute),
       g_variant_ref (value));
@@ -1153,10 +1085,10 @@ test_dbus_account_plugin_set_attribute (McpAccountStorage *storage,
       g_variant_new_parsed ("(%o, %s, %v)", account->path, attribute, value),
       NULL);
 
-  return TRUE;
+  return MCP_ACCOUNT_STORAGE_SET_RESULT_CHANGED;
 }
 
-static gboolean
+static McpAccountStorageSetResult
 test_dbus_account_plugin_set_parameter (McpAccountStorage *storage,
     McpAccountManager *am,
     const gchar *account_name,
@@ -1166,17 +1098,42 @@ test_dbus_account_plugin_set_parameter (McpAccountStorage *storage,
 {
   TestDBusAccountPlugin *self = TEST_DBUS_ACCOUNT_PLUGIN (storage);
   Account *account = lookup_account (self, account_name);
+  GVariant *old;
+  guint old_flags;
 
   g_return_val_if_fail (account_name != NULL, FALSE);
   g_return_val_if_fail (parameter != NULL, FALSE);
-  /* for deletions, MC would call delete() instead */
-  g_return_val_if_fail (value != NULL, FALSE);
 
   DEBUG ("%s of %s", parameter, account_name);
 
-  if (!self->active || account == NULL ||
-      (account->flags & UNCOMMITTED_DELETION))
-    return FALSE;
+  g_return_val_if_fail (self->active, MCP_ACCOUNT_STORAGE_SET_RESULT_FAILED);
+  g_return_val_if_fail (account != NULL, MCP_ACCOUNT_STORAGE_SET_RESULT_FAILED);
+
+  if (value == NULL)
+    {
+      if (!g_hash_table_contains (account->parameters, parameter) &&
+          !g_hash_table_contains (account->untyped_parameters, parameter))
+        return MCP_ACCOUNT_STORAGE_SET_RESULT_UNCHANGED;
+
+      g_hash_table_remove (account->parameters, parameter);
+      g_hash_table_remove (account->untyped_parameters, parameter);
+      g_hash_table_remove (account->parameter_flags, parameter);
+      g_hash_table_add (account->uncommitted_parameters, g_strdup (parameter));
+
+      g_dbus_connection_emit_signal (self->bus, NULL,
+          TEST_DBUS_ACCOUNT_PLUGIN_PATH, TEST_DBUS_ACCOUNT_PLUGIN_IFACE,
+          "DeferringDeleteParameter",
+          g_variant_new_parsed ("(%o, %s)", account->path, parameter), NULL);
+
+      return TRUE;
+    }
+
+  old = g_hash_table_lookup (account->parameters, parameter);
+  old_flags = GPOINTER_TO_UINT (g_hash_table_lookup (
+        account->parameter_flags, parameter));
+
+  if (old != NULL && g_variant_equal (old, value) && old_flags == flags)
+    return MCP_ACCOUNT_STORAGE_SET_RESULT_UNCHANGED;
 
   g_hash_table_remove (account->untyped_parameters, parameter);
   g_hash_table_insert (account->parameters, g_strdup (parameter),
@@ -1191,37 +1148,7 @@ test_dbus_account_plugin_set_parameter (McpAccountStorage *storage,
       g_variant_new_parsed ("(%o, %s, %v)", account->path, parameter, value),
       NULL);
 
-  return TRUE;
-}
-
-static gboolean
-test_dbus_account_plugin_commit (const McpAccountStorage *storage,
-    const McpAccountManager *am)
-{
-  TestDBusAccountPlugin *self = TEST_DBUS_ACCOUNT_PLUGIN (storage);
-  GHashTableIter iter;
-  gpointer k;
-
-  DEBUG ("called");
-
-  if (!self->active)
-    return FALSE;
-
-  g_dbus_connection_emit_signal (self->bus, NULL,
-      TEST_DBUS_ACCOUNT_PLUGIN_PATH, TEST_DBUS_ACCOUNT_PLUGIN_IFACE,
-      "CommittingAll", NULL, NULL);
-
-  g_hash_table_iter_init (&iter, self->accounts);
-
-  while (g_hash_table_iter_next (&iter, &k, NULL))
-    {
-      if (!mcp_account_storage_commit_one (storage, am, k))
-        {
-          g_warning ("declined to commit account %s", (const gchar *) k);
-        }
-    }
-
-  return TRUE;
+  return MCP_ACCOUNT_STORAGE_SET_RESULT_CHANGED;
 }
 
 static void
@@ -1229,27 +1156,31 @@ delete_account_cb (GObject *source_object,
     GAsyncResult *res,
     gpointer user_data)
 {
-  AsyncData *ad = user_data;
+  GTask *task = user_data;
   GVariant *tuple;
   GError *error = NULL;
+  TestDBusAccountPlugin *self = g_task_get_source_object (task);
+  const gchar *account_name = g_task_get_task_data (task);
 
-  tuple = g_dbus_connection_call_finish (ad->self->bus, res, &error);
+  tuple = g_dbus_connection_call_finish (self->bus, res, &error);
 
   if (tuple != NULL)
     {
-      g_hash_table_remove (ad->self->accounts, ad->account_name);
+      /* we'll emit ::deleted when we see the signal, which probably
+       * already happened */
+      g_hash_table_remove (self->accounts, account_name);
       g_variant_unref (tuple);
+      g_task_return_boolean (task, TRUE);
     }
   else
     {
-      g_warning ("Unable to delete account %s: %s", ad->account_name,
-          error->message);
-      g_clear_error (&error);
-      /* FIXME: we could roll back the deletion by claiming that
-       * the service re-created the account? */
+      g_prefix_error (&error, "Unable to delete account %s: ",
+          account_name);
+      g_warning ("%s", error->message);
+      g_task_return_error (task, error);
     }
 
-  async_data_free (ad);
+  g_object_unref (task);
 }
 
 static void
@@ -1355,12 +1286,12 @@ update_parameters_cb (GObject *source_object,
 }
 
 static gboolean
-test_dbus_account_plugin_commit_one (const McpAccountStorage *storage,
-    const McpAccountManager *am,
+test_dbus_account_plugin_commit (McpAccountStorage *storage,
+    McpAccountManager *am,
     const gchar *account_name)
 {
   TestDBusAccountPlugin *self = TEST_DBUS_ACCOUNT_PLUGIN (storage);
-  Account *account = lookup_account (self, account_name);
+  Account *account;
   GHashTableIter iter;
   gpointer k;
   GVariantBuilder a_sv_builder;
@@ -1370,35 +1301,14 @@ test_dbus_account_plugin_commit_one (const McpAccountStorage *storage,
 
   DEBUG ("%s", account_name);
 
-  /* MC does not call @commit_one with parameter %NULL (meaning "all accounts")
-   * if we also implement commit(), which, as it happens, we do */
-  g_return_val_if_fail (account_name != NULL, FALSE);
+  account = lookup_account (self, account_name);
 
-  if (!self->active || account == NULL)
-    return FALSE;
+  g_return_val_if_fail (self->active, FALSE);
+  g_return_val_if_fail (account != NULL, FALSE);
 
   g_dbus_connection_emit_signal (self->bus, NULL,
       TEST_DBUS_ACCOUNT_PLUGIN_PATH, TEST_DBUS_ACCOUNT_PLUGIN_IFACE,
       "CommittingOne", g_variant_new_parsed ("(%o,)", account->path), NULL);
-
-  if (account->flags & UNCOMMITTED_DELETION)
-    {
-      g_dbus_connection_call (self->bus,
-          TEST_DBUS_ACCOUNT_SERVICE,
-          TEST_DBUS_ACCOUNT_SERVICE_PATH,
-          TEST_DBUS_ACCOUNT_SERVICE_IFACE,
-          "DeleteAccount",
-          g_variant_new_parsed ("(%s,)", account_name),
-          G_VARIANT_TYPE_UNIT,
-          G_DBUS_CALL_FLAGS_NONE,
-          -1,
-          NULL, /* no cancellable */
-          delete_account_cb,
-          async_data_new (self, account_name));
-
-      /* this doesn't mean we succeeded: it means we tried */
-      return TRUE;
-    }
 
   if (account->flags & UNCOMMITTED_CREATION)
     {
@@ -1526,7 +1436,7 @@ test_dbus_account_plugin_commit_one (const McpAccountStorage *storage,
 }
 
 static void
-test_dbus_account_plugin_get_identifier (const McpAccountStorage *storage,
+test_dbus_account_plugin_get_identifier (McpAccountStorage *storage,
     const gchar *account_name,
     GValue *identifier)
 {
@@ -1535,8 +1445,8 @@ test_dbus_account_plugin_get_identifier (const McpAccountStorage *storage,
 
   DEBUG ("%s", account_name);
 
-  if (!self->active || account == NULL || (account->flags & UNCOMMITTED_DELETION))
-    return;
+  g_return_if_fail (self->active);
+  g_return_if_fail (account != NULL);
 
   /* Our "library-specific unique identifier" is just the object-path
    * as a string. */
@@ -1545,7 +1455,7 @@ test_dbus_account_plugin_get_identifier (const McpAccountStorage *storage,
 }
 
 static GHashTable *
-test_dbus_account_plugin_get_additional_info (const McpAccountStorage *storage,
+test_dbus_account_plugin_get_additional_info (McpAccountStorage *storage,
     const gchar *account_name)
 {
   TestDBusAccountPlugin *self = TEST_DBUS_ACCOUNT_PLUGIN (storage);
@@ -1554,8 +1464,8 @@ test_dbus_account_plugin_get_additional_info (const McpAccountStorage *storage,
 
   DEBUG ("%s", account_name);
 
-  if (!self->active || account == NULL || (account->flags & UNCOMMITTED_DELETION))
-    return NULL;
+  g_return_val_if_fail (self->active, NULL);
+  g_return_val_if_fail (account != NULL, NULL);
 
   ret = g_hash_table_new_full (g_str_hash, g_str_equal,
       g_free, (GDestroyNotify) tp_g_value_slice_free);
@@ -1566,7 +1476,7 @@ test_dbus_account_plugin_get_additional_info (const McpAccountStorage *storage,
 }
 
 static guint
-test_dbus_account_plugin_get_restrictions (const McpAccountStorage *storage,
+test_dbus_account_plugin_get_restrictions (McpAccountStorage *storage,
     const gchar *account_name)
 {
   TestDBusAccountPlugin *self = TEST_DBUS_ACCOUNT_PLUGIN (storage);
@@ -1574,26 +1484,10 @@ test_dbus_account_plugin_get_restrictions (const McpAccountStorage *storage,
 
   DEBUG ("%s", account_name);
 
-  if (!self->active || account == NULL || (account->flags & UNCOMMITTED_DELETION))
-    return 0;
+  g_return_val_if_fail (self->active, 0);
+  g_return_val_if_fail (account != NULL, 0);
 
   return account->restrictions;
-}
-
-static gboolean
-test_dbus_account_plugin_owns (McpAccountStorage *storage,
-    McpAccountManager *am,
-    const gchar *account_name)
-{
-  TestDBusAccountPlugin *self = TEST_DBUS_ACCOUNT_PLUGIN (storage);
-  Account *account = lookup_account (self, account_name);
-
-  DEBUG ("%s", account_name);
-
-  if (!self->active || account == NULL || (account->flags & UNCOMMITTED_DELETION))
-    return FALSE;
-
-  return TRUE;
 }
 
 static void
@@ -1604,18 +1498,17 @@ account_storage_iface_init (McpAccountStorageIface *iface)
   /* this should be higher priority than the diverted-keyfile one */
   iface->priority = MCP_ACCOUNT_STORAGE_PLUGIN_PRIO_NORMAL + 100;
 
-  iface->get = test_dbus_account_plugin_get;
-  iface->set = test_dbus_account_plugin_set;
+  iface->get_attribute = test_dbus_account_plugin_get_attribute;
+  iface->get_parameter = test_dbus_account_plugin_get_parameter;
   iface->set_attribute = test_dbus_account_plugin_set_attribute;
   iface->set_parameter = test_dbus_account_plugin_set_parameter;
   iface->list = test_dbus_account_plugin_list;
   iface->ready = test_dbus_account_plugin_ready;
-  iface->delete = test_dbus_account_plugin_delete;
+  iface->delete_async = test_dbus_account_plugin_delete_async;
+  iface->delete_finish = test_dbus_account_plugin_delete_finish;
   iface->commit = test_dbus_account_plugin_commit;
-  iface->commit_one = test_dbus_account_plugin_commit_one;
   iface->get_identifier = test_dbus_account_plugin_get_identifier;
   iface->get_additional_info = test_dbus_account_plugin_get_additional_info;
   iface->get_restrictions = test_dbus_account_plugin_get_restrictions;
   iface->create = test_dbus_account_plugin_create;
-  iface->owns = test_dbus_account_plugin_owns;
 }

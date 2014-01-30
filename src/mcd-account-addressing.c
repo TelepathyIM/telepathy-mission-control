@@ -48,7 +48,7 @@ addressing_set_uri_scheme_association (TpSvcAccountInterfaceAddressing *iface,
   g_value_init (&value, G_TYPE_STRV);
 
   if (mcd_storage_get_attribute (storage, account, MC_ACCOUNTS_KEY_URI_SCHEMES,
-                                 &value, NULL))
+                                 G_VARIANT_TYPE_STRING_ARRAY, &value, NULL))
     {
       schemes = g_value_get_boxed (&value);
       old_association = tp_strv_contains ((const gchar * const *) schemes,
@@ -109,7 +109,7 @@ addressing_get_uri_schemes (TpSvcDBusProperties *iface,
   g_value_init (value, G_TYPE_STRV);
 
   if (!mcd_storage_get_attribute (storage, account, MC_ACCOUNTS_KEY_URI_SCHEMES,
-                                  value, NULL))
+                                  G_VARIANT_TYPE_STRING_ARRAY, value, NULL))
     {
       g_value_set_boxed (value, NULL);
     }

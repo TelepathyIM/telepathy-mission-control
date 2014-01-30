@@ -30,7 +30,7 @@ G_BEGIN_DECLS
 typedef struct {
   GObject parent;
   TpDBusDaemon *dbusd;
-  /* owned string => owned McdStorageAccount */
+  /* owned string => owned McpAccountStorage */
   GHashTable *accounts;
 } McdStorage;
 
@@ -64,11 +64,7 @@ void mcd_storage_connect_signal (const gchar *signal,
 
 void mcd_storage_load (McdStorage *storage);
 
-GStrv mcd_storage_dup_accounts (McdStorage *storage, gsize *n);
-
-GStrv mcd_storage_dup_attributes (McdStorage *storage,
-    const gchar *account,
-    gsize *n);
+GHashTable *mcd_storage_get_accounts (McdStorage *storage);
 
 gboolean mcd_storage_set_string (McdStorage *storage,
     const gchar *account,
@@ -88,14 +84,14 @@ gboolean mcd_storage_set_attribute (McdStorage *storage,
 gboolean mcd_storage_set_parameter (McdStorage *storage,
     const gchar *account,
     const gchar *parameter,
-    const GValue *value,
-    gboolean secret);
+    const GValue *value);
 
 gchar *mcd_storage_create_account (McdStorage *storage,
     const gchar *provider,
     const gchar *manager,
     const gchar *protocol,
     const gchar *identification,
+    McpAccountStorage **plugin_out,
     GError **error);
 
 void mcd_storage_delete_account (McdStorage *storage, const gchar *account);
@@ -109,12 +105,14 @@ gchar *mcd_storage_dup_string (McdStorage *storage,
 gboolean mcd_storage_get_attribute (McdStorage *storage,
     const gchar *account,
     const gchar *attribute,
+    const GVariantType *type,
     GValue *value,
     GError **error);
 
 gboolean mcd_storage_get_parameter (McdStorage *storage,
     const gchar *account,
     const gchar *parameter,
+    const GVariantType *type,
     GValue *value,
     GError **error);
 
@@ -133,7 +131,8 @@ G_GNUC_INTERNAL void _mcd_storage_store_connections (McdStorage *storage);
 
 gboolean mcd_storage_add_account_from_plugin (McdStorage *storage,
     McpAccountStorage *plugin,
-    const gchar *account);
+    const gchar *account,
+    GError **error);
 
 GVariant *mcd_keyfile_get_variant (GKeyFile *keyfile,
     const gchar *group,
@@ -159,9 +158,10 @@ gboolean mcd_keyfile_unescape_value (const gchar *escaped,
     GValue *value,
     GError **error);
 
-const gchar *mcd_storage_get_attribute_type (const gchar *attribute);
+const GVariantType *mcd_storage_get_attribute_type (const gchar *attribute);
 gboolean mcd_storage_init_value_for_attribute (GValue *value,
-    const gchar *attribute);
+    const gchar *attribute,
+    const GVariantType **variant_type);
 
 G_END_DECLS
 

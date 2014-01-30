@@ -62,6 +62,21 @@ static gboolean debugging = FALSE;
 #endif
 
 /**
+ * MCP_API_VERSION_5_18:
+ *
+ * Defined to allow simple plugin implementations to support both Mission
+ * Control 5.16 and 5.18 plugin APIs:
+ *
+ * |[
+ * #ifdef MCP_API_VERSION_5_18
+ * ... // implement MC 5.18 API
+ * #else
+ * ... // implement MC 5.16 API
+ * #endif
+ * ]|
+ */
+
+/**
  * mcp_set_debug:
  * @debug: whether to log debug output
  *

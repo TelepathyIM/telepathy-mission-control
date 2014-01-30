@@ -22,11 +22,12 @@
 import dbus
 
 from servicetest import call_async, assertEquals, assertContains
-from mctest import exec_test, AccountManager
+from mctest import (exec_test, SimulatedConnectionManager, AccountManager)
 import constants as cs
 
 def test(q, bus, mc):
     am = AccountManager(bus)
+    simulated_cm = SimulatedConnectionManager(q, bus)
 
     def call_create(cm='fakecm', protocol='fakeprotocol', parameters=None):
         if parameters is None:
@@ -73,6 +74,14 @@ def test(q, bus, mc):
     e = q.expect('dbus-error', method='CreateAccount')
     assertEquals(cs.INVALID_ARGUMENT, e.name)
     assertContains("password", e.message)
+
+    # Create an account that will fail IdentifyAccount
+    call_create(parameters={ "account": "",
+                             "password": "ohai",
+                           })
+    e = q.expect('dbus-error', method='CreateAccount')
+    assertEquals(cs.INVALID_HANDLE, e.name)
+    assertContains("Invalid account name", e.message)
 
 if __name__ == '__main__':
     exec_test(test, {})

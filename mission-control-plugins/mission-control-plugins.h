@@ -25,14 +25,7 @@
 #include <glib-object.h>
 #include <telepathy-glib/telepathy-glib.h>
 
-typedef enum {
-    MCP_PARAMETER_FLAG_NONE = 0,
-    MCP_PARAMETER_FLAG_SECRET = TP_CONN_MGR_PARAM_FLAG_SECRET
-} McpParameterFlags;
-
-typedef enum {
-    MCP_ATTRIBUTE_FLAG_NONE = 0
-} McpAttributeFlags;
+#define MCP_API_VERSION_5_18 (518)
 
 #define _MCP_IN_MISSION_CONTROL_PLUGINS_H
 #include <mission-control-plugins/account.h>

@@ -154,6 +154,7 @@ main (int argc, char **argv)
 {
     GError *error = NULL;
     GDBusConnection *gdbus = NULL;
+    GDBusConnection *gdbus_system = NULL;
     DBusConnection *connection = NULL;
     int ret = 1;
     GMainLoop *teardown_loop;
@@ -174,26 +175,18 @@ main (int argc, char **argv)
         G_LOG_FATAL_MASK | G_LOG_LEVEL_CRITICAL | G_LOG_LEVEL_WARNING);
 
     gdbus = g_bus_get_sync (G_BUS_TYPE_SESSION, NULL, &error);
-
-    if (gdbus == NULL)
-    {
-        g_warning ("%s", error->message);
-        g_error_free (error);
-        error = NULL;
-        goto out;
-    }
-
+    g_assert_no_error (error);
+    g_assert (gdbus != NULL);
     g_dbus_connection_set_exit_on_close (gdbus, FALSE);
 
-    bus_daemon = tp_dbus_daemon_dup (&error);
+    gdbus_system = g_bus_get_sync (G_BUS_TYPE_SYSTEM, NULL, &error);
+    g_assert_no_error (error);
+    g_assert (gdbus_system != NULL);
+    g_dbus_connection_set_exit_on_close (gdbus_system, FALSE);
 
-    if (bus_daemon == NULL)
-    {
-        g_warning ("%s", error->message);
-        g_error_free (error);
-        error = NULL;
-        goto out;
-    }
+    bus_daemon = tp_dbus_daemon_dup (&error);
+    g_assert_no_error (error);
+    g_assert (bus_daemon != NULL);
 
     /* It appears that dbus-glib registers a filter that wrongly returns
      * DBUS_HANDLER_RESULT_HANDLED for signals, so for *our* filter to have any
@@ -230,14 +223,13 @@ main (int argc, char **argv)
 
     g_main_loop_run (teardown_loop);
 
-out:
-
     if (connection != NULL)
     {
         dbus_connection_flush (connection);
     }
 
     tp_clear_object (&gdbus);
+    tp_clear_object (&gdbus_system);
     tp_clear_object (&bus_daemon);
 
     dbus_shutdown ();

@@ -74,207 +74,6 @@ mcp_account_manager_get_type (void)
 }
 
 /**
- * mcp_account_manager_set_value:
- * @mcpa: an #McpAccountManager instance
- * @account: the unique name of an account
- * @key: the setting whose value we wish to change: either an attribute
- *  like "DisplayName", or "param-" plus a parameter like "account"
- * @value: the new value, escaped as if for a #GKeyFile, or %NULL to delete
- *  the setting/parameter
- *
- * Inform Mission Control that @key has changed its value to @value.
- *
- * This function may either be called from mcp_account_storage_get(),
- * or just before emitting #McpAccountStorage::altered-one.
- *
- * New plugins should call mcp_account_manager_set_attribute() or
- * mcp_account_manager_set_parameter() instead.
- */
-void
-mcp_account_manager_set_value (const McpAccountManager *mcpa,
-    const gchar *account,
-    const gchar *key,
-    const gchar *value)
-{
-  McpAccountManagerIface *iface = MCP_ACCOUNT_MANAGER_GET_IFACE (mcpa);
-
-  g_return_if_fail (iface != NULL);
-  g_return_if_fail (iface->set_value != NULL);
-
-  iface->set_value (mcpa, account, key, value);
-}
-
-/**
- * mcp_account_manager_set_attribute:
- * @mcpa: an #McpAccountManager instance
- * @account: the unique name of an account
- * @attribute: the name of an attribute, such as "DisplayName"
- * @value: (allow-none): the new value, or %NULL to delete the attribute
- * @flags: flags for the new value (only used if @value is non-%NULL)
- *
- * Inform Mission Control that @attribute has changed its value to @value.
- *
- * If @value is a floating reference, Mission Control will take ownership
- * of it, much like g_variant_builder_add_value().
- *
- * This function may either be called from mcp_account_storage_get(),
- * or just before emitting #McpAccountStorage::altered-one.
- */
-void
-mcp_account_manager_set_attribute (const McpAccountManager *mcpa,
-    const gchar *account,
-    const gchar *attribute,
-    GVariant *value,
-    McpAttributeFlags flags)
-{
-  McpAccountManagerIface *iface = MCP_ACCOUNT_MANAGER_GET_IFACE (mcpa);
-
-  g_return_if_fail (iface != NULL);
-  g_return_if_fail (iface->set_attribute != NULL);
-
-  iface->set_attribute (mcpa, account, attribute, value, flags);
-}
-
-/**
- * mcp_account_manager_set_parameter:
- * @mcpa: an #McpAccountManager instance
- * @account: the unique name of an account
- * @parameter: the name of a parameter, such as "account", without
- *  the "param-" prefix
- * @value: (allow-none): the new value, or %NULL to delete the parameter
- * @flags: flags for the new value (only used if @value is non-%NULL)
- *
- * Inform Mission Control that @parameter has changed its value to @value.
- *
- * If @value is a floating reference, Mission Control will take ownership
- * of it, much like g_variant_builder_add_value().
- *
- * This function may either be called from mcp_account_storage_get(),
- * or just before emitting #McpAccountStorage::altered-one.
- */
-void
-mcp_account_manager_set_parameter (const McpAccountManager *mcpa,
-    const gchar *account,
-    const gchar *parameter,
-    GVariant *value,
-    McpParameterFlags flags)
-{
-  McpAccountManagerIface *iface = MCP_ACCOUNT_MANAGER_GET_IFACE (mcpa);
-
-  g_return_if_fail (iface != NULL);
-  g_return_if_fail (iface->set_parameter != NULL);
-
-  iface->set_parameter (mcpa, account, parameter, value, flags);
-}
-
-/**
- * mcp_account_manage_list_keys:
- * @mcpa: a #McpAccountManager instance
- * @account: the unique name of an account
- *
- * <!-- -->
- *
- * Returns: (transfer full): a list of all keys (attributes and
- *  "param-"-prefixed parameters) stored for @account by any plugin
- */
-GStrv
-mcp_account_manager_list_keys (const McpAccountManager *mcpa,
-    const gchar *account)
-{
-  McpAccountManagerIface *iface = MCP_ACCOUNT_MANAGER_GET_IFACE (mcpa);
-
-  g_return_val_if_fail (iface != NULL, NULL);
-  g_return_val_if_fail (iface->list_keys != NULL, NULL);
-  g_return_val_if_fail (account != NULL, NULL);
-
-  return iface->list_keys (mcpa, account);
-}
-
-/**
- * mcp_account_manager_get_value:
- * @mcpa: an #McpAccountManager instance
- * @account: the unique name of an account
- * @key: the setting whose value we wish to fetch: either an attribute
- *  like "DisplayName", or "param-" plus a parameter like "account"
- *
- * Fetch a copy of the current value of an account setting held by
- * the account manager.
- *
- * Returns: (transfer full): the value of @key
- */
-gchar *
-mcp_account_manager_get_value (const McpAccountManager *mcpa,
-    const gchar *account,
-    const gchar *key)
-{
-  McpAccountManagerIface *iface = MCP_ACCOUNT_MANAGER_GET_IFACE (mcpa);
-
-  g_return_val_if_fail (iface != NULL, NULL);
-  g_return_val_if_fail (iface->set_value != NULL, NULL);
-
-  return iface->get_value (mcpa, account, key);
-}
-
-/**
- * mcp_account_manager_parameter_is_secret:
- * @mcpa: an #McpAccountManager instance
- * @account: the unique name of an account
- * @key: the constant string "param-", plus a parameter name like
- *  "account" or "password"
- *
- * Determine whether a given account parameter is secret.
- * Generally this is determined by MC and passed down to plugins,
- * but any #McpAccountStorage plugin may decide a parameter is
- * secret, in which case the return value for this call will
- * indicate that fact too.
- *
- * For historical reasons, this function only operates on parameters,
- * but requires its argument to be prefixed with "param-".
- *
- * Returns: %TRUE for secret settings, %FALSE otherwise
- */
-gboolean
-mcp_account_manager_parameter_is_secret (const McpAccountManager *mcpa,
-    const gchar *account,
-    const gchar *key)
-{
-  McpAccountManagerIface *iface = MCP_ACCOUNT_MANAGER_GET_IFACE (mcpa);
-
-  g_return_val_if_fail (iface != NULL, FALSE);
-  g_return_val_if_fail (iface->is_secret != NULL, FALSE);
-
-  return iface->is_secret (mcpa, account, key);
-}
-
-/**
- * mcp_account_manager_parameter_make_secret:
- * @mcpa: an #McpAccountManager instance
- * @account: the unique name of an account
- * @key: the constant string "param-", plus a parameter name like
- *  "account" or "password"
- *
- * Flag an account setting as secret for the lifetime of this
- * #McpAccountManager. For instance, this should be called if
- * @key has been retrieved from gnome-keyring.
- *
- * For historical reasons, this function only operates on parameters,
- * but requires its argument to be prefixed with "param-".
- */
-void
-mcp_account_manager_parameter_make_secret (const McpAccountManager *mcpa,
-    const gchar *account,
-    const gchar *key)
-{
-  McpAccountManagerIface *iface = MCP_ACCOUNT_MANAGER_GET_IFACE (mcpa);
-
-  g_return_if_fail (iface != NULL);
-  g_return_if_fail (iface->make_secret != NULL);
-
-  g_debug ("%s.%s should be secret", account, key);
-  iface->make_secret (mcpa, account, key);
-}
-
-/**
  * mcp_account_manager_get_unique_name:
  * @mcpa: an #McpAccountManager instance
  * @manager: the name of the manager
@@ -351,34 +150,6 @@ mcp_account_manager_identify_account_finish (McpAccountManager *mcpa,
 }
 
 /**
- * mcp_account_manager_escape_value_from_keyfile:
- * @mcpa: a #McpAccountManager
- * @value: a value with a supported #GType
- *
- * Escape @value so it could be passed to g_key_file_set_value().
- * For instance, escaping the boolean value TRUE returns "true",
- * and escaping the string value containing one space returns "\s".
- *
- * It is a programming error to use an unsupported type.
- * The supported types are currently %G_TYPE_STRING, %G_TYPE_BOOLEAN,
- * %G_TYPE_INT, %G_TYPE_UINT, %G_TYPE_INT64, %G_TYPE_UINT64, %G_TYPE_UCHAR,
- * %G_TYPE_STRV, %DBUS_TYPE_G_OBJECT_PATH and %TP_ARRAY_TYPE_OBJECT_PATH_LIST.
- *
- * Returns: the escaped form of @value
- */
-gchar *
-mcp_account_manager_escape_value_for_keyfile (const McpAccountManager *mcpa,
-    const GValue *value)
-{
-  McpAccountManagerIface *iface = MCP_ACCOUNT_MANAGER_GET_IFACE (mcpa);
-
-  g_return_val_if_fail (iface != NULL, NULL);
-  g_return_val_if_fail (iface->escape_value_for_keyfile != NULL, NULL);
-
-  return iface->escape_value_for_keyfile (mcpa, value);
-}
-
-/**
  * mcp_account_manager_escape_variant_for_keyfile:
  * @mcpa: a #McpAccountManager
  * @variant: a #GVariant with a supported #GVariantType
@@ -409,57 +180,30 @@ mcp_account_manager_escape_variant_for_keyfile (const McpAccountManager *mcpa,
 }
 
 /**
- * mcp_account_manager_unescape_value_from_keyfile:
+ * mcp_account_manager_unescape_variant_from_keyfile:
  * @mcpa: a #McpAccountManager
- * @escaped: an escaped string as returned by g_key_file_get_value()
- * @value: a value to populate, with a supported #GType
- * @error: used to raise an error if %FALSE is returned
+ * @escaped: a string that could have come from g_key_file_get_value()
+ * @type: the type of the variant to which to unescape
  *
- * Attempt to interpret @escaped as a value of @value's type.
- * If successful, put it in @value and return %TRUE.
+ * Unescape @escaped as if it had appeared in a #GKeyFile, with syntax
+ * appropriate for @type.
  *
- * It is a programming error to try to escape an unsupported type.
- * The supported types are currently %G_TYPE_STRING, %G_TYPE_BOOLEAN,
- * %G_TYPE_INT, %G_TYPE_UINT, %G_TYPE_INT64, %G_TYPE_UINT64, %G_TYPE_UCHAR,
- * %G_TYPE_STRV, %DBUS_TYPE_G_OBJECT_PATH and %TP_ARRAY_TYPE_OBJECT_PATH_LIST.
+ * It is a programming error to use an unsupported type.
  *
- * Returns: %TRUE if @value was filled in
+ * Returns: (transfer full): the unescaped form of @escaped
+ *  (*not* a floating reference)
  */
-gboolean
-mcp_account_manager_unescape_value_from_keyfile (const McpAccountManager *mcpa,
+GVariant *
+mcp_account_manager_unescape_variant_from_keyfile (
+    const McpAccountManager *mcpa,
     const gchar *escaped,
-    GValue *value,
+    const GVariantType *type,
     GError **error)
 {
   McpAccountManagerIface *iface = MCP_ACCOUNT_MANAGER_GET_IFACE (mcpa);
 
-  g_return_val_if_fail (iface != NULL, FALSE);
-  g_return_val_if_fail (iface->unescape_value_from_keyfile != NULL, FALSE);
+  g_return_val_if_fail (iface != NULL, NULL);
+  g_return_val_if_fail (iface->unescape_variant_from_keyfile != NULL, NULL);
 
-  return iface->unescape_value_from_keyfile (mcpa, escaped, value, error);
-}
-
-/**
- * mcp_account_manager_init_value_for_attribute:
- * @mcpa: a #McpAccountManager
- * @value: a zero-filled value to initialize
- * @attribute: a supported Mission Control attribute
- *
- * If @attribute is a known Mission Control attribute, initialize @value
- * with an appropriate type for @attribute and return %TRUE. Otherwise,
- * return %FALSE.
- *
- * Returns: %TRUE if @value was initialized
- */
-gboolean
-mcp_account_manager_init_value_for_attribute (const McpAccountManager *mcpa,
-    GValue *value,
-    const gchar *attribute)
-{
-  McpAccountManagerIface *iface = MCP_ACCOUNT_MANAGER_GET_IFACE (mcpa);
-
-  g_return_val_if_fail (iface != NULL, FALSE);
-  g_return_val_if_fail (iface->init_value_for_attribute != NULL, FALSE);
-
-  return iface->init_value_for_attribute (mcpa, value, attribute);
+  return iface->unescape_variant_from_keyfile (mcpa, escaped, type, error);
 }

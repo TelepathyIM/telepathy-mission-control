@@ -181,6 +181,7 @@ enum
     PROP_DBUS_DAEMON,
     PROP_CONNECTIVITY_MONITOR,
     PROP_STORAGE,
+    PROP_STORAGE_PLUGIN,
     PROP_NAME,
 };
 
@@ -314,6 +315,20 @@ mcd_account_loaded (McdAccount *account)
     g_return_if_fail (!account->priv->loaded);
     account->priv->loaded = TRUE;
 
+    if (account->priv->invalid_reason == NULL)
+    {
+        DEBUG ("account %s is now loaded and valid",
+               account->priv->unique_name);
+    }
+    else
+    {
+        DEBUG ("account %s is now loaded, but not valid: %s #%d: %s",
+               account->priv->unique_name,
+               g_quark_to_string (account->priv->invalid_reason->domain),
+               account->priv->invalid_reason->code,
+               account->priv->invalid_reason->message);
+    }
+
     /* invoke all the callbacks */
     g_object_ref (account);
 
@@ -378,12 +393,12 @@ _mcd_account_set_parameter (McdAccount *account, const gchar *name,
     McdAccountPrivate *priv = account->priv;
     McdStorage *storage = priv->storage;
     const gchar *account_name = mcd_account_get_unique_name (account);
-    gboolean secret = mcd_account_parameter_is_secret (account, name);
 
-    mcd_storage_set_parameter (storage, account_name, name, value, secret);
+    mcd_storage_set_parameter (storage, account_name, name, value);
 }
 
-static GType mc_param_type (const TpConnectionManagerParam *param);
+static GType mc_param_type (const TpConnectionManagerParam *param,
+                            const GVariantType **variant_type_out);
 
 /**
  * mcd_account_get_parameter:
@@ -406,18 +421,22 @@ mcd_account_get_parameter (McdAccount *account, const gchar *name,
     McdAccountPrivate *priv = account->priv;
     const TpConnectionManagerParam *param;
     GType type;
+    const GVariantType *variant_type;
+    gboolean ret;
 
     param = mcd_manager_get_protocol_param (priv->manager,
                                             priv->protocol_name, name);
-    type = mc_param_type (param);
+    type = mc_param_type (param, &variant_type);
 
-    return mcd_account_get_parameter_of_known_type (account, name,
-                                                    type, parameter, error);
+    ret = mcd_account_get_parameter_of_known_type (account, name,
+        variant_type, type, parameter, error);
+    return ret;
 }
 
 gboolean
 mcd_account_get_parameter_of_known_type (McdAccount *account,
                                          const gchar *name,
+                                         const GVariantType *variant_type,
                                          GType type,
                                          GValue *parameter,
                                          GError **error)
@@ -428,7 +447,8 @@ mcd_account_get_parameter_of_known_type (McdAccount *account,
 
     g_value_init (&tmp, type);
 
-    if (mcd_storage_get_parameter (storage, account_name, name, &tmp, error))
+    if (mcd_storage_get_parameter (storage, account_name, name, variant_type,
+                                   &tmp, error))
     {
         if (parameter != NULL)
         {
@@ -675,16 +695,19 @@ static TpStorageRestrictionFlags mcd_account_get_storage_restrictions (
     McdAccount *account);
 
 void
-mcd_account_delete (McdAccount *account,
-                    McdDBusPropSetFlags flags,
-                     McdAccountDeleteCb callback,
-                     gpointer user_data)
+mcd_account_delete_async (McdAccount *account,
+    McdDBusPropSetFlags flags,
+    GAsyncReadyCallback callback,
+    gpointer user_data)
 {
     McdAccountPrivate *priv = account->priv;
     gchar *data_dir_str;
     GError *error = NULL;
     const gchar *name = mcd_account_get_unique_name (account);
     TpConnectionManager *cm = mcd_account_get_cm (account);
+    GTask *task;
+
+    task = g_task_new (account, NULL, callback, user_data);
 
     /* We don't really have a flag for "cannot delete accounts" yet, but
      * it seems reasonable that if you can't disable it or put it
@@ -695,16 +718,18 @@ mcd_account_delete (McdAccount *account,
           (TP_STORAGE_RESTRICTION_FLAG_CANNOT_SET_ENABLED |
            TP_STORAGE_RESTRICTION_FLAG_CANNOT_SET_PRESENCE)) != 0)
     {
-        g_set_error (&error, TP_ERROR, TP_ERROR_PERMISSION_DENIED,
+        g_task_return_new_error (task, TP_ERROR, TP_ERROR_PERMISSION_DENIED,
                      "Storage plugin for %s does not allow deleting it",
                      name);
-        callback (account, error, user_data);
-        g_error_free (error);
+        g_object_unref (task);
         return;
     }
 
-    /* if the CM implements CM.I.AccountStorage, we need to tell the CM
-     * to forget any account credentials it knows */
+    /* If the CM implements CM.I.AccountStorage, we need to tell the CM
+     * to forget any account credentials it knows.
+     *
+     * FIXME: put this in the main flow rather than doing it async and
+     * throwing away its result? */
     if (tp_proxy_has_interface_by_id (cm,
             MC_IFACE_QUARK_CONNECTION_MANAGER_INTERFACE_ACCOUNT_STORAGE))
     {
@@ -729,12 +754,13 @@ mcd_account_delete (McdAccount *account,
                                    flags, &error))
     {
         g_warning ("could not disable account %s (%s)", name, error->message);
-        callback (account, error, user_data);
-        g_error_free (error);
+        g_task_return_error (task, error);
+        g_object_unref (task);
         return;
     }
 
-    mcd_storage_delete_account (priv->storage, name);
+    if ((flags & MCD_DBUS_PROP_SET_FLAG_ALREADY_IN_STORAGE) == 0)
+        mcd_storage_delete_account (priv->storage, name);
 
     data_dir_str = get_old_account_data_path (priv);
 
@@ -761,20 +787,25 @@ mcd_account_delete (McdAccount *account,
         g_free (data_dir_str);
     }
 
-    mcd_storage_commit (priv->storage, name);
-
-    if (callback != NULL)
-        callback (account, NULL, user_data);
-
-    /* If the account was not removed via the DBus Account interface code     *
-     * path and something is holding a ref to it so it does not get disposed, *
-     * then this signal may not get fired, so we make sure it _does_ here     */
     if (!priv->removed)
     {
-        DEBUG ("Forcing Account.Removed for %s", name);
+        DEBUG ("emitting Account.Removed for %s", name);
         priv->removed = TRUE;
         tp_svc_account_emit_removed (account);
     }
+
+    g_task_return_boolean (task, TRUE);
+    g_object_unref (task);
+}
+
+gboolean
+mcd_account_delete_finish (McdAccount *self,
+    GAsyncResult *result,
+    GError **error)
+{
+  g_return_val_if_fail (g_task_is_valid (result, self), FALSE);
+
+  return g_task_propagate_boolean (G_TASK (result), error);
 }
 
 void
@@ -782,10 +813,29 @@ _mcd_account_load (McdAccount *account, McdAccountLoadCb callback,
                    gpointer user_data)
 {
     if (account->priv->loaded)
+    {
+        if (account->priv->invalid_reason == NULL)
+        {
+            DEBUG ("account %s already loaded and valid",
+                   account->priv->unique_name);
+        }
+        else
+        {
+            DEBUG ("account %s already loaded, but not valid: %s #%d: %s",
+                   account->priv->unique_name,
+                   g_quark_to_string (account->priv->invalid_reason->domain),
+                   account->priv->invalid_reason->code,
+                   account->priv->invalid_reason->message);
+        }
+
         callback (account, NULL, user_data);
+    }
     else
+    {
+        DEBUG ("account %s not yet loaded", account->priv->unique_name);
         _mcd_object_call_when_ready (account, account_ready_quark,
                                      (McdReadyCb)callback, user_data);
+    }
 }
 
 static void
@@ -1081,7 +1131,8 @@ mcd_account_get_string_val (McdAccount *account, const gchar *key,
 
     g_value_init (value, G_TYPE_STRING);
 
-    if (!mcd_storage_get_attribute (priv->storage, name, key, value, NULL))
+    if (!mcd_storage_get_attribute (priv->storage, name, key,
+                                    G_VARIANT_TYPE_STRING, value, NULL))
     {
         g_value_set_static_string (value, NULL);
     }
@@ -2076,58 +2127,16 @@ get_supersedes (TpSvcDBusProperties *svc,
   g_value_set_boxed (value, self->priv->supersedes);
 }
 
-static McpAccountStorage *
-get_storage_plugin (McdAccount *account)
-{
-  McdAccountPrivate *priv = account->priv;
-  const gchar *account_name = mcd_account_get_unique_name (account);
-
-  if (priv->storage_plugin != NULL)
-    return priv->storage_plugin;
-
-  priv->storage_plugin = mcd_storage_get_plugin (priv->storage, account_name);
-
-  if (priv->storage_plugin != NULL)
-      g_object_ref (priv->storage_plugin);
-
-   return priv->storage_plugin;
-}
-
 static void
 get_storage_provider (TpSvcDBusProperties *self,
     const gchar *name, GValue *value)
 {
   McdAccount *account = MCD_ACCOUNT (self);
-  McpAccountStorage *storage_plugin = get_storage_plugin (account);
 
   g_value_init (value, G_TYPE_STRING);
 
-  if (storage_plugin != NULL)
-    g_value_set_string (value, mcp_account_storage_provider (storage_plugin));
-  else
-    g_value_set_static_string (value, "");
-}
-
-static gboolean
-set_storage_provider (TpSvcDBusProperties *self,
-    const gchar *name,
-    const GValue *value,
-    McdDBusPropSetFlags flags,
-    GError **error)
-{
-  McdAccount *account = MCD_ACCOUNT (self);
-  McpAccountStorage *storage_plugin = get_storage_plugin (account);
-  const gchar *current_provider = mcp_account_storage_provider (storage_plugin);
-
-  if (!G_VALUE_HOLDS_STRING (value) ||
-      tp_strdiff (g_value_get_string (value), current_provider))
-    {
-      g_set_error (error, TP_ERROR, TP_ERROR_INVALID_ARGUMENT,
-          "Cannot change provider, it is defined at account creation only");
-      return FALSE;
-    }
-
-  return TRUE;
+  g_value_set_string (value,
+      mcp_account_storage_provider (account->priv->storage_plugin));
 }
 
 static void
@@ -2136,22 +2145,13 @@ get_storage_identifier (TpSvcDBusProperties *self,
 {
 
   McdAccount *account = MCD_ACCOUNT (self);
-  McpAccountStorage *storage_plugin = get_storage_plugin (account);
   GValue identifier = G_VALUE_INIT;
 
   g_value_init (value, G_TYPE_VALUE);
 
-  if (storage_plugin != NULL)
-    {
-      mcp_account_storage_get_identifier (
-          storage_plugin, account->priv->unique_name, &identifier);
-    }
-  else
-    {
-      g_value_init (&identifier, G_TYPE_UINT);
-
-      g_value_set_uint (&identifier, 0);
-    }
+  mcp_account_storage_get_identifier (
+      account->priv->storage_plugin, account->priv->unique_name,
+      &identifier);
 
   g_value_set_boxed (value, &identifier);
 
@@ -2164,15 +2164,11 @@ get_storage_specific_info (TpSvcDBusProperties *self,
 {
   GHashTable *storage_specific_info;
   McdAccount *account = MCD_ACCOUNT (self);
-  McpAccountStorage *storage_plugin = get_storage_plugin (account);
 
   g_value_init (value, TP_HASH_TYPE_STRING_VARIANT_MAP);
 
-  if (storage_plugin != NULL)
-    storage_specific_info = mcp_account_storage_get_additional_info (
-        storage_plugin, account->priv->unique_name);
-  else
-    storage_specific_info = g_hash_table_new (g_str_hash, g_str_equal);
+  storage_specific_info = mcp_account_storage_get_additional_info (
+      account->priv->storage_plugin, account->priv->unique_name);
 
   g_value_take_boxed (value, storage_specific_info);
 }
@@ -2180,11 +2176,7 @@ get_storage_specific_info (TpSvcDBusProperties *self,
 static TpStorageRestrictionFlags
 mcd_account_get_storage_restrictions (McdAccount *self)
 {
-  McpAccountStorage *storage_plugin = get_storage_plugin (self);
-
-  g_return_val_if_fail (storage_plugin != NULL, 0);
-
-  return mcp_account_storage_get_restrictions (storage_plugin,
+  return mcp_account_storage_get_restrictions (self->priv->storage_plugin,
       self->priv->unique_name);
 }
 
@@ -2228,7 +2220,7 @@ static const McdDBusProp account_avatar_properties[] = {
 };
 
 static const McdDBusProp account_storage_properties[] = {
-    { "StorageProvider", set_storage_provider, get_storage_provider },
+    { "StorageProvider", NULL, get_storage_provider },
     { "StorageIdentifier", NULL, get_storage_identifier },
     { "StorageSpecificInformation", NULL, get_storage_specific_info },
     { "StorageRestrictions", NULL, get_storage_restrictions },
@@ -2366,9 +2358,12 @@ properties_iface_init (TpSvcDBusPropertiesClass *iface, gpointer iface_data)
 }
 
 static GType
-mc_param_type (const TpConnectionManagerParam *param)
+mc_param_type (const TpConnectionManagerParam *param,
+               const GVariantType **variant_type_out)
 {
     const gchar *dbus_signature;
+
+    *variant_type_out = NULL;
 
     if (G_UNLIKELY (param == NULL))
         return G_TYPE_INVALID;
@@ -2381,37 +2376,49 @@ mc_param_type (const TpConnectionManagerParam *param)
     switch (dbus_signature[0])
     {
     case DBUS_TYPE_STRING:
+        *variant_type_out = G_VARIANT_TYPE_STRING;
 	return G_TYPE_STRING;
 
     case DBUS_TYPE_BYTE:
+        *variant_type_out = G_VARIANT_TYPE_BYTE;
         return G_TYPE_UCHAR;
 
     case DBUS_TYPE_INT16:
     case DBUS_TYPE_INT32:
+        *variant_type_out = G_VARIANT_TYPE_INT32;
 	return G_TYPE_INT;
 
     case DBUS_TYPE_UINT16:
     case DBUS_TYPE_UINT32:
+        *variant_type_out = G_VARIANT_TYPE_UINT32;
 	return G_TYPE_UINT;
 
     case DBUS_TYPE_BOOLEAN:
+        *variant_type_out = G_VARIANT_TYPE_BOOLEAN;
 	return G_TYPE_BOOLEAN;
 
     case DBUS_TYPE_DOUBLE:
+        *variant_type_out = G_VARIANT_TYPE_DOUBLE;
         return G_TYPE_DOUBLE;
 
     case DBUS_TYPE_OBJECT_PATH:
+        *variant_type_out = G_VARIANT_TYPE_OBJECT_PATH;
         return DBUS_TYPE_G_OBJECT_PATH;
 
     case DBUS_TYPE_INT64:
+        *variant_type_out = G_VARIANT_TYPE_INT64;
         return G_TYPE_INT64;
 
     case DBUS_TYPE_UINT64:
+        *variant_type_out = G_VARIANT_TYPE_UINT64;
         return G_TYPE_UINT64;
 
     case DBUS_TYPE_ARRAY:
         if (dbus_signature[1] == DBUS_TYPE_STRING)
+        {
+            *variant_type_out = G_VARIANT_TYPE_STRING_ARRAY;
             return G_TYPE_STRV;
+        }
         /* other array types are not supported:
          * fall through the default case */
     default:
@@ -2428,25 +2435,24 @@ typedef struct
 } RemoveMethodData;
 
 static void
-account_remove_delete_cb (McdAccount *account, const GError *error,
+account_remove_delete_cb (GObject *source,
+                          GAsyncResult *res,
                           gpointer user_data)
 {
     RemoveMethodData *data = (RemoveMethodData *) user_data;
+    GError *error = NULL;
 
-    if (error != NULL)
+    if (!mcd_account_delete_finish (MCD_ACCOUNT (source), res, &error))
     {
         dbus_g_method_return_error (data->context, (GError *) error);
+        g_error_free (error);
         return;
     }
 
-    if (!data->self->priv->removed)
-    {
-        data->self->priv->removed = TRUE;
-        tp_svc_account_emit_removed (data->self);
-    }
+    /* mcd_account_delete() is meant to have deleted it */
+    g_warn_if_fail (data->self->priv->removed);
 
     tp_svc_account_return_from_remove (data->context);
-
     g_slice_free (RemoveMethodData, data);
 }
 
@@ -2461,8 +2467,8 @@ account_remove (TpSvcAccount *svc, DBusGMethodInvocation *context)
     data->context = context;
 
     DEBUG ("called");
-    mcd_account_delete (self, MCD_DBUS_PROP_SET_FLAG_NONE,
-                        account_remove_delete_cb, data);
+    mcd_account_delete_async (self, MCD_DBUS_PROP_SET_FLAG_NONE,
+                              account_remove_delete_cb, data);
 }
 
 /*
@@ -2489,11 +2495,13 @@ mcd_account_altered_by_plugin (McdAccount *account,
         const McdDBusProp *prop = NULL;
         GValue value = G_VALUE_INIT;
         GError *error = NULL;
+        const GVariantType *variant_type = NULL;
 
         DEBUG ("%s", name);
 
         if (tp_strdiff (name, "Parameters") &&
-            !mcd_storage_init_value_for_attribute (&value, name))
+            !mcd_storage_init_value_for_attribute (&value, name,
+                                                   &variant_type))
         {
             WARNING ("plugin wants to alter %s but I don't know what "
                      "type that ought to be", name);
@@ -2506,7 +2514,8 @@ mcd_account_altered_by_plugin (McdAccount *account,
         }
         else if (!mcd_storage_get_attribute (account->priv->storage,
                                              account->priv->unique_name,
-                                             name, &value, &error))
+                                             name, variant_type, &value,
+                                             &error))
         {
             WARNING ("cannot get new value of %s: %s", name, error->message);
             g_error_free (error);
@@ -2695,6 +2704,7 @@ check_one_parameter_update (McdAccount *account,
     const TpConnectionManagerParam *param =
         tp_protocol_get_param (protocol, name);
     GType type;
+    const GVariantType *variant_type;
 
     if (param == NULL)
     {
@@ -2704,15 +2714,18 @@ check_one_parameter_update (McdAccount *account,
         return FALSE;
     }
 
-    type = mc_param_type (param);
+    type = mc_param_type (param, &variant_type);
 
     if (G_VALUE_TYPE (new_value) != type)
     {
         /* FIXME: use D-Bus type names, not GType names. */
         g_set_error (error, TP_ERROR, TP_ERROR_INVALID_ARGUMENT,
-                     "parameter '%s' must be of type %s, not %s",
+                     "parameter '%s' must be of type %s ('%.*s'), not %s",
                      tp_connection_manager_param_get_name (param),
-                     g_type_name (type), G_VALUE_TYPE_NAME (new_value));
+                     g_type_name (type),
+                     (int) g_variant_type_get_string_length (variant_type),
+                     g_variant_type_peek_string (variant_type),
+                     G_VALUE_TYPE_NAME (new_value));
         return FALSE;
     }
 
@@ -3297,7 +3310,8 @@ mcd_account_setup (McdAccount *account)
     g_free (priv->auto_presence_message);
 
     if (mcd_storage_get_attribute (storage, name,
-                                   MC_ACCOUNTS_KEY_AUTOMATIC_PRESENCE, &value,
+                                   MC_ACCOUNTS_KEY_AUTOMATIC_PRESENCE,
+                                   G_VARIANT_TYPE ("(uss)"), &value,
                                    NULL))
     {
         GValueArray *va = g_value_get_boxed (&value);
@@ -3369,7 +3383,9 @@ mcd_account_setup (McdAccount *account)
         g_ptr_array_unref (priv->supersedes);
 
     if (mcd_storage_get_attribute (storage, name,
-                                   MC_ACCOUNTS_KEY_SUPERSEDES, &value, NULL))
+                                   MC_ACCOUNTS_KEY_SUPERSEDES,
+                                   G_VARIANT_TYPE_OBJECT_PATH_ARRAY,
+                                   &value, NULL))
     {
         priv->supersedes = g_value_dup_boxed (&value);
     }
@@ -3416,6 +3432,11 @@ set_property (GObject *obj, guint prop_id,
         g_assert (priv->storage == NULL);
         priv->storage = g_value_dup_object (val);
 	break;
+
+    case PROP_STORAGE_PLUGIN:
+        g_assert (priv->storage_plugin == NULL);
+        priv->storage_plugin = g_value_dup_object (val);
+        break;
 
       case PROP_DBUS_DAEMON:
         g_assert (priv->dbus_daemon == NULL);
@@ -3503,6 +3524,9 @@ _mcd_account_dispose (GObject *object)
 
     if (!self->priv->removed)
     {
+        /* this can happen in certain account-creation error paths,
+         * as far as I can see */
+        DEBUG ("Account never emitted Removed, emitting it now");
         self->priv->removed = TRUE;
         tp_svc_account_emit_removed (self);
     }
@@ -3678,6 +3702,12 @@ mcd_account_class_init (McdAccountClass * klass)
                                G_PARAM_WRITABLE | G_PARAM_CONSTRUCT_ONLY));
 
     g_object_class_install_property
+        (object_class, PROP_STORAGE_PLUGIN,
+         g_param_spec_object ("storage-plugin", "storage-plugin",
+                               "Storage plugin", MCP_TYPE_ACCOUNT_STORAGE,
+                               G_PARAM_WRITABLE | G_PARAM_CONSTRUCT_ONLY));
+
+    g_object_class_install_property
         (object_class, PROP_NAME,
          g_param_spec_string ("name", "Unique name", "Unique name",
                               NULL,
@@ -3753,7 +3783,8 @@ mcd_account_init (McdAccount *account)
 McdAccount *
 mcd_account_new (McdAccountManager *account_manager,
     const gchar *name,
-    McdConnectivityMonitor *connectivity)
+    McdConnectivityMonitor *connectivity,
+    McpAccountStorage *storage_plugin)
 {
     gpointer *obj;
     McdStorage *storage = mcd_account_manager_get_storage (account_manager);
@@ -3761,6 +3792,7 @@ mcd_account_new (McdAccountManager *account_manager,
 
     obj = g_object_new (MCD_TYPE_ACCOUNT,
                         "storage", storage,
+                        "storage-plugin", storage_plugin,
                         "dbus-daemon", dbus,
                         "connectivity-monitor", connectivity,
 			"name", name,
@@ -3772,6 +3804,12 @@ McdStorage *
 _mcd_account_get_storage (McdAccount *account)
 {
     return account->priv->storage;
+}
+
+McpAccountStorage *
+mcd_account_get_storage_plugin (McdAccount *account)
+{
+    return account->priv->storage_plugin;
 }
 
 /*
@@ -5154,19 +5192,6 @@ _mcd_account_needs_dispatch (McdAccount *self)
     g_return_val_if_fail (MCD_IS_ACCOUNT (self), FALSE);
 
     return self->priv->always_dispatch;
-}
-
-gboolean
-mcd_account_parameter_is_secret (McdAccount *self, const gchar *name)
-{
-    McdAccountPrivate *priv = self->priv;
-    const TpConnectionManagerParam *param;
-
-    param = mcd_manager_get_protocol_param (priv->manager,
-                                            priv->protocol_name, name);
-
-    return (param != NULL &&
-        tp_connection_manager_param_is_secret (param));
 }
 
 void
