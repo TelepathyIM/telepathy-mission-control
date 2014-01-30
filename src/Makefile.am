@@ -52,7 +52,6 @@ libmcd_convenience_la_SOURCES = \
 	mcd-account.c \
 	mcd-account-addressing.h \
 	mcd-account-config.h \
-	mcd-account-connection.c \
 	mcd-account-requests.c \
 	mcd-account-addressing.c \
 	mcd-account-manager.c \

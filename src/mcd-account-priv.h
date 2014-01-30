@@ -123,19 +123,6 @@ G_GNUC_INTERNAL McdChannel *_mcd_account_create_request (
     gboolean use_existing,
     McdRequest **request_out, GError **error);
 
-typedef struct _McdAccountConnectionContext McdAccountConnectionContext;
-
-G_GNUC_INTERNAL
-McdAccountConnectionContext *_mcd_account_get_connection_context
-    (McdAccount *self);
-
-G_GNUC_INTERNAL
-void _mcd_account_set_connection_context (McdAccount *self,
-                                          McdAccountConnectionContext *c);
-
-G_GNUC_INTERNAL void _mcd_account_connection_context_free
-    (McdAccountConnectionContext *c);
-
 typedef void (*McdAccountDupParametersCb) (McdAccount *account,
                                            GHashTable *params,
                                            gpointer user_data);
