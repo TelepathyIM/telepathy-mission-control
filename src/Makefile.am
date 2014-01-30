@@ -275,7 +275,13 @@ _gen/interfaces-body.h: _gen/mcd.xml \
 		$(tools_dir)/glib-interfaces-body-generator.xsl \
 		$< > $@
 
-_gen/gtypes.h _gen/gtypes-body.h: _gen/mcd.xml \
+_gen/gtypes.h: _gen/gtypes-gtk-doc.h
+	@: # generated as a side-effect
+
+_gen/gtypes-body.h: _gen/gtypes-gtk-doc.h
+	@: # generated as a side-effect
+
+_gen/gtypes-gtk-doc.h: _gen/mcd.xml \
 	$(top_srcdir)/tools/glib-gtypes-generator.py
 	$(AM_V_GEN)$(PYTHON) $(top_srcdir)/tools/glib-gtypes-generator.py \
 		$< _gen/gtypes mc
@@ -296,7 +302,13 @@ _gen/%.xml: %.xml $(wildcard $(top_srcdir)/xml/*.xml) Makefile.am
 	$(AM_V_GEN)$(XSLTPROC) $(XSLTPROCFLAGS) --xinclude $(tools_dir)/identity.xsl \
 		$< > $@
 
-_gen/cli-%-body.h _gen/cli-%.h: _gen/%.xml \
+_gen/cli-%-body.h: _gen/cli-%-gtk-doc.h
+	@: # generated as a side-effect
+
+_gen/cli-%.h: _gen/cli-%-gtk-doc.h
+	@: # generated as a side-effect
+
+_gen/cli-%-gtk-doc.h: _gen/%.xml \
 	$(tools_dir)/glib-client-gen.py Makefile.am
 	$(AM_V_GEN)$(PYTHON) $(tools_dir)/glib-client-gen.py \
 		--group=`echo $* | tr x- x_` \
@@ -304,7 +316,13 @@ _gen/cli-%-body.h _gen/cli-%.h: _gen/%.xml \
 		--tp-proxy-api=0.7.6 \
 		$< Mc_Cli _gen/cli-$*
 
-_gen/svc-%.c _gen/svc-%.h: _gen/%.xml \
+_gen/svc-%.c: _gen/svc-%-gtk-doc.h
+	@: # generated as a side-effect
+
+_gen/svc-%.h: _gen/svc-%-gtk-doc.h
+	@: # generated as a side-effect
+
+_gen/svc-%-gtk-doc.h: _gen/%.xml \
 	$(tools_dir)/glib-ginterface-gen.py Makefile.am
 	$(AM_V_GEN)$(PYTHON) $(tools_dir)/glib-ginterface-gen.py \
 		--filename=_gen/svc-$* \
