@@ -134,10 +134,6 @@ void mcd_account_altered_by_plugin (McdAccount *account, const gchar *name);
 
 gchar * mcd_account_dup_display_name (McdAccount *self);
 
-gboolean mcd_account_get_parameter (McdAccount *account, const gchar *name,
-                           GValue *parameter,
-                           GError **error);
-
 gboolean mcd_account_get_parameter_of_known_type (McdAccount *account,
                                                   const gchar *name,
                                                   const GVariantType *variant_type,

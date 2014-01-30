@@ -390,7 +390,7 @@ static GType mc_param_type (const TpConnectionManagerParam *param,
 /**
  * mcd_account_get_parameter:
  * @account: the #McdAccount.
- * @name: the parameter name.
+ * @param: a connection manager parameter
  * @parameter: location at which to store the parameter's current value, or
  *  %NULL if you don't actually care about the parameter's value.
  * @error: location at which to store an error if the parameter cannot be
@@ -400,19 +400,17 @@ static GType mc_param_type (const TpConnectionManagerParam *param,
  *
  * Returns: %TRUE if the parameter could be retrieved; %FALSE otherwise
  */
-gboolean
-mcd_account_get_parameter (McdAccount *account, const gchar *name,
+static gboolean
+mcd_account_get_parameter (McdAccount *account,
+                           const TpConnectionManagerParam *param,
                            GValue *parameter,
                            GError **error)
 {
-    McdAccountPrivate *priv = account->priv;
-    const TpConnectionManagerParam *param;
     GType type;
     const GVariantType *variant_type;
     gboolean ret;
+    const gchar *name = tp_connection_manager_param_get_name (param);
 
-    param = mcd_manager_get_protocol_param (priv->manager,
-                                            priv->protocol_name, name);
     type = mc_param_type (param, &variant_type);
 
     ret = mcd_account_get_parameter_of_known_type (account, name,
@@ -2299,15 +2297,15 @@ mcd_account_check_parameters (McdAccount *account,
     for (iter = params; iter != NULL; iter = iter->next)
     {
         TpConnectionManagerParam *param = iter->data;
-        const gchar *param_name = tp_connection_manager_param_get_name (param);
 
         if (!tp_connection_manager_param_is_required ((param)))
             continue;
 
-        if (!mcd_account_get_parameter (account, param_name, NULL, NULL))
+        if (!mcd_account_get_parameter (account, param, NULL, NULL))
         {
             g_set_error (&error, TP_ERROR, TP_ERROR_INVALID_ARGUMENT,
-                "missing required parameter '%s'", param_name);
+                "missing required parameter '%s'",
+                tp_connection_manager_param_get_name (param));
             goto out;
         }
     }
@@ -2442,7 +2440,7 @@ check_one_parameter_update (McdAccount *account,
         /* Check if the parameter's current value (or its default, if it has
          * one and it's not set to anything) matches the new value.
          */
-        if (mcd_account_get_parameter (account, tp_connection_manager_param_get_name (param),
+        if (mcd_account_get_parameter (account, param,
                 &current_value, NULL) ||
             tp_connection_manager_param_get_default (param, &current_value))
         {
@@ -2485,7 +2483,7 @@ check_one_parameter_unset (McdAccount *account,
     {
         GValue current_value = G_VALUE_INIT;
 
-        if (mcd_account_get_parameter (account, tp_connection_manager_param_get_name (param),
+        if (mcd_account_get_parameter (account, param,
                                        &current_value, NULL))
         {
             /* There's an existing value; let's see if it's the same as the
@@ -3605,11 +3603,11 @@ _mcd_account_dup_parameters (McdAccount *account)
     for (iter = protocol_params; iter != NULL; iter = iter->next)
     {
         TpConnectionManagerParam *param = iter->data;
-        const gchar *name = tp_connection_manager_param_get_name (param);
         GValue v = G_VALUE_INIT;
 
-        if (mcd_account_get_parameter (account, name, &v, NULL))
+        if (mcd_account_get_parameter (account, param, &v, NULL))
         {
+            const gchar *name = tp_connection_manager_param_get_name (param);
             g_hash_table_insert (params, g_strdup (name),
                                  tp_g_value_slice_dup (&v));
             g_value_unset (&v);
