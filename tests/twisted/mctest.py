@@ -1000,15 +1000,13 @@ class SimulatedClient(object):
 
 class SimulatedConnectionManager(object):
     def __init__(self, q, bus, cm_name='fakecm',
-            protocol_names=['fakeprotocol'],
-            has_account_storage=False):
+            protocol_names=['fakeprotocol']):
         self.q = q
         self.bus = bus
         self.cm_name = cm_name
         self.bus_name = '.'.join([cs.CM, cm_name])
         self._bus_name_ref = dbus.service.BusName(self.bus_name, self.bus)
         self.object_path = '/' + self.bus_name.replace('.', '/')
-        self.has_account_storage = has_account_storage
         self.protocol_names = list(protocol_names)
 
         q.add_dbus_method_impl(self.GetAll_CM,
@@ -1117,12 +1115,7 @@ class SimulatedConnectionManager(object):
         return ret
 
     def get_interfaces(self):
-        ret = dbus.Array([], signature='s')
-
-        if self.has_account_storage:
-            ret.append(cs.CM_IFACE_ACCOUNT_STORAGE)
-
-        return ret
+        return dbus.Array([], signature='s')
 
     def GetAll_CM(self, e):
         self.q.dbus_return(e.message, {
