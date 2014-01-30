@@ -3301,6 +3301,9 @@ _mcd_account_constructor (GType type, guint n_params,
     return (GObject *) account;
 }
 
+static void mcd_account_connection_proceed_with_reason
+    (McdAccount *account, gboolean success, TpConnectionStatusReason reason);
+
 static void
 monitor_state_changed_cb (
     McdConnectivityMonitor *monitor,
@@ -4982,7 +4985,9 @@ _mcd_account_connection_begin (McdAccount *account,
                                         TP_CONNECTION_STATUS_REASON_REQUESTED,
                                         NULL, NULL, NULL);
     account->priv->connection_context = ctx;
-    mcd_account_connection_proceed (account, TRUE);
+
+    mcd_account_connection_proceed_with_reason
+        (account, TRUE, TP_CONNECTION_STATUS_REASON_NONE_SPECIFIED);
 }
 
 void
@@ -5047,11 +5052,4 @@ mcd_account_connection_proceed_with_reason (McdAccount *account,
         tp_clear_pointer (&account->priv->connection_context,
             _mcd_account_connection_context_free);
     }
-}
-
-void
-mcd_account_connection_proceed (McdAccount *account, gboolean success)
-{
-    mcd_account_connection_proceed_with_reason
-        (account, success, TP_CONNECTION_STATUS_REASON_NONE_SPECIFIED);
 }
