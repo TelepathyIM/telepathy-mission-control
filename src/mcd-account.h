@@ -96,12 +96,8 @@ const gchar *mcd_account_get_object_path (McdAccount *account);
 
 gboolean mcd_account_is_valid (McdAccount *account);
 
-typedef void (*McdAccountCheckValidityCb) (McdAccount *account,
-                                           const GError *invalid_reason,
-                                           gpointer user_data);
-void mcd_account_check_validity (McdAccount *account,
-                                 McdAccountCheckValidityCb callback,
-                                 gpointer user_data);
+gboolean mcd_account_check_validity (McdAccount *account,
+    GError **error);
 
 gboolean mcd_account_is_enabled (McdAccount *account);
 

@@ -458,44 +458,30 @@ mcd_account_get_parameter_of_known_type (McdAccount *account,
     return FALSE;
 }
 
-typedef void (*CheckParametersCb) (
-    McdAccount *account,
-    const GError *invalid_reason,
-    gpointer user_data);
-static void mcd_account_check_parameters (McdAccount *account,
-    CheckParametersCb callback, gpointer user_data);
-
-static void
-manager_ready_check_params_cb (McdAccount *account,
-    const GError *invalid_reason,
-    gpointer user_data)
-{
-    McdAccountPrivate *priv = account->priv;
-
-    g_clear_error (&priv->invalid_reason);
-    if (invalid_reason != NULL)
-    {
-        priv->invalid_reason = g_error_copy (invalid_reason);
-    }
-
-    mcd_account_loaded (account);
-}
+static gboolean mcd_account_check_parameters (McdAccount *account,
+    GError **invalid_reason);
 
 static void on_manager_ready (McdManager *manager, const GError *error,
                               gpointer user_data)
 {
     McdAccount *account = MCD_ACCOUNT (user_data);
+    GError *invalid_reason = NULL;
 
     if (error)
     {
         DEBUG ("got error: %s", error->message);
-        mcd_account_loaded (account);
+    }
+    else if (!mcd_account_check_parameters (account, &invalid_reason))
+    {
+        g_clear_error (&account->priv->invalid_reason);
+        account->priv->invalid_reason = invalid_reason;
     }
     else
     {
-        mcd_account_check_parameters (account, manager_ready_check_params_cb,
-                                      NULL);
+        g_clear_error (&account->priv->invalid_reason);
     }
+
+    mcd_account_loaded (account);
 }
 
 static gboolean
@@ -2280,25 +2266,22 @@ mcd_account_altered_by_plugin (McdAccount *account,
 }
 
 
-static void
+static gboolean
 mcd_account_check_parameters (McdAccount *account,
-                              CheckParametersCb callback,
-                              gpointer user_data)
+                              GError **error)
 {
     McdAccountPrivate *priv = account->priv;
     TpProtocol *protocol;
     GList *params = NULL;
     GList *iter;
-    GError *error = NULL;
-
-    g_return_if_fail (callback != NULL);
+    GError *inner_error = NULL;
 
     DEBUG ("called for %s", priv->unique_name);
     protocol = _mcd_manager_dup_protocol (priv->manager, priv->protocol_name);
 
     if (protocol == NULL)
     {
-        g_set_error (&error, TP_ERROR, TP_ERROR_INVALID_ARGUMENT,
+        g_set_error (&inner_error, TP_ERROR, TP_ERROR_INVALID_ARGUMENT,
             "CM '%s' doesn't implement protocol '%s'", priv->manager_name,
             priv->protocol_name);
         goto out;
@@ -2315,7 +2298,7 @@ mcd_account_check_parameters (McdAccount *account,
 
         if (!mcd_account_get_parameter (account, param, NULL, NULL))
         {
-            g_set_error (&error, TP_ERROR, TP_ERROR_INVALID_ARGUMENT,
+            g_set_error (&inner_error, TP_ERROR, TP_ERROR_INVALID_ARGUMENT,
                 "missing required parameter '%s'",
                 tp_connection_manager_param_get_name (param));
             goto out;
@@ -2323,26 +2306,22 @@ mcd_account_check_parameters (McdAccount *account,
     }
 
 out:
-    if (error != NULL)
+    if (inner_error != NULL)
     {
-        DEBUG ("%s", error->message);
+        DEBUG ("%s", inner_error->message);
     }
 
-    callback (account, error, user_data);
-    g_clear_error (&error);
     g_list_free_full (params,
                       (GDestroyNotify) tp_connection_manager_param_free);
     g_clear_object (&protocol);
-}
 
-static void
-set_parameters_maybe_autoconnect_cb (McdAccount *account,
-                                     const GError *invalid_reason,
-                                     gpointer user_data G_GNUC_UNUSED)
-{
-    /* Strictly speaking this doesn't need to be called unless invalid_reason
-     * is NULL, but calling it in all cases gives us clearer debug output */
-    _mcd_account_maybe_autoconnect (account);
+    if (inner_error != NULL)
+    {
+        g_propagate_error (error, inner_error);
+        return FALSE;
+    }
+
+    return TRUE;
 }
 
 static void
@@ -2380,8 +2359,11 @@ apply_parameter_updates (McdAccount *account,
         }
     }
 
-    mcd_account_check_validity (account,
-                                set_parameters_maybe_autoconnect_cb, NULL);
+    mcd_account_check_validity (account, NULL);
+
+    /* Strictly speaking this doesn't need to be called if not valid,
+     * but calling it in all cases gives us clearer debug output */
+    _mcd_account_maybe_autoconnect (account);
 }
 
 static void
@@ -4327,23 +4309,22 @@ mcd_account_get_connection (McdAccount *account)
     return priv->connection;
 }
 
-typedef struct
+gboolean
+mcd_account_check_validity (McdAccount *account,
+    GError **error)
 {
-    McdAccountCheckValidityCb callback;
-    gpointer user_data;
-} CheckValidityData;
-
-static void
-check_validity_check_parameters_cb (McdAccount *account,
-                                    const GError *invalid_reason,
-                                    gpointer user_data)
-{
-    CheckValidityData *data = (CheckValidityData *) user_data;
     McdAccountPrivate *priv = account->priv;
-    gboolean now_valid = (invalid_reason == NULL);
-    gboolean was_valid = (priv->invalid_reason == NULL);
+    GError *invalid_reason = NULL;
+    gboolean now_valid;
+    gboolean was_valid;
+
+    g_return_val_if_fail (MCD_IS_ACCOUNT (account), FALSE);
+
+    was_valid = (priv->invalid_reason == NULL);
+    now_valid = mcd_account_check_parameters (account, &invalid_reason);
 
     g_clear_error (&priv->invalid_reason);
+
     if (invalid_reason != NULL)
     {
         priv->invalid_reason = g_error_copy (invalid_reason);
@@ -4369,27 +4350,13 @@ check_validity_check_parameters_cb (McdAccount *account,
         }
     }
 
-    if (data->callback != NULL)
-        data->callback (account, invalid_reason, data->user_data);
+    if (invalid_reason != NULL)
+    {
+        g_propagate_error (error, invalid_reason);
+        return FALSE;
+    }
 
-    g_slice_free (CheckValidityData, data);
-}
-
-void
-mcd_account_check_validity (McdAccount *account,
-                            McdAccountCheckValidityCb callback,
-                            gpointer user_data)
-{
-    CheckValidityData *data;
-
-    g_return_if_fail (MCD_IS_ACCOUNT (account));
-
-    data = g_slice_new0 (CheckValidityData);
-    data->callback = callback;
-    data->user_data = user_data;
-
-    mcd_account_check_parameters (account, check_validity_check_parameters_cb,
-                                  data);
+    return TRUE;
 }
 
 /*
