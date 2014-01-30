@@ -3519,6 +3519,39 @@ mcd_account_is_valid (McdAccount *account)
     return priv->invalid_reason == NULL;
 }
 
+/*
+ * mcd_account_dup_protocol:
+ * @self: the account
+ *
+ * Returns: (transfer full): the account's connection manager's protocol,
+ *  possibly %NULL if "not valid"
+ */
+static TpProtocol *
+mcd_account_dup_protocol (McdAccount *self)
+{
+  TpProtocol *protocol;
+
+  if (!self->priv->manager && !load_manager (self))
+    {
+      DEBUG ("unable to load manager for account %s",
+          self->priv->unique_name);
+      return NULL;
+    }
+
+  protocol = _mcd_manager_dup_protocol (self->priv->manager,
+      self->priv->protocol_name);
+
+  if (G_UNLIKELY (protocol == NULL))
+    {
+      DEBUG ("unable to get protocol for %s account %s",
+          self->priv->protocol_name,
+          self->priv->unique_name);
+      return NULL;
+    }
+
+  return protocol;
+}
+
 /**
  * mcd_account_is_enabled:
  * @account: the #McdAccount.
@@ -3559,15 +3592,12 @@ mcd_account_get_object_path (McdAccount *account)
 GHashTable *
 _mcd_account_dup_parameters (McdAccount *account)
 {
-    McdAccountPrivate *priv;
     TpProtocol *protocol;
     GList *protocol_params;
     GList *iter;
     GHashTable *params;
 
     g_return_val_if_fail (MCD_IS_ACCOUNT (account), NULL);
-
-    priv = account->priv;
 
     DEBUG ("called");
 
@@ -3578,21 +3608,8 @@ _mcd_account_dup_parameters (McdAccount *account)
      * needs the CM (or .manager file) to be around to tell it whether "true"
      * is a string or a boolean…
      */
-    if (!priv->manager && !load_manager (account))
-    {
-        DEBUG ("unable to load manager for account %s", priv->unique_name);
-        return NULL;
-    }
 
-    protocol = _mcd_manager_dup_protocol (priv->manager,
-                                          priv->protocol_name);
-
-    if (G_UNLIKELY (protocol == NULL))
-    {
-        DEBUG ("unable to get protocol for %s account %s", priv->protocol_name,
-               priv->unique_name);
-        return NULL;
-    }
+    protocol = mcd_account_dup_protocol (account);
 
     params = g_hash_table_new_full (g_str_hash, g_str_equal,
                                     g_free,
