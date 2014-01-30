@@ -2664,12 +2664,30 @@ void
 _mcd_account_reconnect (McdAccount *self,
     gboolean user_initiated)
 {
+    DEBUG ("%s", mcd_account_get_unique_name (self));
+
+    /* If the account is disabled, invalid or has offline requested presence,
+     * disconnecting should be a no-op, so we keep this before checking
+     * whether we want to. */
     /* FIXME: this isn't quite right. If we've just called RequestConnection
      * (possibly with out of date parameters) but we haven't got a Connection
      * back from the CM yet, the old parameters will still be used, I think
      * (I can't quite make out what actually happens). */
     if (self->priv->connection)
         mcd_connection_close (self->priv->connection, NULL);
+
+    /* if we can't, or don't want to, connect this method is a no-op */
+    if (!self->priv->enabled ||
+        !mcd_account_is_valid (self) ||
+        self->priv->req_presence_type == TP_CONNECTION_PRESENCE_TYPE_OFFLINE)
+    {
+        DEBUG ("doing nothing (enabled=%c, valid=%c and "
+               "combined presence=%i)",
+               self->priv->enabled ? 'T' : 'F',
+               mcd_account_is_valid (self) ? 'T' : 'F',
+               self->priv->req_presence_type);
+        return;
+    }
 
     _mcd_account_connection_begin (self, user_initiated);
 }
@@ -2679,23 +2697,6 @@ account_reconnect (TpSvcAccount *service,
                    DBusGMethodInvocation *context)
 {
     McdAccount *self = MCD_ACCOUNT (service);
-    McdAccountPrivate *priv = self->priv;
-
-    DEBUG ("%s", mcd_account_get_unique_name (self));
-
-    /* if we can't, or don't want to, connect this method is a no-op */
-    if (!priv->enabled ||
-        !mcd_account_is_valid (self) ||
-        priv->req_presence_type == TP_CONNECTION_PRESENCE_TYPE_OFFLINE)
-    {
-        DEBUG ("doing nothing (enabled=%c, valid=%c and "
-               "combined presence=%i)",
-               self->priv->enabled ? 'T' : 'F',
-               mcd_account_is_valid (self) ? 'T' : 'F',
-               self->priv->req_presence_type);
-        tp_svc_account_return_from_reconnect (context);
-        return;
-    }
 
     /* Reconnect() counts as user-initiated */
     _mcd_account_reconnect (self, TRUE);
@@ -4984,11 +4985,6 @@ _mcd_account_connection_begin (McdAccount *account,
 
     /* If we get this far, the account should be valid, so getting the
      * protocol should succeed.
-     *
-     * (FIXME: as far as I can see, this is not necessarily true when
-     * _mcd_account_reconnect is called by McdAccountManager? But older
-     * MC would have asserted in that situation too, so this is at least
-     * not a regression.)
      */
     protocol = mcd_account_dup_protocol (account);
     g_assert (protocol != NULL);
