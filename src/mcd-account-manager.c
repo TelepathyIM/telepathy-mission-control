@@ -49,8 +49,6 @@
 #include "mission-control-plugins/implementation.h"
 #include "plugin-loader.h"
 
-#include "_gen/interfaces.h"
-
 #define PARAM_PREFIX "param-"
 #define WRITE_CONF_DELAY    500
 

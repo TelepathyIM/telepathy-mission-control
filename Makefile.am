@@ -10,7 +10,6 @@ SUBDIRS = \
     data \
     m4 \
     tools \
-    xml \
     mission-control-plugins \
     plugins \
     src \

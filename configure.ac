@@ -251,7 +251,6 @@ tests/twisted/Makefile \
 tests/twisted/tools/Makefile \
 tools/Makefile \
 util/Makefile \
-xml/Makefile \
 ])
 
 echo "

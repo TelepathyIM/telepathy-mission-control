@@ -48,8 +48,6 @@
 #include "mcd-enum-types.h"
 #include "request.h"
 
-#include "_gen/interfaces.h"
-
 #define MCD_CHANNEL_PRIV(channel) (MCD_CHANNEL (channel)->priv)
 
 G_DEFINE_TYPE (McdChannel, mcd_channel, MCD_TYPE_MISSION)

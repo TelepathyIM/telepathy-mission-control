@@ -25,31 +25,17 @@ mc_headers = \
 	mcd-service.h \
 	mcd-storage.h
 
-mc_gen_headers = \
-	_gen/enums.h \
-	_gen/gtypes.h \
-	_gen/interfaces.h \
-	$(NULL)
-
 nodist_libmcd_convenience_la_SOURCES = \
-	_gen/gtypes-body.h \
-	_gen/interfaces-body.h \
-	_gen/register-dbus-glib-marshallers-body.h \
-	_gen/signals-marshal.c \
-	_gen/signals-marshal.h \
-	_gen/signals-marshal.list \
 	mcd-enum-types.c \
 	mcd-enum-types.h \
-	$(mc_gen_headers)
+	$(NULL)
 
 BUILT_SOURCES = \
-	_gen/mcd.xml \
 	stamp-mcd-enum-types.h \
 	$(nodist_libmcd_convenience_la_SOURCES)
 
 CLEANFILES = \
 	$(BUILT_SOURCES) \
-	_gen/gtypes-gtk-doc.h \
 	$(NULL)
 
 libmcd_convenience_la_LIBADD = \
@@ -81,7 +67,6 @@ libmcd_convenience_la_SOURCES = \
 	client-registry.h \
 	connectivity-monitor.c \
 	connectivity-monitor.h \
-	gtypes.c \
 	mcd-dbusprop.c \
 	mcd-dbusprop.h \
 	mcd-debug.c \
@@ -147,7 +132,6 @@ mcd-enum-types.c: Makefile $(mc_headers)
 	&& rm -f xgen-getc
 
 EXTRA_DIST = \
-	mcd.xml \
 	stamp-mcd-enum-types.h
 
 Android.mk: Makefile.am $(nodist_libmcd_convenience_la_SOURCES)
@@ -160,119 +144,6 @@ Android.mk: Makefile.am $(nodist_libmcd_convenience_la_SOURCES)
 	 -:CPPFLAGS $(CPPFLAGS) $(AM_CPPFLAGS) \
 	 -:LDFLAGS $(libmcd_convenience_la_LIBADD) \
 	> $@
-
-# ---- telepathy-glib-style code generation ----
-
-tools_dir = $(top_srcdir)/tools
-
-_gen/mcd.xml: mcd.xml $(wildcard $(top_srcdir)/xml/*.xml)
-	$(AM_V_at)$(MKDIR_P) _gen
-	$(AM_V_GEN)$(XSLTPROC) $(XSLTPROCFLAGS) --xinclude $(tools_dir)/identity.xsl \
-		$< > $@
-
-_gen/%.xml: $(top_srcdir)/xml/%.xml $(wildcard $(top_srcdir)/xml/*.xml)
-	$(AM_V_at)$(MKDIR_P) _gen
-	$(AM_V_GEN)$(XSLTPROC) $(XSLTPROCFLAGS) --xinclude $(tools_dir)/identity.xsl \
-		$< > $@
-
-# Generated files which can be done for all "classes" at once
-
-_gen/signals-marshal.list: _gen/mcd.xml \
-	$(tools_dir)/glib-signals-marshal-gen.py
-	$(AM_V_GEN)$(PYTHON) $(tools_dir)/glib-signals-marshal-gen.py $< > $@
-
-_gen/signals-marshal.h: _gen/signals-marshal.list Makefile.am
-	$(AM_V_GEN)$(GLIB_GENMARSHAL) --header --prefix=_mcd_ext_marshal $< > $@
-
-_gen/signals-marshal.c: _gen/signals-marshal.list Makefile.am
-	$(AM_V_GEN){ echo '#include "_gen/signals-marshal.h"' && \
-	$(GLIB_GENMARSHAL) --body --prefix=_mcd_ext_marshal $<; } \
-	> $@
-
-_gen/register-dbus-glib-marshallers-body.h: _gen/mcd.xml \
-	$(tools_dir)/glib-client-marshaller-gen.py Makefile.am
-	$(AM_V_GEN)$(PYTHON) $(tools_dir)/glib-client-marshaller-gen.py $< \
-		_mcd_ext > $@
-
-_gen/enums.h: _gen/mcd.xml $(tools_dir)/c-constants-generator.xsl
-	$(AM_V_GEN)$(XSLTPROC) $(XSLTPROCFLAGS) \
-		--stringparam mixed-case-prefix mc \
-		$(tools_dir)/c-constants-generator.xsl \
-		$< > $@
-
-_gen/interfaces.h: _gen/mcd.xml \
-	$(tools_dir)/glib-interfaces-generator.xsl \
-	$(tools_dir)/c-interfaces-generator.xsl
-	$(AM_V_GEN)$(XSLTPROC) $(XSLTPROCFLAGS) \
-		--stringparam mixed-case-prefix mc \
-		$(tools_dir)/glib-interfaces-generator.xsl \
-		$< > $@
-
-_gen/interfaces-body.h: _gen/mcd.xml \
-	$(tools_dir)/glib-interfaces-body-generator.xsl \
-	$(tools_dir)/c-interfaces-generator.xsl
-	$(AM_V_GEN)$(XSLTPROC) $(XSLTPROCFLAGS) \
-		--stringparam mixed-case-prefix mc \
-		$(tools_dir)/glib-interfaces-body-generator.xsl \
-		$< > $@
-
-_gen/gtypes.h: _gen/gtypes-gtk-doc.h
-	@: # generated as a side-effect
-
-_gen/gtypes-body.h: _gen/gtypes-gtk-doc.h
-	@: # generated as a side-effect
-
-_gen/gtypes-gtk-doc.h: _gen/mcd.xml \
-	$(top_srcdir)/tools/glib-gtypes-generator.py
-	$(AM_V_GEN)$(PYTHON) $(top_srcdir)/tools/glib-gtypes-generator.py \
-		$< _gen/gtypes mc
-
-
-
-# Generated files which must be generated per "class".
-# (Currently the only "class" is nmc4, but the new API will need "classes"
-# like account, account-manager, ...)
-
-_gen/%.xml: $(top_srcdir)/xml/%.xml $(wildcard $(top_srcdir)/xml/*.xml) Makefile.am
-	$(AM_V_at)$(MKDIR_P) _gen
-	$(AM_V_GEN)$(XSLTPROC) $(XSLTPROCFLAGS) --xinclude $(tools_dir)/identity.xsl \
-		$< > $@
-
-_gen/%.xml: %.xml $(wildcard $(top_srcdir)/xml/*.xml) Makefile.am
-	$(AM_V_at)$(MKDIR_P) _gen
-	$(AM_V_GEN)$(XSLTPROC) $(XSLTPROCFLAGS) --xinclude $(tools_dir)/identity.xsl \
-		$< > $@
-
-_gen/cli-%-body.h: _gen/cli-%-gtk-doc.h
-	@: # generated as a side-effect
-
-_gen/cli-%.h: _gen/cli-%-gtk-doc.h
-	@: # generated as a side-effect
-
-_gen/cli-%-gtk-doc.h: _gen/%.xml \
-	$(tools_dir)/glib-client-gen.py Makefile.am
-	$(AM_V_GEN)$(PYTHON) $(tools_dir)/glib-client-gen.py \
-		--group=`echo $* | tr x- x_` \
-		--iface-quark-prefix=MC_IFACE_QUARK \
-		--tp-proxy-api=0.7.6 \
-		$< Mc_Cli _gen/cli-$*
-
-_gen/svc-%.c: _gen/svc-%-gtk-doc.h
-	@: # generated as a side-effect
-
-_gen/svc-%.h: _gen/svc-%-gtk-doc.h
-	@: # generated as a side-effect
-
-_gen/svc-%-gtk-doc.h: _gen/%.xml \
-	$(tools_dir)/glib-ginterface-gen.py Makefile.am
-	$(AM_V_GEN)$(PYTHON) $(tools_dir)/glib-ginterface-gen.py \
-		--filename=_gen/svc-$* \
-		--signal-marshal-prefix=_mcd_ext \
-		--include='<telepathy-glib/telepathy-glib.h>' \
-		--include='"_gen/signals-marshal.h"' \
-		--not-implemented-func='tp_dbus_g_method_return_not_implemented' \
-		--allow-unstable \
-		$< Mc_Svc_
 
 include ../tools/header-checks.am
 

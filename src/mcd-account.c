@@ -44,10 +44,6 @@
 #include "mcd-master-priv.h"
 #include "mcd-dbusprop.h"
 
-#include "_gen/interfaces.h"
-#include "_gen/enums.h"
-#include "_gen/gtypes.h"
-
 #define MC_OLD_AVATAR_FILENAME	"avatar.bin"
 
 #define MCD_ACCOUNT_PRIV(account) (MCD_ACCOUNT (account)->priv)

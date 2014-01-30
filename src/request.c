@@ -34,7 +34,6 @@
 #include "mcd-misc.h"
 #include "plugin-loader.h"
 #include "plugin-request.h"
-#include "_gen/interfaces.h"
 
 enum {
     PROP_0,
