@@ -1942,6 +1942,9 @@ mcd_storage_add_account_from_plugin (McdStorage *self,
     GError **error)
 {
   McpAccountStorage *other = g_hash_table_lookup (self->accounts, account);
+  McpAccountManager *api = (McpAccountManager *) self;
+  gchar **typed_parameters;
+  gchar **untyped_parameters;
 
   if (other != NULL)
     {
@@ -1956,5 +1959,50 @@ mcd_storage_add_account_from_plugin (McdStorage *self,
 
   g_hash_table_insert (self->accounts, g_strdup (account),
       g_object_ref (plugin));
+
+  typed_parameters = mcp_account_storage_list_typed_parameters (plugin, api,
+      account);
+  untyped_parameters = mcp_account_storage_list_untyped_parameters (plugin,
+      api, account);
+
+  DEBUG ("Account parameters for %s", account);
+
+  if (typed_parameters != NULL)
+    {
+      gsize i;
+
+      for (i = 0; typed_parameters[i] != NULL; i++)
+        {
+          GVariant *v = mcp_account_storage_get_parameter (plugin, api, account,
+              typed_parameters[i], NULL, NULL);
+
+          if (v == NULL)
+            {
+              CRITICAL ("%s: could not be retrieved", typed_parameters[i]);
+            }
+          else
+            {
+              DEBUG ("%s: type '%s'", typed_parameters[i],
+                  g_variant_get_type_string (v));
+              g_variant_unref (v);
+            }
+        }
+    }
+
+  if (untyped_parameters != NULL)
+    {
+      gsize i;
+
+      for (i = 0; untyped_parameters[i] != NULL; i++)
+        {
+          DEBUG ("%s: type not stored", untyped_parameters[i]);
+        }
+    }
+
+  DEBUG ("End of parameters");
+
+  g_strfreev (typed_parameters);
+  g_strfreev (untyped_parameters);
+
   return TRUE;
 }

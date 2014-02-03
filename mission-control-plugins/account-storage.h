@@ -155,6 +155,13 @@ struct _McpAccountStorageIface
       const gchar *parameter,
       GVariant *val,
       McpParameterFlags flags);
+
+  gchar **(*list_typed_parameters) (McpAccountStorage *storage,
+      McpAccountManager *am,
+      const gchar *account);
+  gchar **(*list_untyped_parameters) (McpAccountStorage *storage,
+      McpAccountManager *am,
+      const gchar *account);
 };
 
 /* virtual methods */
@@ -217,6 +224,12 @@ GVariant *mcp_account_storage_get_parameter (McpAccountStorage *storage,
       const gchar *parameter,
       const GVariantType *type,
       McpParameterFlags *flags);
+gchar **mcp_account_storage_list_typed_parameters (McpAccountStorage *storage,
+    McpAccountManager *am,
+    const gchar *account);
+gchar **mcp_account_storage_list_untyped_parameters (McpAccountStorage *storage,
+    McpAccountManager *am,
+    const gchar *account);
 
 McpAccountStorageSetResult mcp_account_storage_set_attribute (
     McpAccountStorage *storage,

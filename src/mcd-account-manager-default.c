@@ -305,6 +305,9 @@ get_parameter (McpAccountStorage *self,
   if (variant != NULL)
     return g_variant_ref (variant);
 
+  if (type == NULL)
+    return NULL;
+
   str = g_hash_table_lookup (sa->untyped_parameters, parameter);
 
   if (str == NULL)
@@ -312,6 +315,58 @@ get_parameter (McpAccountStorage *self,
 
   return mcp_account_manager_unescape_variant_from_keyfile (am,
       str, type, NULL);
+}
+
+static gchar **
+list_typed_parameters (McpAccountStorage *self,
+    McpAccountManager *am,
+    const gchar *account)
+{
+  McdAccountManagerDefault *amd = MCD_ACCOUNT_MANAGER_DEFAULT (self);
+  McdDefaultStoredAccount *sa = lookup_stored_account (amd, account);
+  GPtrArray *arr;
+  GHashTableIter iter;
+  gpointer k;
+
+  g_return_val_if_fail (sa != NULL, NULL);
+  g_return_val_if_fail (!sa->absent, NULL);
+
+  arr = g_ptr_array_sized_new (g_hash_table_size (sa->parameters) + 1);
+
+  g_hash_table_iter_init (&iter, sa->parameters);
+
+  while (g_hash_table_iter_next (&iter, &k, NULL))
+    g_ptr_array_add (arr, g_strdup (k));
+
+  g_ptr_array_add (arr, NULL);
+
+  return (gchar **) g_ptr_array_free (arr, FALSE);
+}
+
+static gchar **
+list_untyped_parameters (McpAccountStorage *self,
+    McpAccountManager *am,
+    const gchar *account)
+{
+  McdAccountManagerDefault *amd = MCD_ACCOUNT_MANAGER_DEFAULT (self);
+  McdDefaultStoredAccount *sa = lookup_stored_account (amd, account);
+  GPtrArray *arr;
+  GHashTableIter iter;
+  gpointer k;
+
+  g_return_val_if_fail (sa != NULL, NULL);
+  g_return_val_if_fail (!sa->absent, NULL);
+
+  arr = g_ptr_array_sized_new (g_hash_table_size (sa->untyped_parameters) + 1);
+
+  g_hash_table_iter_init (&iter, sa->untyped_parameters);
+
+  while (g_hash_table_iter_next (&iter, &k, NULL))
+    g_ptr_array_add (arr, g_strdup (k));
+
+  g_ptr_array_add (arr, NULL);
+
+  return (gchar **) g_ptr_array_free (arr, FALSE);
 }
 
 static gchar *
@@ -981,6 +1036,8 @@ account_storage_iface_init (McpAccountStorageIface *iface,
 
   iface->get_attribute = get_attribute;
   iface->get_parameter = get_parameter;
+  iface->list_typed_parameters = list_typed_parameters;
+  iface->list_untyped_parameters = list_untyped_parameters;
   iface->set_attribute = set_attribute;
   iface->set_parameter = set_parameter;
   iface->create = _create;
