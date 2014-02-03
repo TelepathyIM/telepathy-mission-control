@@ -3577,20 +3577,14 @@ mcd_account_get_object_path (McdAccount *account)
     return account->priv->object_path;
 }
 
-/**
- * _mcd_account_dup_parameters:
- * @account: the #McdAccount.
- *
- * Get the parameters set for this account. The resulting #GHashTable will be
- * newly allocated and must be g_hash_table_unref()'d after use.
- *
- * Returns: @account's current parameters, or %NULL if they could not be
- *          retrieved.
+/*
+ * Like _mcd_account_dup_parameters(), but return the parameters as they
+ * would be passed to RequestConnection for the given protocol.
  */
-GHashTable *
-_mcd_account_dup_parameters (McdAccount *account)
+static GHashTable *
+mcd_account_coerce_parameters (McdAccount *account,
+                               TpProtocol *protocol)
 {
-    TpProtocol *protocol;
     GList *protocol_params;
     GList *iter;
     GHashTable *params;
@@ -3598,16 +3592,6 @@ _mcd_account_dup_parameters (McdAccount *account)
     g_return_val_if_fail (MCD_IS_ACCOUNT (account), NULL);
 
     DEBUG ("called");
-
-    /* FIXME: this is ridiculous. MC stores the parameters for the account, so
-     * it should be able to expose them on D-Bus even if the CM is uninstalled.
-     * It shouldn't need to iterate across the parameters supported by the CM.
-     * But it does, because MC doesn't store the types of parameters. So it
-     * needs the CM (or .manager file) to be around to tell it whether "true"
-     * is a string or a boolean…
-     */
-
-    protocol = mcd_account_dup_protocol (account);
 
     params = g_hash_table_new_full (g_str_hash, g_str_equal,
                                     g_free,
@@ -3631,8 +3615,64 @@ _mcd_account_dup_parameters (McdAccount *account)
 
     g_list_free_full (protocol_params,
                       (GDestroyNotify) tp_connection_manager_param_free);
-    g_object_unref (protocol);
     return params;
+}
+
+/**
+ * _mcd_account_dup_parameters:
+ * @account: the #McdAccount.
+ *
+ * Get the parameters set for this account. The resulting #GHashTable will be
+ * newly allocated and must be g_hash_table_unref()'d after use.
+ *
+ * Returns: @account's current parameters, or %NULL if they could not be
+ *          retrieved.
+ */
+GHashTable *
+_mcd_account_dup_parameters (McdAccount *self)
+{
+  McpAccountManager *api;
+  gchar **untyped_parameters;
+  GHashTable *params = NULL;
+  TpProtocol *protocol;
+
+  g_return_val_if_fail (MCD_IS_ACCOUNT (self), NULL);
+
+  DEBUG ("called");
+
+  /* Maybe our storage plugin knows the types of the parameters? */
+
+  api = MCP_ACCOUNT_MANAGER (self->priv->storage);
+  untyped_parameters = mcp_account_storage_list_untyped_parameters (
+      self->priv->storage_plugin, api, self->priv->unique_name);
+
+  if (untyped_parameters == NULL || *untyped_parameters == NULL)
+    {
+      /* Happy path: there are no parameters that lack types. */
+      params = mcd_storage_dup_typed_parameters (self->priv->storage,
+          self->priv->unique_name);
+      goto finally;
+    }
+
+  /* MC didn't always know parameters' types, so it might need the CM
+   * (or .manager file) to be around to tell it whether "true"
+   * is a string or a boolean… this is ridiculous, but backwards-compatible.
+   */
+  protocol = mcd_account_dup_protocol (self);
+
+  if (protocol != NULL)
+    {
+      params = mcd_account_coerce_parameters (self, protocol);
+      g_object_unref (protocol);
+
+      if (params != NULL)
+        goto finally;
+    }
+
+finally:
+  g_strfreev (untyped_parameters);
+
+  return params;
 }
 
 /**
@@ -4927,6 +4967,7 @@ _mcd_account_connection_begin (McdAccount *account,
                                gboolean user_initiated)
 {
     McdAccountConnectionContext *ctx;
+    TpProtocol *protocol;
 
     /* check whether a connection process is already ongoing */
     if (account->priv->connection_context != NULL)
@@ -4942,10 +4983,19 @@ _mcd_account_connection_begin (McdAccount *account,
     ctx->user_initiated = user_initiated;
 
     /* If we get this far, the account should be valid, so getting the
-     * parameters should succeed.
+     * protocol should succeed.
+     *
+     * (FIXME: as far as I can see, this is not necessarily true when
+     * _mcd_account_reconnect is called by McdAccountManager? But older
+     * MC would have asserted in that situation too, so this is at least
+     * not a regression.)
      */
-    ctx->params = _mcd_account_dup_parameters (account);
+    protocol = mcd_account_dup_protocol (account);
+    g_assert (protocol != NULL);
+
+    ctx->params = mcd_account_coerce_parameters (account, protocol);
     g_assert (ctx->params != NULL);
+    g_object_unref (protocol);
 
     _mcd_account_set_connection_status (account,
                                         TP_CONNECTION_STATUS_CONNECTING,

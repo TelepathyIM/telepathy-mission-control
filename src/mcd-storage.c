@@ -2006,3 +2006,57 @@ mcd_storage_add_account_from_plugin (McdStorage *self,
 
   return TRUE;
 }
+
+GHashTable *
+mcd_storage_dup_typed_parameters (McdStorage *self,
+    const gchar *account_name)
+{
+  McpAccountStorage *plugin;
+  McpAccountManager *api = (McpAccountManager *) self;
+  gsize i;
+  gchar **typed_parameters;
+  GHashTable *params;
+
+  g_return_val_if_fail (MCD_IS_STORAGE (self), NULL);
+
+  plugin = g_hash_table_lookup (self->accounts, account_name);
+  g_return_val_if_fail (plugin != NULL, NULL);
+
+  typed_parameters = mcp_account_storage_list_typed_parameters (plugin, api,
+      account_name);
+
+  params = g_hash_table_new_full (g_str_hash, g_str_equal,
+      g_free, (GDestroyNotify) tp_g_value_slice_free);
+
+  for (i = 0;
+       typed_parameters != NULL && typed_parameters[i] != NULL;
+       i++)
+    {
+      GVariant *v = mcp_account_storage_get_parameter (plugin, api,
+          account_name, typed_parameters[i], NULL, NULL);
+      GValue *value;
+
+      if (v == NULL)
+        {
+          CRITICAL ("%s was in list_typed_parameters() but could not be "
+              "retrieved", typed_parameters[i]);
+          continue;
+        }
+
+      value = g_slice_new0 (GValue);
+      dbus_g_value_parse_g_variant (v, value);
+
+      if (!G_IS_VALUE (value))
+        {
+          CRITICAL ("could not turn %s into a GValue", typed_parameters[i]);
+          g_slice_free (GValue, value);
+          continue;
+        }
+
+      g_hash_table_insert (params, g_strdup (typed_parameters[i]),
+          value);
+      g_variant_unref (v);
+    }
+
+  return params;
+}

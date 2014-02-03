@@ -536,7 +536,7 @@ mcp_account_storage_get_parameter (McpAccountStorage *storage,
   McpAccountStorageIface *iface = MCP_ACCOUNT_STORAGE_GET_IFACE (storage);
 
   if (type == NULL)
-    SDEBUG (storage, "%s.%s (if type is stored", account, parameter);
+    SDEBUG (storage, "%s.%s (if type is stored)", account, parameter);
   else
     SDEBUG (storage, "%s.%s (type '%.*s')", account, parameter,
         (int) g_variant_type_get_string_length (type),
