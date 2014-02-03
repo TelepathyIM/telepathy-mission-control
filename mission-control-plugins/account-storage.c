@@ -56,6 +56,7 @@
  *   iface->desc = "The FOO storage backend";
  *   iface->provider = "org.freedesktop.Telepathy.MissionControl5.FooStorage";
  *
+ *   iface->get_flags = foo_plugin_get_flags;
  *   iface->delete_async = foo_plugin_delete_async;
  *   iface->delete_finish = foo_plugin_delete_finish;
  *   iface->commit = foo_plugin_commit;
@@ -100,6 +101,15 @@
 #define SDEBUG(_p, _format, ...) do {} while (0);
 
 #endif /* ENABLE_DEBUG */
+
+/**
+ * McpAccountStorageFlags:
+ * @MCP_ACCOUNT_STORAGE_FLAG_NONE: no particular flags
+ * @MCP_ACCOUNT_STORAGE_FLAG_STORES_TYPES: this backend can store parameter
+ *  values' types
+ *
+ * Flags describing the features and capabilities of a backend.
+ */
 
 enum
 {
@@ -215,6 +225,13 @@ default_list_untyped_parameters (McpAccountStorage *storage,
   return NULL;
 }
 
+static McpAccountStorageFlags
+default_get_flags (McpAccountStorage *storage,
+    const gchar *account)
+{
+  return MCP_ACCOUNT_STORAGE_FLAG_NONE;
+}
+
 static void
 class_init (gpointer klass,
     gpointer data)
@@ -222,6 +239,7 @@ class_init (gpointer klass,
   GType type = G_TYPE_FROM_CLASS (klass);
   McpAccountStorageIface *iface = klass;
 
+  iface->get_flags = default_get_flags;
   iface->create = default_create;
   iface->delete_async = default_delete_async;
   iface->delete_finish = default_delete_finish;
@@ -1204,4 +1222,76 @@ mcp_account_storage_emit_reconnect (McpAccountStorage *storage,
 {
   SDEBUG (storage, "%s", account);
   g_signal_emit (storage, signals[RECONNECT], 0, account);
+}
+
+/**
+ * mcp_account_storage_get_flags:
+ * @storage: an #McpAccountStorage instance
+ * @account: the unique name of the account to inspect
+ *
+ * Get the backend's features and capabilities. The default implementation
+ * returns %MCP_ACCOUNT_STORAGE_FLAG_NONE. Additionally providing
+ * %MCP_ACCOUNT_STORAGE_FLAG_STORES_TYPES is strongly recommended.
+ *
+ * Returns: a bitmask of API features that apply to @account
+ */
+McpAccountStorageFlags
+mcp_account_storage_get_flags (McpAccountStorage *storage,
+    const gchar *account)
+{
+  McpAccountStorageIface *iface = MCP_ACCOUNT_STORAGE_GET_IFACE (storage);
+
+  g_return_val_if_fail (iface != NULL, MCP_ACCOUNT_STORAGE_FLAG_NONE);
+  g_return_val_if_fail (iface->get_flags != NULL,
+      MCP_ACCOUNT_STORAGE_FLAG_NONE);
+
+  return iface->get_flags (storage, account);
+}
+
+/**
+ * mcp_account_storage_has_all_flags:
+ * @storage: an #McpAccountStorage instance
+ * @account: the unique name of the account to inspect
+ * @require_all: bitwise "or" of zero or more flags
+ *
+ * Return whether this account has all of the specified flags,
+ * according to mcp_account_storage_get_flags().
+ *
+ * If @require_all is 0, the result will always be %TRUE
+ * (the account has all of the flags in the empty set).
+ *
+ * Returns: %TRUE if @account has every flag in @require_all
+ */
+gboolean
+mcp_account_storage_has_all_flags (McpAccountStorage *storage,
+    const gchar *account,
+    McpAccountStorageFlags require_all)
+{
+  return ((mcp_account_storage_get_flags (storage, account) & require_all) ==
+    require_all);
+}
+
+
+/**
+ * mcp_account_storage_has_any_flag:
+ * @storage: an #McpAccountStorage instance
+ * @account: the unique name of the account to inspect
+ * @require_one: bitwise "or" of one or more flags
+ *
+ * Return whether this account has at least one of the required flags,
+ * according to mcp_account_storage_get_flags().
+ *
+ * If @require_one is 0, the result will always be %FALSE
+ * (it is not true that the account has at least one of the flags
+ * in the empty set).
+ *
+ * Returns: %TRUE if @account has every flag in @require_all
+ */
+gboolean
+mcp_account_storage_has_any_flag (McpAccountStorage *storage,
+    const gchar *account,
+    McpAccountStorageFlags require_one)
+{
+  return ((mcp_account_storage_get_flags (storage, account) & require_one)
+      != 0);
 }

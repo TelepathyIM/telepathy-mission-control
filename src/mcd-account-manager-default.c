@@ -1026,6 +1026,13 @@ _list (McpAccountStorage *self,
   return rval;
 }
 
+static McpAccountStorageFlags
+get_flags (McpAccountStorage *storage,
+    const gchar *account)
+{
+  return MCP_ACCOUNT_STORAGE_FLAG_STORES_TYPES;
+}
+
 static void
 account_storage_iface_init (McpAccountStorageIface *iface,
     gpointer unused G_GNUC_UNUSED)
@@ -1034,6 +1041,7 @@ account_storage_iface_init (McpAccountStorageIface *iface,
   iface->desc = PLUGIN_DESCRIPTION;
   iface->priority = PLUGIN_PRIORITY;
 
+  iface->get_flags = get_flags;
   iface->get_attribute = get_attribute;
   iface->get_parameter = get_parameter;
   iface->list_typed_parameters = list_typed_parameters;

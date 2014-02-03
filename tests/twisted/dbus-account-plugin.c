@@ -1543,6 +1543,13 @@ test_dbus_account_plugin_get_restrictions (McpAccountStorage *storage,
   return account->restrictions;
 }
 
+static McpAccountStorageFlags
+test_dbus_account_plugin_get_flags (McpAccountStorage *storage,
+    const gchar *account)
+{
+  return MCP_ACCOUNT_STORAGE_FLAG_STORES_TYPES;
+}
+
 static void
 account_storage_iface_init (McpAccountStorageIface *iface)
 {
@@ -1551,6 +1558,7 @@ account_storage_iface_init (McpAccountStorageIface *iface)
   /* this should be higher priority than the diverted-keyfile one */
   iface->priority = MCP_ACCOUNT_STORAGE_PLUGIN_PRIO_NORMAL + 100;
 
+  iface->get_flags = test_dbus_account_plugin_get_flags;
   iface->get_attribute = test_dbus_account_plugin_get_attribute;
   iface->get_parameter = test_dbus_account_plugin_get_parameter;
   iface->list_typed_parameters =
