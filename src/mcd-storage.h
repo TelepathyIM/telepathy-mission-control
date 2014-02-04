@@ -166,6 +166,10 @@ gboolean mcd_storage_init_value_for_attribute (GValue *value,
 GHashTable *mcd_storage_dup_typed_parameters (McdStorage *self,
     const gchar *account);
 
+gboolean mcd_storage_maybe_migrate_parameters (McdStorage *self,
+    const gchar *account_name,
+    TpProtocol *protocol);
+
 G_END_DECLS
 
 #endif /* MCD_STORAGE_H */

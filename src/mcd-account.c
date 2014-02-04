@@ -194,6 +194,9 @@ _mcd_account_connection_context_free (McdAccountConnectionContext *c)
 static guint _mcd_account_signals[LAST_SIGNAL] = { 0 };
 static GQuark account_ready_quark = 0;
 
+static void mcd_account_changed_property (McdAccount *account,
+    const gchar *key, const GValue *value);
+
 GQuark
 mcd_account_error_quark (void)
 {
@@ -466,6 +469,7 @@ static void on_manager_ready (McdManager *manager, const GError *error,
 {
     McdAccount *account = MCD_ACCOUNT (user_data);
     GError *invalid_reason = NULL;
+    TpProtocol *protocol;
 
     if (error)
     {
@@ -479,6 +483,38 @@ static void on_manager_ready (McdManager *manager, const GError *error,
     else
     {
         g_clear_error (&account->priv->invalid_reason);
+    }
+
+    protocol = _mcd_manager_dup_protocol (account->priv->manager,
+            account->priv->protocol_name);
+
+    if (protocol != NULL)
+    {
+        if (mcd_storage_maybe_migrate_parameters (
+                account->priv->storage,
+                account->priv->unique_name,
+                protocol))
+        {
+            GHashTable *params = _mcd_account_dup_parameters (account);
+
+            if (params != NULL)
+            {
+                GValue value = G_VALUE_INIT;
+
+                g_value_init (&value, TP_HASH_TYPE_STRING_VARIANT_MAP);
+                g_value_take_boxed (&value, params);
+                mcd_account_changed_property (account, "Parameters", &value);
+                g_value_unset (&value);
+            }
+            else
+            {
+                WARNING ("somehow managed to migrate parameters without "
+                    "being able to emit change notification");
+            }
+        }
+
+
+        g_object_unref (protocol);
     }
 
     mcd_account_loaded (account);
@@ -654,9 +690,6 @@ on_connection_abort (McdConnection *connection, McdAccount *account)
     DEBUG ("called (%p, account %s)", connection, priv->unique_name);
     _mcd_account_set_connection (account, NULL);
 }
-
-static void mcd_account_changed_property (McdAccount *account,
-    const gchar *key, const GValue *value);
 
 static void
 mcd_account_request_presence_int (McdAccount *account,

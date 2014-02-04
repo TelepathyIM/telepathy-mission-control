@@ -2060,3 +2060,124 @@ mcd_storage_dup_typed_parameters (McdStorage *self,
 
   return params;
 }
+
+/* See whether we can migrate the parameters from being stored without
+ * their types, to being stored with their types.
+ * Commit changes and return TRUE if anything happened. */
+gboolean
+mcd_storage_maybe_migrate_parameters (McdStorage *self,
+    const gchar *account_name,
+    TpProtocol *protocol)
+{
+  McpAccountManager *api = MCP_ACCOUNT_MANAGER (self);
+  McpAccountStorage *plugin;
+  gchar **untyped_parameters = NULL;
+  gsize i;
+  gboolean ret = FALSE;
+
+  plugin = g_hash_table_lookup (self->accounts, account_name);
+  g_return_val_if_fail (plugin != NULL, FALSE);
+
+  /* If the storage backend can't store typed parameters, there's no point. */
+  if (!mcp_account_storage_has_any_flag (plugin, account_name,
+        MCP_ACCOUNT_STORAGE_FLAG_STORES_TYPES))
+    goto finally;
+
+  untyped_parameters = mcp_account_storage_list_untyped_parameters (
+      plugin, api, account_name);
+
+  /* If there's nothing to migrate, there's also no point. */
+  if (untyped_parameters == NULL || untyped_parameters[0] == NULL)
+    goto finally;
+
+  DEBUG ("trying to migrate %s", account_name);
+
+  for (i = 0; untyped_parameters[i] != NULL; i++)
+    {
+      const gchar *param_name = untyped_parameters[i];
+      const TpConnectionManagerParam *param = tp_protocol_get_param (protocol,
+          param_name);
+      GError *error = NULL;
+      GVariantType *type = NULL;
+      GVariant *value;
+      McpAccountStorageSetResult res;
+
+      if (param == NULL)
+        {
+          DEBUG ("cannot migrate parameter '%s': not supported by %s/%s",
+              param_name, tp_protocol_get_cm_name (protocol),
+              tp_protocol_get_name (protocol));
+          goto next_param;
+        }
+
+      type = tp_connection_manager_param_dup_variant_type (param);
+
+      DEBUG ("Migrating parameter '%s' of type '%.*s'",
+          param_name,
+          (gint) g_variant_type_get_string_length (type),
+          g_variant_type_peek_string (type));
+
+      value = mcp_account_storage_get_parameter (plugin, api,
+          account_name, param_name, type, NULL);
+
+      if (value == NULL)
+        {
+          DEBUG ("cannot migrate parameter '%s': %s #%d: %s",
+              param_name, g_quark_to_string (error->domain), error->code,
+              error->message);
+          g_error_free (error);
+          goto next_param;
+        }
+
+      if (!g_variant_is_of_type (value, type))
+        {
+          DEBUG ("trying to convert parameter from type '%s'",
+              g_variant_get_type_string (value));
+
+          /* consumes parameter */
+          value = tp_variant_convert (value, type);
+
+          if (value == NULL)
+            {
+              DEBUG ("could not convert parameter to desired type");
+              goto next_param;
+            }
+        }
+
+      res = mcp_account_storage_set_parameter (plugin, api,
+          account_name, param_name, value, MCP_PARAMETER_FLAG_NONE);
+
+      switch (res)
+        {
+          case MCP_ACCOUNT_STORAGE_SET_RESULT_UNCHANGED:
+            /* it really ought to be CHANGED, surely? */
+            DEBUG ("Tried to upgrade parameter %s but the "
+                "storage backend claims not to have changed it? "
+                "Not sure I really believe that", param_name);
+            /* fall through to the CHANGED case */
+
+          case MCP_ACCOUNT_STORAGE_SET_RESULT_CHANGED:
+            ret = TRUE;
+            break;
+
+          case MCP_ACCOUNT_STORAGE_SET_RESULT_FAILED:
+            WARNING ("Failed to set parameter %s", param_name);
+            break;
+
+          default:
+            WARNING ("set_parameter returned invalid result code %d "
+                "for parameter %s", res, param_name);
+        }
+
+next_param:
+      if (type != NULL)
+        g_variant_type_free (type);
+    }
+
+  if (ret)
+    mcp_account_storage_commit (plugin, api, account_name);
+
+finally:
+  g_strfreev (untyped_parameters);
+  return ret;
+}
