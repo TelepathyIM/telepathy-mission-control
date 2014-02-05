@@ -116,9 +116,6 @@ struct _McpAccountStorageIface
   GList * (*list) (McpAccountStorage *storage,
     McpAccountManager *am);
 
-  void (*ready) (McpAccountStorage *storage,
-    McpAccountManager *am);
-
   void (*get_identifier) (McpAccountStorage *storage,
     const gchar *account,
     GValue *identifier);
@@ -192,9 +189,6 @@ void mcp_account_storage_delete_async (McpAccountStorage *storage,
 gboolean mcp_account_storage_delete_finish (McpAccountStorage *storage,
     GAsyncResult *result,
     GError **error);
-
-void mcp_account_storage_ready (McpAccountStorage *storage,
-    McpAccountManager *am);
 
 gboolean
 mcp_account_storage_commit (McpAccountStorage *storage,
