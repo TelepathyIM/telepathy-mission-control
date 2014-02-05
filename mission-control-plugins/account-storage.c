@@ -380,9 +380,8 @@ mcp_account_storage_get_type (void)
  * @name: returned by mcp_account_storage_name()
  * @desc: returned by mcp_account_storage_description()
  * @provider: returned by mcp_account_storage_provider()
- * @set: implementation of mcp_account_storage_set()
- * @get: implementation of mcp_account_storage_get()
- * @delete: implementation of mcp_account_storage_delete()
+ * @delete_async: implementation of mcp_account_storage_delete_async()
+ * @delete_finish: implementation of mcp_account_storage_delete_finish()
  * @commit: implementation of mcp_account_storage_commit()
  * @list: implementation of mcp_account_storage_list()
  * @get_identifier: implementation of mcp_account_storage_get_identifier()
@@ -390,6 +389,15 @@ mcp_account_storage_get_type (void)
  *  mcp_account_storage_get_additional_info()
  * @get_restrictions: implementation of mcp_account_storage_get_restrictions()
  * @create: implementation of mcp_account_storage_create()
+ * @get_attribute: implementation of mcp_account_storage_get_attribute()
+ * @get_parameter: implementation of mcp_account_storage_get_parameter()
+ * @set_attribute: implementation of mcp_account_storage_set_attribute()
+ * @set_parameter: implementation of mcp_account_storage_set_parameter()
+ * @list_typed_parameters: implementation
+ *  of mcp_account_storage_list_typed_parameters()
+ * @list_untyped_parameters: implementation
+ *  of mcp_account_storage_list_untyped_parameters()
+ * @get_flags: implementation of mcp_account_storage_get_flags()
  *
  * The interface vtable for an account storage plugin.
  */
