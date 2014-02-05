@@ -2097,7 +2097,6 @@ mcd_storage_maybe_migrate_parameters (McdStorage *self,
       const gchar *param_name = untyped_parameters[i];
       const TpConnectionManagerParam *param = tp_protocol_get_param (protocol,
           param_name);
-      GError *error = NULL;
       GVariantType *type = NULL;
       GVariant *value;
       McpAccountStorageSetResult res;
@@ -2122,10 +2121,7 @@ mcd_storage_maybe_migrate_parameters (McdStorage *self,
 
       if (value == NULL)
         {
-          DEBUG ("cannot migrate parameter '%s': %s #%d: %s",
-              param_name, g_quark_to_string (error->domain), error->code,
-              error->message);
-          g_error_free (error);
+          DEBUG ("cannot migrate parameter '%s'", param_name);
           goto next_param;
         }
 
