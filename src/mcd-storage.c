@@ -914,6 +914,29 @@ mcd_keyfile_get_variant (GKeyFile *keyfile,
           }
         break;
 
+      case G_VARIANT_CLASS_INT16:
+          {
+            GError *e = NULL;
+            gint v_int = g_key_file_get_integer (keyfile, group,
+                key, &e);
+
+            if (e != NULL)
+              {
+                g_propagate_error (error, e);
+              }
+            else if (v_int < G_MININT16 || v_int > G_MAXINT16)
+              {
+                g_set_error (error, TP_ERROR, TP_ERROR_INVALID_ARGUMENT,
+                    "integer %d out of range [%d,%d]",
+                    v_int, G_MININT16, G_MAXINT16);
+              }
+            else
+              {
+                ret = g_variant_new_int16 (v_int);
+              }
+          }
+        break;
+
       case G_VARIANT_CLASS_INT32:
           {
             GError *e = NULL;
@@ -944,6 +967,28 @@ mcd_keyfile_get_variant (GKeyFile *keyfile,
             else
               {
                 ret = g_variant_new_int64 (v_int);
+              }
+          }
+        break;
+
+      case G_VARIANT_CLASS_UINT16:
+          {
+            GError *e = NULL;
+            gint v_int = g_key_file_get_integer (keyfile, group,
+                key, &e);
+
+            if (e != NULL)
+              {
+                g_propagate_error (error, e);
+              }
+            else if (v_int < 0 || (unsigned) v_int > G_MAXUINT16)
+              {
+                g_set_error (error, TP_ERROR, TP_ERROR_INVALID_ARGUMENT,
+                    "integer %d out of range [0,%d]", v_int, G_MAXUINT16);
+              }
+            else
+              {
+                ret = g_variant_new_uint16 (v_int);
               }
           }
         break;
