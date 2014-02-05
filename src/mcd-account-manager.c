@@ -100,6 +100,7 @@ typedef struct
     McpAccountStorage *storage_plugin;
     McdAccount *account;
     gint account_lock;
+    gboolean holds_setup_lock;
 } McdLoadAccountsData;
 
 typedef struct
@@ -296,6 +297,12 @@ created_cb (GObject *storage_plugin_obj,
         lad->storage_plugin = g_object_ref (plugin);
         lad->account_lock = 1; /* released at the end of this function */
         lad->account = g_object_ref (account);
+
+        if (self->priv->setup_lock > 0)
+        {
+            lad->holds_setup_lock = TRUE;
+            self->priv->setup_lock++;
+        }
     }
     else
     {
@@ -1132,6 +1139,9 @@ release_load_accounts_lock (McdLoadAccountsData *lad)
 
     if (lad->account_lock == 0)
     {
+        if (lad->holds_setup_lock)
+            release_setup_lock (lad->account_manager);
+
         g_object_unref (lad->account_manager);
         g_object_unref (lad->storage_plugin);
         g_object_unref (lad->account);
