@@ -292,10 +292,10 @@ created_cb (GObject *storage_plugin_obj,
         g_assert (MCD_IS_ACCOUNT (account));
 
         lad = g_slice_new (McdLoadAccountsData);
-        lad->account_manager = am;
-        lad->storage_plugin = plugin;
+        lad->account_manager = g_object_ref (am);
+        lad->storage_plugin = g_object_ref (plugin);
         lad->account_lock = 1; /* released at the end of this function */
-        lad->account = account;
+        lad->account = g_object_ref (account);
     }
     else
     {
@@ -1132,6 +1132,10 @@ release_load_accounts_lock (McdLoadAccountsData *lad)
 
     if (lad->account_lock == 0)
     {
+        g_object_unref (lad->account_manager);
+        g_object_unref (lad->storage_plugin);
+        g_object_unref (lad->account);
+
         g_slice_free (McdLoadAccountsData, lad);
     }
 }
