@@ -19,7 +19,7 @@ export MC_TEST_CURDIR
 if test "x$MC_TEST_UNINSTALLED" = x; then
   script_fullname=`readlink -e "@mctestsdir@/twisted/run-test.sh"`
   if [ `readlink -e "$0"` != "$script_fullname" ] ; then
-    echo "This script is meant to be installed at $script_fullname" >&2
+    echo "Bail out! This script is meant to be installed at $script_fullname"
     exit 1
   fi
 
@@ -35,11 +35,11 @@ if test "x$MC_TEST_UNINSTALLED" = x; then
   export MC_TWISTED_PATH
 else
   if test -z "$MC_ABS_TOP_SRCDIR"; then
-    echo "MC_ABS_TOP_SRCDIR must be set" >&2
+    echo "Bail out! MC_ABS_TOP_SRCDIR must be set"
     exit 1
   fi
   if test -z "$MC_ABS_TOP_BUILDDIR"; then
-    echo "MC_ABS_TOP_BUILDDIR must be set" >&2
+    echo "Bail out! MC_ABS_TOP_BUILDDIR must be set"
     exit 1
   fi
 
@@ -80,12 +80,19 @@ else
 fi
 
 n=0
-n_failed=0
 for i in $list ; do
   n=$(( $n + 1 ))
-  echo "Testing $i ..."
+done
 
-  tmp="${MC_TEST_CURDIR}/tmp-`echo $i | tr ./ __`"
+echo "1..$n"
+
+i=0
+n_failed=0
+for t in $list ; do
+  i=$(( $i + 1 ))
+  echo "# Testing $i/$n: $t ..."
+
+  tmp="${MC_TEST_CURDIR}/tmp-`echo $t | tr ./ __`"
   rm -fr "$tmp"
   mkdir "$tmp"
 
@@ -113,37 +120,37 @@ for i in $list ; do
     --also-for-system \
     --config-file="${config_file}" \
     -- \
-    @TEST_PYTHON@ -u "${test_src}/twisted/$i" \
+    @TEST_PYTHON@ -u "${test_src}/twisted/$t" \
     > "$tmp"/test.log 2>&1 || e=$?
   case "$e" in
     (0)
-      echo "PASS: $i"
+      echo "ok $i - $t"
       if test -z "$MC_TEST_KEEP_TEMP"; then
         rm -fr "$tmp"
       fi
       ;;
     (77)
-      echo "SKIP: $i"
+      echo "ok $i # SKIP $t"
       if test -z "$MC_TEST_KEEP_TEMP"; then
         rm -fr "$tmp"
       fi
       ;;
     (*)
       n_failed=$(( $n_failed + 1 ))
-      echo "FAIL: $i ($e)"
+      echo "not ok $i - $t ($e)"
       (
         cd $tmp && for x in *.log; do
-          echo "===== log file: $x ====="
-          cat "$x"
+          echo "# ===== log file: $x ====="
+          sed 's/^/# /' "$x"
         done
-        echo "===== end of log files for $i ====="
+        echo "# ===== end of log files for $t ====="
       )
       ;;
   esac
 done
 
 if test $n_failed != 0; then
-  echo "Tests run: $n; tests failed: $n_failed"
+  echo "# Tests run: $n; tests failed: $n_failed"
   exit 1
 else
   exit 0
