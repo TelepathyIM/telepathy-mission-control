@@ -148,7 +148,7 @@ def test(q, bus, mc):
     assert e_observe_text.args[2] == text_chan.object_path, e_observe_text.args
     assert e_observe_text.args[3] == text_channel_properties, e_observe_text.args
     assert e_observe_text.args[4] == text_cdo_path, e_observe_text.args
-    assert e_observe_text.args[5] == [], e_observe_text.args
+    assert e_observe_text.args[5] == {}, e_observe_text.args
 
     assert k_observe_text.args[0] == e_observe_text.args[0], k_observe_text.args
     assert k_observe_text.args[1] == e_observe_text.args[1], k_observe_text.args
@@ -208,7 +208,7 @@ def test(q, bus, mc):
     assert e_observe_media.args[2] == media_chan.object_path, e_observe_media.args
     assert e_observe_media.args[3] == media_channel_properties, e_observe_media.args
     assert e_observe_media.args[4] == media_cdo_path, e_observe_media.args
-    assert e_observe_media.args[5] == [], e_observe_media.args
+    assert e_observe_media.args[5] == {}, e_observe_media.args
 
     e_approve_media = q.expect('dbus-method-call',
             path=empathy.object_path,

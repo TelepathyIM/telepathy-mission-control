@@ -26,7 +26,7 @@ import dbus
 import dbus.service
 
 from servicetest import EventPattern, tp_name_prefix, tp_path_prefix, \
-        call_async
+        call_async, assertEquals
 from mctest import exec_test, SimulatedConnection, SimulatedClient, \
         SimulatedConnectionManager, SimulatedChannel, \
         expect_client_setup, MC
@@ -179,7 +179,7 @@ def test(q, bus, unused, **kwargs):
     assert a.args[2] == announcement.object_path, channels
     assert a.args[3] == announcement_immutable, channels
     assert a.args[4] != '/', a.args     # there is a dispatch operation
-    assert a.args[5] == [], e.args      # no requests satisfied
+    assertEquals({}, a.args[5])      # no requests satisfied
 
     # Time passes. A channel is returned.
 
@@ -222,7 +222,7 @@ def test(q, bus, unused, **kwargs):
     assert e.args[1] == conn.object_path, e.args
     assert e.args[2] == channel.object_path, channels
     assert e.args[3] == channel_immutable, channels
-    assert e.args[4] == [request_path], e.args
+    assertEquals([request_path], e.args[4].keys())
     assert e.args[5] == user_action_time
     assert isinstance(e.args[6], dict)
     assert len(e.args) == 7

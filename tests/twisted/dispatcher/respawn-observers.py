@@ -130,7 +130,7 @@ def test(q, bus, mc):
     assert e.args[2] == chan.object_path, e.args
     assert e.args[3] == channel_properties, e.args
     assert e.args[4] == cdo_path, e.args
-    assert e.args[5] == [], e.args      # no requests satisfied
+    assertEquals({}, e.args[5])      # no requests satisfied
 
     # Empathy indicates that it is ready to proceed
     q.dbus_return(e.message, bus=empathy_bus, signature='')
@@ -232,7 +232,7 @@ def test(q, bus, mc):
     assert e.args[2] == chan2.object_path, e.args
     assert e.args[3] == channel2_properties, e.args
     assert e.args[4] == cdo2_path, e.args
-    assert e.args[5] == [], e.args      # no requests satisfied
+    assertEquals({}, e.args[5])      # no requests satisfied
 
     # Empathy indicates that it is ready to proceed
     q.dbus_return(e.message, bus=empathy_bus, signature='')
@@ -287,14 +287,14 @@ def test(q, bus, mc):
     assert e1.args[1] == conn.object_path, e1.args
     assert e1.args[2] == chan.object_path, e1.args
     assert e1.args[3] == channel_properties, e1.args
-    assert e1.args[5] == [], e1.args      # no requests satisfied
+    assertEquals({}, e1.args[5])      # no requests satisfied
     assert e1.args[6]['recovering'] == 1, e1.args # due to observer recovery
 
     assert e2.args[0] == account.object_path, e2.args
     assert e2.args[1] == conn.object_path, e2.args
     assert e2.args[2] == chan2.object_path, e1.args
     assert e2.args[3] == channel2_properties, e1.args
-    assert e2.args[5] == [], e2.args      # no requests satisfied
+    assertEquals({}, e2.args[5])      # no requests satisfied
     assert e2.args[6]['recovering'] == 1, e2.args # due to observer recovery
 
     # Empathy indicates that it is ready to proceed

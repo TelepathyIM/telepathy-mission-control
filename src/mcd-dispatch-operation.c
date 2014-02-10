@@ -1922,28 +1922,19 @@ observe_channels_cb (TpClient *proxy, const GError *error,
 }
 
 /*
- * @paths_out: (out) (transfer container) (element-type utf8):
- *  Requests_Satisfied
- * @props_out: (out) (transfer container) (element-type utf8 GHashTable):
- *  request-properties for Observer_Info or Handler_Info
+ * Return: (transfer container): (gchar *)request_path -> (GHashTable *) props
  */
-static void
-collect_satisfied_requests (McdChannel *channel,
-    GPtrArray **paths_out,
-    GHashTable **props_out)
+static GHashTable *
+collect_satisfied_requests (McdChannel *channel)
 {
     GHashTableIter it;
     gpointer path, value;
-    GPtrArray *satisfied_requests;
-    GHashTable *request_properties;
+    GHashTable *satisfied_requests;
     GHashTable *reqs;
 
     reqs = _mcd_channel_get_satisfied_requests (channel, NULL);
 
-    satisfied_requests = g_ptr_array_sized_new (g_hash_table_size (reqs));
-    g_ptr_array_set_free_func (satisfied_requests, g_free);
-
-    request_properties = g_hash_table_new_full (g_str_hash, g_str_equal,
+    satisfied_requests = g_hash_table_new_full (g_str_hash, g_str_equal,
         g_free, (GDestroyNotify) g_hash_table_unref);
 
     g_hash_table_iter_init (&it, reqs);
@@ -1952,23 +1943,14 @@ collect_satisfied_requests (McdChannel *channel,
     {
         GHashTable *props;
 
-        g_ptr_array_add (satisfied_requests, g_strdup (path));
         props = _mcd_request_dup_immutable_properties (value);
         g_assert (props != NULL);
-        g_hash_table_insert (request_properties, g_strdup (path), props);
+        g_hash_table_insert (satisfied_requests, g_strdup (path), props);
     }
 
     g_hash_table_unref (reqs);
 
-    if (paths_out != NULL)
-        *paths_out = satisfied_requests;
-    else
-        g_ptr_array_unref (satisfied_requests);
-
-    if (props_out != NULL)
-        *props_out = request_properties;
-    else
-        g_hash_table_unref (request_properties);
+    return satisfied_requests;
 }
 
 static void
@@ -1988,8 +1970,8 @@ _mcd_dispatch_operation_run_observers (McdDispatchOperation *self)
         McdClientProxy *client = MCD_CLIENT_PROXY (client_p);
         gboolean observed = FALSE;
         const gchar *account_path, *connection_path, *chan_path;
-        GPtrArray *satisfied_requests;
-        GHashTable *request_properties, *chan_props;
+        GHashTable *satisfied_requests;
+        GHashTable *chan_props;
 
         if (!tp_proxy_has_interface_by_id (client,
                                            TP_IFACE_QUARK_CLIENT_OBSERVER))
@@ -2021,14 +2003,7 @@ _mcd_dispatch_operation_run_observers (McdDispatchOperation *self)
         chan_path = mcd_channel_get_object_path (self->priv->channel);
         chan_props = mcd_channel_dup_immutable_properties_asv (self->priv->channel);
 
-        collect_satisfied_requests (self->priv->channel, &satisfied_requests,
-                                    &request_properties);
-
-        /* transfer ownership into observer_info */
-        tp_asv_take_boxed (observer_info, "request-properties",
-            TP_HASH_TYPE_OBJECT_IMMUTABLE_PROPERTIES_MAP,
-            request_properties);
-        request_properties = NULL;
+        satisfied_requests = collect_satisfied_requests (self->priv->channel);
 
         if (_mcd_dispatch_operation_needs_approval (self))
         {
@@ -2039,6 +2014,7 @@ _mcd_dispatch_operation_run_observers (McdDispatchOperation *self)
 
         DEBUG ("calling ObserveChannel on %s for CDO %p",
                tp_proxy_get_bus_name (client), self);
+
         tp_cli_client_observer_call_observe_channel (
             (TpClient *) client, -1,
             account_path, connection_path, chan_path, chan_props,
@@ -2046,7 +2022,7 @@ _mcd_dispatch_operation_run_observers (McdDispatchOperation *self)
             observe_channels_cb,
             g_object_ref (self), g_object_unref, NULL);
 
-        g_ptr_array_unref (satisfied_requests);
+        g_hash_table_unref (satisfied_requests);
         g_hash_table_unref (chan_props);
     }
 
@@ -2217,7 +2193,6 @@ static void
 mcd_dispatch_operation_handle_channels (McdDispatchOperation *self)
 {
     GHashTable *handler_info;
-    GHashTable *request_properties;
 
     g_assert (self->priv->trying_handler != NULL);
     g_return_if_fail (self->priv->channel != NULL);
@@ -2239,13 +2214,7 @@ mcd_dispatch_operation_handle_channels (McdDispatchOperation *self)
         return;
     }
 
-    collect_satisfied_requests (self->priv->channel, NULL,
-                                &request_properties);
-
     handler_info = tp_asv_new (NULL, NULL);
-    tp_asv_take_boxed (handler_info, "request-properties",
-        TP_HASH_TYPE_OBJECT_IMMUTABLE_PROPERTIES_MAP, request_properties);
-    request_properties = NULL;
 
     _mcd_client_proxy_handle_channel (self->priv->trying_handler,
         -1, self->priv->channel, self->priv->handle_with_time,

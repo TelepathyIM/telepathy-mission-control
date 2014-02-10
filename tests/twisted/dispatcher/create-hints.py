@@ -148,9 +148,8 @@ def test_channel_creation(q, bus, account, client, conn,
         assert e.args[2] == channel.object_path, channel.object_path
         assert e.args[3] == channel_immutable, channel_immutable
         assert e.args[4] == '/', e.args     # no dispatch operation
-        assert e.args[5] == [request_path], e.args      # no requests satisfied
-        info = e.args[6]
-        assert info['request-properties'] == {request_path: request_props}, info
+        assertEquals({ request_path: request_props }, e.args[5])
+        assertEquals({}, e.args[6])
 
         # Observer says "OK, go"
         q.dbus_return(e.message, signature='')
@@ -164,9 +163,9 @@ def test_channel_creation(q, bus, account, client, conn,
     assert e.args[1] == conn.object_path, e.args
     assert e.args[2] == channel.object_path, channels
     assert e.args[3] == channel_immutable, channels
-    assert e.args[4] == [request_path], e.args
+    assertEquals({ request_path: request_props }, e.args[4])
     assert e.args[5] == user_action_time
-    assert isinstance(e.args[6], dict)
+    assertEquals({}, e.args[6])
     assert len(e.args) == 7
 
     # Handler accepts the Channels

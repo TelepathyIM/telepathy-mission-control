@@ -115,7 +115,7 @@ def test(q, bus, mc):
     assert e.args[2] == chan.object_path, chan.object_path
     assert e.args[3] == channel_properties, channel_properties
     assert e.args[4] == cdo_path, e.args
-    assert e.args[5] == [], e.args      # no requests satisfied
+    assertEquals({}, e.args[5])      # no requests satisfied
 
 
     q.dbus_return(e.message, bus=empathy_bus, signature='')

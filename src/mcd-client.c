@@ -584,18 +584,14 @@ void
 _mcd_client_recover_observer (McdClientProxy *self, TpChannel *channel,
     const gchar *account_path)
 {
-    GPtrArray *satisfied_requests;
-    GHashTable *observer_info;
+    GHashTable *observer_info, *satisfied_requests;
     TpConnection *conn;
     const gchar *connection_path, *chan_path;
     GHashTable *chan_props;
 
-    satisfied_requests = g_ptr_array_new ();
+    satisfied_requests = g_hash_table_new (NULL, NULL);
     observer_info = g_hash_table_new (g_str_hash, g_str_equal);
     tp_asv_set_boolean (observer_info, "recovering", TRUE);
-    tp_asv_set_boxed (observer_info, "request-properties",
-        TP_HASH_TYPE_OBJECT_IMMUTABLE_PROPERTIES_MAP,
-        g_hash_table_new (NULL, NULL));
 
     conn = tp_channel_get_connection (channel);
     connection_path = tp_proxy_get_object_path (conn);
@@ -611,7 +607,7 @@ _mcd_client_recover_observer (McdClientProxy *self, TpChannel *channel,
         "/", satisfied_requests, observer_info,
         NULL, NULL, NULL, NULL);
 
-    g_ptr_array_unref (satisfied_requests);
+    g_hash_table_unref (satisfied_requests);
     g_hash_table_unref (observer_info);
     g_hash_table_unref (chan_props);
 }
@@ -1651,11 +1647,10 @@ _mcd_client_proxy_handle_channel (McdClientProxy *self,
     GDestroyNotify destroy,
     GObject *weak_object)
 {
-    GHashTable *chan_props;
-    GPtrArray *requests_satisfied;
+    GHashTable *chan_props, *requests_satisfied;
     gint64 req_time = 0;
     GHashTable *requests;
-    gpointer path;
+    gpointer path, request;
     GHashTableIter it;
 
     g_return_if_fail (MCD_IS_CLIENT_PROXY (self));
@@ -1663,7 +1658,8 @@ _mcd_client_proxy_handle_channel (McdClientProxy *self,
 
     DEBUG ("calling HandleChannel on %s", tp_proxy_get_bus_name (self));
 
-    requests_satisfied = g_ptr_array_new_with_free_func (g_free);
+    requests_satisfied = g_hash_table_new_full (g_str_hash, g_str_equal, g_free,
+                                                (GDestroyNotify) g_hash_table_unref);
 
     if (handler_info == NULL)
     {
@@ -1677,9 +1673,11 @@ _mcd_client_proxy_handle_channel (McdClientProxy *self,
     requests = _mcd_channel_get_satisfied_requests (channel, &req_time);
 
     g_hash_table_iter_init (&it, requests);
-    while (g_hash_table_iter_next (&it, &path, NULL))
+    while (g_hash_table_iter_next (&it, &path, &request))
     {
-        g_ptr_array_add (requests_satisfied, g_strdup (path));
+        GHashTable *props = _mcd_request_dup_immutable_properties (MCD_REQUEST (request));
+
+        g_hash_table_insert (requests_satisfied, g_strdup (path), props);
     }
 
     g_hash_table_unref (requests);
@@ -1704,7 +1702,7 @@ _mcd_client_proxy_handle_channel (McdClientProxy *self,
         requests_satisfied, user_action_time, handler_info,
         callback, user_data, destroy, weak_object);
 
-    g_ptr_array_unref (requests_satisfied);
+    g_hash_table_unref (requests_satisfied);
     g_hash_table_unref (handler_info);
     g_hash_table_unref (chan_props);
 }

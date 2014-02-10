@@ -24,7 +24,7 @@ import dbus
 import dbus.service
 
 from servicetest import EventPattern, tp_name_prefix, tp_path_prefix, \
-        call_async, sync_dbus
+        call_async, sync_dbus, assertEquals
 from mctest import exec_test, SimulatedConnection, SimulatedClient, \
         create_fakecm_account, enable_fakecm_account, SimulatedChannel, \
         expect_client_setup
@@ -322,7 +322,7 @@ def test(q, bus, mc):
     assert e.args[1] == conn.object_path, e.args
     assert e.args[2] == chan.object_path, channels
     assert e.args[3] == chan.immutable, channels
-    assert e.args[4] == [request_path], e.args
+    assertEquals([request_path], e.args[4].keys())
     assert e.args[5] == user_action_time, (e.args[4], user_action_time)
     assert isinstance(e.args[6], dict)
     assert len(e.args) == 7

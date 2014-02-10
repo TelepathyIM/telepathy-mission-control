@@ -22,7 +22,7 @@ import dbus
 import dbus.service
 
 from servicetest import EventPattern, tp_name_prefix, tp_path_prefix, \
-        call_async, sync_dbus
+        call_async, sync_dbus, assertEquals
 from mctest import exec_test, SimulatedConnection, SimulatedClient, \
         create_fakecm_account, enable_fakecm_account, SimulatedChannel, \
         expect_client_setup
@@ -90,7 +90,7 @@ def test(q, bus, mc):
     assert e.args[2] == channel.object_path, channel.object_path
     assert e.args[3] == channel_immutable, channel_immutable
     assert e.args[4] == '/', e.args     # no dispatch operation
-    assert e.args[5] == [], e.args      # no requests satisfied
+    assertEquals({}, e.args[5])      # no requests satisfied
 
     assert e.args == k.args
 

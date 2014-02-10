@@ -207,18 +207,10 @@ def test_channel_creation(q, bus, account, client, conn,
     assert e.args[1] == conn.object_path, e.args
     assert e.args[2] == channel.object_path, channels
     assert e.args[3] == channel_immutable, channels
+    assertEquals({ cr1.object_path: request_props1, cr2.object_path: request_props2 }, e.args[4])
     assert sorted(e.args[4]) == sorted([cr1.object_path,
         cr2.object_path]), e.args
     assert e.args[5] == user_action_time2, (e.args[4], user_action_time2)
-    assert isinstance(e.args[6], dict)
-    assertContains('request-properties', e.args[6])
-    assertContains(cr1.object_path, e.args[6]['request-properties'])
-    assertContains(cr2.object_path, e.args[6]['request-properties'])
-    assertLength(2, e.args[6]['request-properties'])
-    assertEquals(request_props1,
-            e.args[6]['request-properties'][cr1.object_path])
-    assertEquals(request_props2,
-            e.args[6]['request-properties'][cr2.object_path])
     assert len(e.args) == 7
 
     # Handler accepts the Channels

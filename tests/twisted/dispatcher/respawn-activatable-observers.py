@@ -146,7 +146,7 @@ def test(q, bus, mc):
     assert e.args[2] == chan.object_path, e.args
     assert e.args[3] == channel_properties, e.args
     assert e.args[4] == cdo_path, e.args
-    assert e.args[5] == [], e.args      # no requests satisfied
+    assertEquals({}, e.args[5])      # no requests satisfied
 
     # Logger indicates that it is ready to proceed
     q.dbus_return(e.message, bus=logger_bus, signature='')
@@ -218,7 +218,7 @@ def test(q, bus, mc):
     assert e.args[1] == conn.object_path, e.args
     assert e.args[2] == chan.object_path, e.args
     assert e.args[3] == channel_properties, e.args
-    assert e.args[5] == [], e.args      # no requests satisfied
+    assertEquals({}, e.args[5])      # no requests satisfied
     assert e.args[6]['recovering'] == 1, e.args # due to observer recovery
 
     # Logger indicates that it is ready to proceed
