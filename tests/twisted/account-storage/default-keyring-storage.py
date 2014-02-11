@@ -241,10 +241,10 @@ def test(q, bus, mc):
     account_iface.UpdateParameters({}, ['password'])
     q.expect('dbus-signal',
             path=account_path,
-            signal='AccountPropertyChanged',
-            interface=cs.ACCOUNT,
+            signal='PropertiesChanged',
+            interface=cs.PROPERTIES_IFACE,
             predicate=(lambda e:
-                'Parameters' in e.args[0]),
+                'Parameters' in e.args[1]),
             )
 
     # test that "masking" works

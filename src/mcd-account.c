@@ -950,8 +950,11 @@ emit_property_changed (gpointer userdata)
 
     if (g_hash_table_size (priv->changed_properties) > 0)
     {
-        tp_svc_account_emit_account_property_changed (account,
-            priv->changed_properties);
+        const gchar *empty[] = { NULL };
+
+        tp_svc_dbus_properties_emit_properties_changed (account,
+            TP_IFACE_ACCOUNT, priv->changed_properties, empty);
+
         g_hash_table_remove_all (priv->changed_properties);
     }
 
@@ -985,7 +988,7 @@ mcd_account_thaw_properties (McdAccount *self)
 }
 
 /*
- * This function is responsible of emitting the AccountPropertyChanged signal.
+ * This function is responsible of emitting the PropertiesChanged signal.
  * One possible improvement would be to save the HashTable and have the signal
  * emitted in an idle function (or a timeout function with a very small delay)
  * to group together several property changes that occur at the same time.

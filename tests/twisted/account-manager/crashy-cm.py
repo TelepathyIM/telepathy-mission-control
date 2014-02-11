@@ -74,9 +74,9 @@ def test(q, bus, mc):
     cm_bus.close()
 
     # MC should report the connection dying.
-    e = q.expect('dbus-signal', signal='AccountPropertyChanged',
-        predicate=lambda e: 'ConnectionError' in e.args[0])
-    changed, = e.args
+    e = q.expect('dbus-signal', signal='PropertiesChanged', interface=cs.PROPERTIES_IFACE,
+        predicate=lambda e: 'ConnectionError' in e.args[1].keys())
+    changed = e.args[1]
     assertEquals('/', changed['Connection'])
     assertEquals(cs.CONN_STATUS_DISCONNECTED, changed['ConnectionStatus'])
     # In the absence of a better code, None will have to do.

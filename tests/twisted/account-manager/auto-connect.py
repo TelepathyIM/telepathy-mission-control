@@ -114,20 +114,20 @@ def test(q, bus, unused, **kwargs):
                 path=cs.tp_path_prefix + '/ConnectionManager/fakecm',
                 interface=cs.tp_name_prefix + '.ConnectionManager',
                 handled=False),
-            EventPattern('dbus-signal', signal='AccountPropertyChanged',
-                predicate=(lambda e: 'ConnectionStatus' in e.args[0])),
+            EventPattern('dbus-signal', signal='PropertiesChanged',
+                predicate=(lambda e: 'ConnectionStatus' in e.args[1].keys())),
             )
 
     conn = SimulatedConnection(q, bus, 'fakecm', 'fakeprotocol', '_',
             'myself', has_presence=True, has_aliasing=True, has_avatars=True)
 
-    assertEquals('/', prop_changed.args[0].get('Connection'))
-    assertEquals('', prop_changed.args[0].get('ConnectionError'))
-    assertEquals({}, prop_changed.args[0].get('ConnectionErrorDetails'))
+    assertEquals('/', prop_changed.args[1].get('Connection'))
+    assertEquals('', prop_changed.args[1].get('ConnectionError'))
+    assertEquals({}, prop_changed.args[1].get('ConnectionErrorDetails'))
     assertEquals(cs.CONN_STATUS_CONNECTING,
-        prop_changed.args[0].get('ConnectionStatus'))
+        prop_changed.args[1].get('ConnectionStatus'))
     assertEquals(cs.CSR_REQUESTED,
-        prop_changed.args[0].get('ConnectionStatusReason'))
+        prop_changed.args[1].get('ConnectionStatusReason'))
 
     q.dbus_return(request_conn.message, conn.bus_name, conn.object_path,
         signature='so')
@@ -138,19 +138,19 @@ def test(q, bus, unused, **kwargs):
         account_path)
 
     prop_changed, _ = q.expect_many(
-        EventPattern('dbus-signal', signal='AccountPropertyChanged',
-            predicate=(lambda e: 'ConnectionStatus' in e.args[0])),
+        EventPattern('dbus-signal', signal='PropertiesChanged',
+            predicate=(lambda e: 'ConnectionStatus' in e.args[1].keys())),
         EventPattern('dbus-method-call', method='Connect',
             path=conn.object_path, handled=True, interface=cs.CONN),
         )
 
-    assertEquals(conn.object_path, prop_changed.args[0].get('Connection'))
-    assertEquals('', prop_changed.args[0].get('ConnectionError'))
-    assertEquals({}, prop_changed.args[0].get('ConnectionErrorDetails'))
+    assertEquals(conn.object_path, prop_changed.args[1].get('Connection'))
+    assertEquals('', prop_changed.args[1].get('ConnectionError'))
+    assertEquals({}, prop_changed.args[1].get('ConnectionErrorDetails'))
     assertEquals(cs.CONN_STATUS_CONNECTING,
-        prop_changed.args[0].get('ConnectionStatus'))
+        prop_changed.args[1].get('ConnectionStatus'))
     assertEquals(cs.CSR_REQUESTED,
-        prop_changed.args[0].get('ConnectionStatusReason'))
+        prop_changed.args[1].get('ConnectionStatusReason'))
 
     props = account.GetAll(cs.ACCOUNT, dbus_interface=cs.PROPERTIES_IFACE)
     assert props['Connection'] == conn.object_path
@@ -172,21 +172,21 @@ def test(q, bus, unused, **kwargs):
                 interface=cs.CONN_IFACE_AVATARS, method='SetAvatar',
                 args=['Deus Ex', 'image/jpeg'],
                 handled=True),
-            EventPattern('dbus-signal', signal='AccountPropertyChanged',
-                path=account_path, interface=cs.ACCOUNT,
+            EventPattern('dbus-signal', signal='PropertiesChanged',
+                path=account_path, interface=cs.PROPERTIES_IFACE,
                 predicate=(lambda e:
-                    e.args[0].get('ConnectionStatus') ==
+                    e.args[1].get('ConnectionStatus') ==
                         cs.CONN_STATUS_CONNECTED),
                 ),
             )
 
-    assertEquals(conn.object_path, prop_changed.args[0].get('Connection'))
-    assertEquals('', prop_changed.args[0].get('ConnectionError'))
-    assertEquals({}, prop_changed.args[0].get('ConnectionErrorDetails'))
+    assertEquals(conn.object_path, prop_changed.args[1].get('Connection'))
+    assertEquals('', prop_changed.args[1].get('ConnectionError'))
+    assertEquals({}, prop_changed.args[1].get('ConnectionErrorDetails'))
     assertEquals(cs.CONN_STATUS_CONNECTED,
-        prop_changed.args[0].get('ConnectionStatus'))
+        prop_changed.args[1].get('ConnectionStatus'))
     assertEquals(cs.CSR_REQUESTED,
-        prop_changed.args[0].get('ConnectionStatusReason'))
+        prop_changed.args[1].get('ConnectionStatusReason'))
 
     assert account.Get(cs.ACCOUNT, 'CurrentPresence',
             dbus_interface=cs.PROPERTIES_IFACE) == (cs.PRESENCE_AVAILABLE,

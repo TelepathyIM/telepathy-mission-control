@@ -63,8 +63,8 @@ def test(q, bus, mc):
             dbus_interface=cs.PROPERTIES_IFACE)
     q.expect('dbus-signal',
             path=account.object_path,
-            signal='AccountPropertyChanged',
-            interface=cs.ACCOUNT)
+            signal='PropertiesChanged',
+            interface=cs.PROPERTIES_IFACE)
 
     props = account.GetAll(cs.ACCOUNT, dbus_interface=cs.PROPERTIES_IFACE)
     assert props['Enabled']
@@ -112,10 +112,10 @@ def test(q, bus, mc):
     # point
     while 1:
         e = q.expect('dbus-signal',
-                interface=cs.ACCOUNT, signal='AccountPropertyChanged',
+                interface=cs.PROPERTIES_IFACE, signal='PropertiesChanged',
                 path=account.object_path)
-        if 'NormalizedName' in e.args[0]:
-            assert e.args[0]['NormalizedName'] == 'myself', e.args
+        if 'NormalizedName' in e.args[1]:
+            assert e.args[1]['NormalizedName'] == 'myself', e.args
             break
 
     # Check the requested presence is online

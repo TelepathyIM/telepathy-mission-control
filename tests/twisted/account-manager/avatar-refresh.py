@@ -211,10 +211,10 @@ class Account(object):
                         interface=cs.CONN_IFACE_AVATARS, method='SetAvatar',
                         args=[self.local_avatar, 'image/jpeg'],
                         handled=True),
-                    EventPattern('dbus-signal', signal='AccountPropertyChanged',
-                        path=account_path, interface=cs.ACCOUNT,
+                    EventPattern('dbus-signal', signal='PropertiesChanged',
+                        path=account_path, interface=cs.PROPERTIES_IFACE,
                         predicate=(lambda e:
-                            e.args[0].get('ConnectionStatus') ==
+                            e.args[1].get('ConnectionStatus') ==
                                 cs.CONN_STATUS_CONNECTED),
                         ),
                     )
@@ -231,10 +231,10 @@ class Account(object):
                             args=[[conn.self_handle]],
                             handled=False),
                         EventPattern('dbus-signal',
-                            signal='AccountPropertyChanged',
-                            path=account_path, interface=cs.ACCOUNT,
+                            signal='PropertiesChanged',
+                            path=account_path, interface=cs.PROPERTIES_IFACE,
                             predicate=(lambda e:
-                                e.args[0].get('ConnectionStatus') ==
+                                e.args[1].get('ConnectionStatus') ==
                                     cs.CONN_STATUS_CONNECTED),
                             ),
                         )

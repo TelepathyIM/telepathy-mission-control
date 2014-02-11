@@ -41,9 +41,9 @@ def test(q, bus, mc):
     q.expect_many(
         EventPattern('dbus-signal',
             path=account.object_path,
-            signal='AccountPropertyChanged',
-            interface=cs.ACCOUNT,
-            args=[{'Service': srv_name}]),
+            signal='PropertiesChanged',
+            interface=cs.PROPERTIES_IFACE,
+            args=[cs.ACCOUNT, {'Service': srv_name}, []]),
         EventPattern('dbus-return', method='Set'),
         )
     assertEquals(account_props.Get(cs.ACCOUNT, 'Service'), srv_name)

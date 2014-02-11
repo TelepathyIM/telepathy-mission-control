@@ -1046,14 +1046,14 @@ def create_fakecm_account(q, bus, mc, params, properties={},
     # are in fact sufficient
     a_signal, am_signal, ret = q.expect_many(
             servicetest.EventPattern('dbus-signal',
-                signal='AccountPropertyChanged', interface=cs.ACCOUNT,
-                predicate=(lambda e: 'Usable' in e.args[0])),
+                signal='PropertiesChanged', interface=cs.PROPERTIES_IFACE,
+                predicate=(lambda e: 'Usable' in e.args[1].keys())),
             usability_changed_pattern,
             servicetest.EventPattern('dbus-return', method='CreateAccount'),
             )
     account_path = ret.value[0]
     assert am_signal.args == [account_path, True], am_signal.args
-    assert a_signal.args[0]['Usable'] == True, a_signal.args
+    assert a_signal.args[1]['Usable'] == True, a_signal.args
 
     assert account_path is not None
 

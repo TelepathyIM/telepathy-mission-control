@@ -71,8 +71,8 @@ def test(q, bus, mc):
             EventPattern('dbus-return', method='Set'),
             EventPattern('dbus-signal',
                 path=account.object_path,
-                signal='AccountPropertyChanged',
-                interface=cs.ACCOUNT),
+                signal='PropertiesChanged',
+                interface=cs.PROPERTIES_IFACE),
             )
 
     # Enable the account
@@ -82,8 +82,8 @@ def test(q, bus, mc):
             EventPattern('dbus-return', method='Set'),
             EventPattern('dbus-signal',
                 path=account.object_path,
-                signal='AccountPropertyChanged',
-                interface=cs.ACCOUNT),
+                signal='PropertiesChanged',
+                interface=cs.PROPERTIES_IFACE),
             )
 
     call_async(q, account, 'Reconnect', dbus_interface=cs.ACCOUNT)
@@ -134,10 +134,10 @@ def test(q, bus, mc):
     # point
     while 1:
         e = q.expect('dbus-signal',
-                interface=cs.ACCOUNT, signal='AccountPropertyChanged',
+                interface=cs.PROPERTIES_IFACE, signal='PropertiesChanged',
                 path=account.object_path)
-        if 'NormalizedName' in e.args[0]:
-            assert e.args[0]['NormalizedName'] == 'myself', e.args
+        if 'NormalizedName' in e.args[1]:
+            assert e.args[1]['NormalizedName'] == 'myself', e.args
             break
 
     # Check the requested presence is online

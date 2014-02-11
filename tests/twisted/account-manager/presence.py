@@ -44,8 +44,8 @@ def test(q, bus, mc):
     assert not account.Properties.Get(cs.ACCOUNT, 'Enabled')
     assert not account.Properties.Get(cs.ACCOUNT, 'ChangingPresence')
     events = [
-        EventPattern('dbus-signal', signal='AccountPropertyChanged',
-            predicate=lambda e: 'ChangingPresence' in e.args[0]),
+        EventPattern('dbus-signal', signal='PropertiesChanged',
+            predicate=lambda e: 'ChangingPresence' in e.args[1]),
         EventPattern('dbus-method-call', method='RequestConnection'),
         ]
     q.forbid_events(events)
@@ -107,9 +107,9 @@ def test(q, bus, mc):
                     handled=True,
                     predicate=(lambda e: log.append('SetPresence[2]') or True)),
                 EventPattern('dbus-signal', path=account.object_path,
-                    interface=cs.ACCOUNT, signal='AccountPropertyChanged',
+                    interface=cs.PROPERTIES_IFACE, signal='PropertiesChanged',
                     predicate=lambda e:
-                        e.args[0].get('CurrentPresence') == presence),
+                        e.args[1].get('CurrentPresence') == presence),
                 ])
 
     # The events before Connect must happen in this order. Get(Interfaces) may
@@ -133,22 +133,22 @@ def test(q, bus, mc):
             args=list(presence[1:]),
             handled=True),
         EventPattern('dbus-signal', path=account.object_path,
-            interface=cs.ACCOUNT, signal='AccountPropertyChanged',
-            predicate=lambda e: e.args[0].get('ChangingPresence') == True and
-                                e.args[0].get('RequestedPresence') == presence),
+            interface=cs.PROPERTIES_IFACE, signal='PropertiesChanged',
+            predicate=lambda e: e.args[1].get('ChangingPresence') == True and
+                                e.args[1].get('RequestedPresence') == presence),
         EventPattern('dbus-signal', path=account.object_path,
-            interface=cs.ACCOUNT, signal='AccountPropertyChanged',
-            predicate=lambda e: e.args[0].get('CurrentPresence') == presence and
-                                e.args[0].get('ChangingPresence') == False))
+            interface=cs.PROPERTIES_IFACE, signal='PropertiesChanged',
+            predicate=lambda e: e.args[1].get('CurrentPresence') == presence and
+                                e.args[1].get('ChangingPresence') == False))
 
     # Setting RequestedPresence=RequestedPresence causes a (possibly redundant)
     # call to the CM, so we get any side-effects there might be, either in the
     # CM or in MC (e.g. asking connectivity services to go online). However,
-    # AccountPropertyChanged is not emitted for RequestedPresence.
+    # PropertiesChanged is not emitted for RequestedPresence.
 
     sync_dbus(bus, q, mc)
-    events = [EventPattern('dbus-signal', signal='AccountPropertyChanged',
-        predicate=lambda e: e.args[0].get('RequestedPresence') is not None)]
+    events = [EventPattern('dbus-signal', signal='PropertiesChanged',
+        predicate=lambda e: e.args[1].get('RequestedPresence') is not None)]
     q.forbid_events(events)
 
     presence = dbus.Struct((dbus.UInt32(cs.PRESENCE_AWAY), 'away',

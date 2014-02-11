@@ -41,9 +41,9 @@ def test(q, bus, mc, nickname):
         q.expect_many(
             EventPattern('dbus-signal',
                 path=account.object_path,
-                signal='AccountPropertyChanged',
-                interface=cs.ACCOUNT,
-                args=[{'Nickname': nickname}]),
+                signal='PropertiesChanged',
+                interface=cs.PROPERTIES_IFACE,
+                args=[cs.ACCOUNT, {'Nickname': nickname}, []]),
             EventPattern('dbus-return', method='Set'),
             )
     assertEquals(nickname, account_props.Get(cs.ACCOUNT, 'Nickname'))
@@ -67,10 +67,10 @@ def test(q, bus, mc, nickname):
         if nickname == '':
             expect_after_connect.append(EventPattern('dbus-signal',
                 path=account.object_path,
-                signal='AccountPropertyChanged',
-                interface=cs.ACCOUNT,
+                signal='PropertiesChanged',
+                interface=cs.PROPERTIES_IFACE,
                 predicate=(lambda e:
-                    e.args[0].get('Nickname') == params['account'])))
+                    e.args[1].get('Nickname') == params['account'])))
     else:
         expect_after_connect.append(EventPattern('dbus-method-call',
             interface=cs.CONN_IFACE_ALIASING, method='SetAliases',
@@ -121,8 +121,8 @@ def test(q, bus, mc, nickname):
             signature='a{us}')
 
     q.expect('dbus-signal', path=account.object_path,
-            signal='AccountPropertyChanged', interface=cs.ACCOUNT,
-            args=[{'Nickname': 'wjt'}])
+            signal='PropertiesChanged', interface=cs.PROPERTIES_IFACE,
+            args=[cs.ACCOUNT, {'Nickname': 'wjt'}, []])
 
     # If we set a trivial nickname while connected, MC does use it
     nickname = params['account']
@@ -131,9 +131,9 @@ def test(q, bus, mc, nickname):
     _, _, e = q.expect_many(
         EventPattern('dbus-signal',
             path=account.object_path,
-            signal='AccountPropertyChanged',
-            interface=cs.ACCOUNT,
-            args=[{'Nickname': params['account']}]),
+            signal='PropertiesChanged',
+            interface=cs.PROPERTIES_IFACE,
+            args=[cs.ACCOUNT, {'Nickname': params['account']}, []]),
         EventPattern('dbus-return', method='Set'),
         EventPattern('dbus-method-call',
             interface=cs.CONN_IFACE_ALIASING, method='SetAliases',
@@ -149,9 +149,9 @@ def test(q, bus, mc, nickname):
     _, _, e = q.expect_many(
         EventPattern('dbus-signal',
             path=account.object_path,
-            signal='AccountPropertyChanged',
-            interface=cs.ACCOUNT,
-            args=[{'Nickname': nickname}]),
+            signal='PropertiesChanged',
+            interface=cs.PROPERTIES_IFACE,
+            args=[cs.ACCOUNT, {'Nickname': nickname}, []]),
         EventPattern('dbus-return', method='Set'),
         EventPattern('dbus-method-call',
             interface=cs.CONN_IFACE_ALIASING, method='SetAliases',
@@ -168,9 +168,9 @@ def test(q, bus, mc, nickname):
     _, _, e = q.expect_many(
         EventPattern('dbus-signal',
             path=account.object_path,
-            signal='AccountPropertyChanged',
-            interface=cs.ACCOUNT,
-            args=[{'Nickname': params['account']}]),
+            signal='PropertiesChanged',
+            interface=cs.PROPERTIES_IFACE,
+            args=[cs.ACCOUNT, {'Nickname': params['account']}, []]),
         EventPattern('dbus-return', method='Set'),
         EventPattern('dbus-method-call',
             interface=cs.CONN_IFACE_ALIASING, method='SetAliases',

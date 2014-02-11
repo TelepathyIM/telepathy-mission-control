@@ -43,8 +43,8 @@ def test(q, bus, mc, **kwargs):
             dbus_interface=cs.PROPERTIES_IFACE)
     q.expect('dbus-signal',
             path=account.object_path,
-            signal='AccountPropertyChanged',
-            interface=cs.ACCOUNT)
+            signal='PropertiesChanged',
+            interface=cs.PROPERTIES_IFACE)
 
     # Go online
     requested_presence = dbus.Struct((dbus.UInt32(2L), dbus.String(u'brb'),
@@ -86,10 +86,10 @@ def test(q, bus, mc, **kwargs):
     # point
     while 1:
         e = q.expect('dbus-signal',
-                interface=cs.ACCOUNT, signal='AccountPropertyChanged',
+                interface=cs.PROPERTIES_IFACE, signal='PropertiesChanged',
                 path=account.object_path)
-        if 'NormalizedName' in e.args[0]:
-            assert e.args[0]['NormalizedName'] == 'myself', e.args
+        if 'NormalizedName' in e.args[1]:
+            assert e.args[1]['NormalizedName'] == 'myself', e.args
             break
 
     # Check the requested presence is online
@@ -121,15 +121,15 @@ def test(q, bus, mc, **kwargs):
                 method='UpdateParameters'),
             EventPattern('dbus-signal',
                 path=account.object_path,
-                interface=cs.ACCOUNT, signal='AccountPropertyChanged',
-                args=[{'Parameters': {
+                interface=cs.PROPERTIES_IFACE, signal='PropertiesChanged',
+                args=[cs.ACCOUNT, {'Parameters': {
                     'account': r'\\',
                     'com.example.Badgerable.Badgered': True,
                     'password': 'secrecy',
                     'nickname': 'albinoblacksheep',
                     'secret-mushroom': '/Amanita muscaria/',
                     'snakes': 42,
-                    }}]),
+                    }}, []]),
             )
 
     # the D-Bus property should be set instantly; the others will take effect
@@ -179,13 +179,13 @@ def test(q, bus, mc, **kwargs):
                 method='UpdateParameters'),
             EventPattern('dbus-signal',
                 path=account.object_path,
-                interface=cs.ACCOUNT, signal='AccountPropertyChanged',
-                args=[{'Parameters': {
+                interface=cs.PROPERTIES_IFACE, signal='PropertiesChanged',
+                args=[cs.ACCOUNT, {'Parameters': {
                     'account': r'\\',
                     'password': 'secrecy',
                     'secret-mushroom': '/Amanita muscaria/',
                     'snakes': 42,
-                    }}]),
+                    }}, []]),
             EventPattern('dbus-method-call',
                 path=conn.object_path,
                 interface=cs.PROPERTIES_IFACE, method='Set',
@@ -207,14 +207,14 @@ def test(q, bus, mc, **kwargs):
             EventPattern('dbus-return', method='UpdateParameters'),
             EventPattern('dbus-signal',
                 path=account.object_path,
-                interface=cs.ACCOUNT, signal='AccountPropertyChanged',
-                args=[{'Parameters': {
+                interface=cs.PROPERTIES_IFACE, signal='PropertiesChanged',
+                args=[cs.ACCOUNT, {'Parameters': {
                     'account': r'\\',
                     'password': 'secrecy',
                     'secret-mushroom': '/Amanita muscaria/',
                     'snakes': 42,
                     "contrived-example": 5,
-                    }}]),
+                    }}, []]),
             )
     not_yet = ret.value[0]
     assertEquals([], not_yet)
@@ -226,13 +226,13 @@ def test(q, bus, mc, **kwargs):
             EventPattern('dbus-return', method='UpdateParameters'),
             EventPattern('dbus-signal',
                 path=account.object_path,
-                interface=cs.ACCOUNT, signal='AccountPropertyChanged',
-                args=[{'Parameters': {
+                interface=cs.PROPERTIES_IFACE, signal='PropertiesChanged',
+                args=[cs.ACCOUNT, {'Parameters': {
                     'account': r'\\',
                     'password': 'secrecy',
                     'secret-mushroom': '/Amanita muscaria/',
                     'snakes': 42,
-                    }}]),
+                    }}, []]),
             )
     not_yet = ret.value[0]
     assertEquals([], not_yet)

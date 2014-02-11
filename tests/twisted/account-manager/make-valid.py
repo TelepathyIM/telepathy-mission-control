@@ -175,13 +175,13 @@ def test(q, bus, unused, **kwargs):
             EventPattern('dbus-method-call', path=conn.object_path,
                 interface=cs.CONN_IFACE_PRESENCE, method='SetPresence',
                 handled=True),
-            EventPattern('dbus-signal', signal='AccountPropertyChanged',
-                path=account_path, interface=cs.ACCOUNT,
-                predicate=lambda e: 'CurrentPresence' in e.args[0]
-                    and e.args[0]['CurrentPresence'][2] != ''),
+            EventPattern('dbus-signal', signal='PropertiesChanged',
+                path=account_path, interface=cs.PROPERTIES_IFACE,
+                predicate=lambda e: 'CurrentPresence' in e.args[1]
+                    and e.args[1]['CurrentPresence'][2] != ''),
             )
 
-    assert e.args[0]['CurrentPresence'] == (cs.PRESENCE_AVAILABLE,
+    assert e.args[1]['CurrentPresence'] == (cs.PRESENCE_AVAILABLE,
             'available', 'My vision is augmented')
 
     # Request an online presence on account 2, then make it valid
@@ -227,12 +227,12 @@ def test(q, bus, unused, **kwargs):
             interface=cs.CONN_IFACE_PRESENCE, method='SetPresence',
             handled=True)
 
-    e = q.expect('dbus-signal', signal='AccountPropertyChanged',
-            path=account_path, interface=cs.ACCOUNT,
-            predicate=lambda e: 'CurrentPresence' in e.args[0]
-                and e.args[0]['CurrentPresence'][1] == 'busy')
+    e = q.expect('dbus-signal', signal='PropertiesChanged',
+            path=account_path, interface=cs.PROPERTIES_IFACE,
+            predicate=lambda e: 'CurrentPresence' in e.args[1]
+                and e.args[1]['CurrentPresence'][1] == 'busy')
 
-    assert e.args[0]['CurrentPresence'] == (cs.PRESENCE_BUSY,
+    assert e.args[1]['CurrentPresence'] == (cs.PRESENCE_BUSY,
             'busy', 'Talking to Illuminati')
 
 if __name__ == '__main__':

@@ -42,9 +42,9 @@ def test(q, bus, mc):
     q.expect_many(
         EventPattern('dbus-signal',
             path=account.object_path,
-            signal='AccountPropertyChanged',
-            interface=cs.ACCOUNT,
-            args=[{'Nickname': "BruceWayne"}]),
+            signal='PropertiesChanged',
+            interface=cs.PROPERTIES_IFACE,
+            args=[cs.ACCOUNT, {'Nickname': "BruceWayne"}, []]),
         EventPattern('dbus-return', method='Set'),
         )
     assertEquals("BruceWayne", account_props.Get(cs.ACCOUNT, 'Nickname'))
@@ -61,9 +61,10 @@ def test(q, bus, mc):
                 interface=cs.CONN_IFACE_ALIASING, method='SetAliases',
                 handled=False),
             EventPattern('dbus-signal',
-                interface=cs.ACCOUNT,
+                interface=cs.PROPERTIES_IFACE,
+                signal='PropertiesChanged',
                 predicate=lambda e:
-                    e.args[0].get('CurrentPresence') ==
+                    e.args[1].get('CurrentPresence') ==
                         (cs.PRESENCE_UNSET, '', '')),
             ]
 
@@ -95,14 +96,14 @@ def test(q, bus, mc):
                 cs.CONN_IFACE_ALIASING in e.args[1]),
             handled=True),
         EventPattern('dbus-signal', path=account.object_path,
-            signal='AccountPropertyChanged', interface=cs.ACCOUNT,
+            signal='PropertiesChanged', interface=cs.PROPERTIES_IFACE,
             predicate=(lambda e:
-                e.args[0].get('NormalizedName') == 'thebatman')),
+                e.args[1].get('NormalizedName') == 'thebatman')),
         )
     assert get_aliases.args[0] in ([conn.self_handle], conn.self_id)
     q.expect('dbus-signal', path=account.object_path,
-            signal='AccountPropertyChanged', interface=cs.ACCOUNT,
-            args=[{'Nickname': 'TheBatman'}])
+            signal='PropertiesChanged', interface=cs.PROPERTIES_IFACE,
+            args=[cs.ACCOUNT, {'Nickname': 'TheBatman'}, []])
 
     # We change our nickname back
     call_async(q, account_props, 'Set', cs.ACCOUNT, 'Nickname',
@@ -110,9 +111,9 @@ def test(q, bus, mc):
     _, _, e = q.expect_many(
         EventPattern('dbus-signal',
             path=account.object_path,
-            signal='AccountPropertyChanged',
-            interface=cs.ACCOUNT,
-            predicate=(lambda e: e.args[0].get('Nickname') == 'BruceWayne')),
+            signal='PropertiesChanged',
+            interface=cs.PROPERTIES_IFACE,
+            predicate=(lambda e: e.args[1].get('Nickname') == 'BruceWayne')),
         EventPattern('dbus-return', method='Set'),
         EventPattern('dbus-method-call',
             interface=cs.CONN_IFACE_ALIASING, method='SetAliases',
@@ -134,14 +135,14 @@ def test(q, bus, mc):
                 cs.CONN_IFACE_ALIASING in e.args[1]),
             handled=True),
         EventPattern('dbus-signal', path=account.object_path,
-            signal='AccountPropertyChanged', interface=cs.ACCOUNT,
+            signal='PropertiesChanged', interface=cs.PROPERTIES_IFACE,
             predicate=(lambda e:
-                e.args[0].get('NormalizedName') == 'brucewayne')),
+                e.args[1].get('NormalizedName') == 'brucewayne')),
         )
     assert get_aliases.args[0] in ([conn.self_handle], conn.self_id)
 
-    forbidden = [EventPattern('dbus-signal', signal='AccountPropertyChanged',
-        predicate=lambda e: 'Nickname' in e.args[0])]
+    forbidden = [EventPattern('dbus-signal', signal='PropertiesChanged',
+        predicate=lambda e: 'Nickname' in e.args[1])]
     q.forbid_events(forbidden)
     sync_dbus(bus, q, mc)
 

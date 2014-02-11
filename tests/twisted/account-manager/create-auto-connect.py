@@ -43,15 +43,15 @@ def test(q, bus, mc):
             (dbus.UInt32(cs.PRESENCE_BUSY), 'busy',
                 'Testing automatic presence'))
     q.expect('dbus-return', method='Set')
-    q.expect('dbus-signal', signal='AccountPropertyChanged',
+    q.expect('dbus-signal', signal='PropertiesChanged',
             predicate=lambda e:
-                e.args[0].get('AutomaticPresence', (None, None, None))[1]
+                e.args[1].get('AutomaticPresence', (None, None, None))[1]
                     == 'busy')
 
     call_async(q, account_props, 'Set', cs.ACCOUNT, 'Enabled', True)
     q.expect('dbus-return', method='Set')
-    q.expect('dbus-signal', signal='AccountPropertyChanged',
-            predicate=lambda e: e.args[0].get('Enabled'))
+    q.expect('dbus-signal', signal='PropertiesChanged',
+            predicate=lambda e: e.args[1].get('Enabled'))
 
     # Go online by telling it to connect automatically
     call_async(q, account_props, 'Set', cs.ACCOUNT, 'ConnectAutomatically',
