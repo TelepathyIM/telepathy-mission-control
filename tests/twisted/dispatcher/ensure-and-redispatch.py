@@ -37,7 +37,7 @@ def test(q, bus, mc):
     conn = enable_fakecm_account(q, bus, mc, account, params)
 
     text_fixed_properties = dbus.Dictionary({
-        cs.CHANNEL + '.TargetHandleType': cs.HT_CONTACT,
+        cs.CHANNEL + '.TargetEntityType': cs.HT_CONTACT,
         cs.CHANNEL + '.ChannelType': cs.CHANNEL_TYPE_TEXT,
         }, signature='sv')
 
@@ -101,7 +101,7 @@ def test_channel_creation(q, bus, account, client, conn):
     # chat UI calls ChannelDispatcher.EnsureChannel
     request = dbus.Dictionary({
             cs.CHANNEL + '.ChannelType': cs.CHANNEL_TYPE_TEXT,
-            cs.CHANNEL + '.TargetHandleType': cs.HT_CONTACT,
+            cs.CHANNEL + '.TargetEntityType': cs.HT_CONTACT,
             cs.CHANNEL + '.TargetID': 'juliet',
             }, signature='sv')
     call_async(q, cd, 'EnsureChannel',
@@ -230,7 +230,7 @@ def test_channel_redispatch(q, bus, account, client, conn, channel,
     # UI calls ChannelDispatcher.EnsureChannel again
     request = dbus.Dictionary({
             cs.CHANNEL + '.ChannelType': cs.CHANNEL_TYPE_TEXT,
-            cs.CHANNEL + '.TargetHandleType': cs.HT_CONTACT,
+            cs.CHANNEL + '.TargetEntityType': cs.HT_CONTACT,
             cs.CHANNEL + '.TargetID': 'juliet',
             }, signature='sv')
     call_async(q, cd, 'EnsureChannel',

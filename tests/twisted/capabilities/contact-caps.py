@@ -39,12 +39,12 @@ def test(q, bus, mc):
     # this must match the .client file
     abi_contact_fixed_properties = dbus.Dictionary({
         cs.CHANNEL + '.ChannelType': cs.CHANNEL_TYPE_STREAM_TUBE,
-        cs.CHANNEL + '.TargetHandleType': cs.HT_CONTACT,
+        cs.CHANNEL + '.TargetEntityType': cs.HT_CONTACT,
         cs.CHANNEL_TYPE_STREAM_TUBE + '.Service': 'x-abiword',
         }, signature='sv')
     abi_room_fixed_properties = dbus.Dictionary({
         cs.CHANNEL + '.ChannelType': cs.CHANNEL_TYPE_STREAM_TUBE,
-        cs.CHANNEL + '.TargetHandleType': cs.HT_ROOM,
+        cs.CHANNEL + '.TargetEntityType': cs.HT_ROOM,
         cs.CHANNEL_TYPE_STREAM_TUBE + '.Service': 'x-abiword',
         }, signature='sv')
 
@@ -113,7 +113,7 @@ def test(q, bus, mc):
     q.attach_to_bus(irssi_bus)
     irssi_fixed_properties = dbus.Dictionary({
         cs.CHANNEL + '.ChannelType': cs.CHANNEL_TYPE_TEXT,
-        cs.CHANNEL + '.TargetHandleType': cs.HT_ROOM,
+        cs.CHANNEL + '.TargetEntityType': cs.HT_ROOM,
         }, signature='sv')
     irssi = SimulatedClient(q, irssi_bus, 'Irssi',
             observe=[], approve=[], handle=[irssi_fixed_properties],

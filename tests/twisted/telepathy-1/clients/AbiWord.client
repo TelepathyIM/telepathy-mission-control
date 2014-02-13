@@ -3,12 +3,12 @@ Interfaces=im.telepathy.v1.Client.Handler
 
 [im.telepathy.v1.Client.Handler.HandlerChannelFilter 0]
 im.telepathy.v1.Channel.ChannelType s=im.telepathy.v1.Channel.Type.StreamTube1
-im.telepathy.v1.Channel.TargetHandleType u=1
+im.telepathy.v1.Channel.TargetEntityType u=1
 im.telepathy.v1.Channel.Type.StreamTube1.Service s=x-abiword
 
 [im.telepathy.v1.Client.Handler.HandlerChannelFilter 1]
 im.telepathy.v1.Channel.ChannelType s=im.telepathy.v1.Channel.Type.StreamTube1
-im.telepathy.v1.Channel.TargetHandleType u=2
+im.telepathy.v1.Channel.TargetEntityType u=2
 im.telepathy.v1.Channel.Type.StreamTube1.Service s=x-abiword
 
 [im.telepathy.v1.Client.Handler.Capabilities]

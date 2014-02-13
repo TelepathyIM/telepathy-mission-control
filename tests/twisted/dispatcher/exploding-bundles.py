@@ -37,17 +37,17 @@ def test(q, bus, mc):
     conn = enable_fakecm_account(q, bus, mc, account, params)
 
     text_fixed_properties = dbus.Dictionary({
-        cs.CHANNEL + '.TargetHandleType': cs.HT_CONTACT,
+        cs.CHANNEL + '.TargetEntityType': cs.HT_CONTACT,
         cs.CHANNEL + '.ChannelType': cs.CHANNEL_TYPE_TEXT,
         }, signature='sv')
 
     media_fixed_properties = dbus.Dictionary({
-        cs.CHANNEL + '.TargetHandleType': cs.HT_CONTACT,
+        cs.CHANNEL + '.TargetEntityType': cs.HT_CONTACT,
         cs.CHANNEL + '.ChannelType': cs.CHANNEL_TYPE_CALL,
         }, signature='sv')
 
     misc_fixed_properties = dbus.Dictionary({
-        cs.CHANNEL + '.TargetHandleType': cs.HT_CONTACT,
+        cs.CHANNEL + '.TargetEntityType': cs.HT_CONTACT,
         cs.CHANNEL + '.ChannelType': 'com.example.Extension',
         }, signature='sv')
 

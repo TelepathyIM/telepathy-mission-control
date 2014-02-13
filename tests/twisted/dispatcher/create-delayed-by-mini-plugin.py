@@ -76,7 +76,7 @@ def test(q, bus, mc):
     e_numbers = e_numbers1 + e_numbers2
 
     fixed_properties = dbus.Dictionary({
-        cs.CHANNEL + '.TargetHandleType': cs.HT_CONTACT,
+        cs.CHANNEL + '.TargetEntityType': cs.HT_CONTACT,
         cs.CHANNEL + '.ChannelType': DELAYED_CTYPE,
         }, signature='sv')
 
@@ -115,7 +115,7 @@ def test(q, bus, mc):
         # UI calls ChannelDispatcher.CreateChannel
         request = dbus.Dictionary({
                 cs.CHANNEL + '.ChannelType': DELAYED_CTYPE,
-                cs.CHANNEL + '.TargetHandleType': cs.HT_CONTACT,
+                cs.CHANNEL + '.TargetEntityType': cs.HT_CONTACT,
                 cs.CHANNEL + '.TargetID': target_id,
                 }, signature='sv')
         call_async(q, cd, 'CreateChannel',

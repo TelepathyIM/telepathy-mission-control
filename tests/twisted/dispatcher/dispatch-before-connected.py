@@ -41,7 +41,7 @@ def test(q, bus, mc):
     # automatically
 
     verification_filter = dbus.Dictionary({
-        cs.CHANNEL + '.TargetHandleType': 0,
+        cs.CHANNEL + '.TargetEntityType': 0,
         cs.CHANNEL + '.ChannelType': cs.CHANNEL_TYPE_SERVER_TLS_CONNECTION,
         }, signature='sv')
 

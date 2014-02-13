@@ -35,11 +35,11 @@ text_fixed_properties = dbus.Dictionary({
     cs.CHANNEL + '.ChannelType': cs.CHANNEL_TYPE_TEXT,
     }, signature='sv')
 contact_text_fixed_properties = dbus.Dictionary({
-    cs.CHANNEL + '.TargetHandleType': cs.HT_CONTACT,
+    cs.CHANNEL + '.TargetEntityType': cs.HT_CONTACT,
     cs.CHANNEL + '.ChannelType': cs.CHANNEL_TYPE_TEXT,
     }, signature='sv')
 urgent_fixed_properties = dbus.Dictionary({
-    cs.CHANNEL + '.TargetHandleType': cs.HT_CONTACT,
+    cs.CHANNEL + '.TargetEntityType': cs.HT_CONTACT,
     cs.CHANNEL + '.ChannelType': cs.CHANNEL_TYPE_TEXT,
     'com.example.Urgency.Urgent': True,
     }, signature='sv')

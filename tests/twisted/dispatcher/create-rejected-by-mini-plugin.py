@@ -51,7 +51,7 @@ def test(q, bus, mc):
     conn = enable_fakecm_account(q, bus, mc, account, params)
 
     fixed_properties = dbus.Dictionary({
-        cs.CHANNEL + '.TargetHandleType': cs.HT_CONTACT,
+        cs.CHANNEL + '.TargetEntityType': cs.HT_CONTACT,
         cs.CHANNEL + '.ChannelType': FORBIDDEN_CTYPE,
         }, signature='sv')
 
@@ -70,7 +70,7 @@ def test(q, bus, mc):
     # UI calls ChannelDispatcher.CreateChannel
     request = dbus.Dictionary({
             cs.CHANNEL + '.ChannelType': FORBIDDEN_CTYPE,
-            cs.CHANNEL + '.TargetHandleType': cs.HT_CONTACT,
+            cs.CHANNEL + '.TargetEntityType': cs.HT_CONTACT,
             cs.CHANNEL + '.TargetID': 'juliet',
             }, signature='sv')
     call_async(q, cd, 'CreateChannel',

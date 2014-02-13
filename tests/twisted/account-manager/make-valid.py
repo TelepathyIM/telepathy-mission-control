@@ -115,7 +115,7 @@ def test(q, bus, unused, **kwargs):
     user_action_time = dbus.Int64(1238582606)
     request = dbus.Dictionary({
             cs.CHANNEL + '.ChannelType': cs.CHANNEL_TYPE_TEXT,
-            cs.CHANNEL + '.TargetHandleType': cs.HT_CONTACT,
+            cs.CHANNEL + '.TargetEntityType': cs.HT_CONTACT,
             cs.CHANNEL + '.TargetID': 'juliet',
             }, signature='sv')
     call_async(q, cd, 'CreateChannel',

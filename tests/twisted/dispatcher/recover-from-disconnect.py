@@ -27,7 +27,7 @@ from mctest import exec_test, SimulatedConnection, create_fakecm_account,\
 import constants as cs
 
 text_fixed_properties = dbus.Dictionary({
-    cs.CHANNEL + '.TargetHandleType': cs.HT_CONTACT,
+    cs.CHANNEL + '.TargetEntityType': cs.HT_CONTACT,
     cs.CHANNEL + '.ChannelType': cs.CHANNEL_TYPE_TEXT,
     }, signature='sv')
 

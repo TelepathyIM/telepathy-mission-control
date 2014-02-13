@@ -363,7 +363,7 @@ gboolean
 mcp_dispatch_operation_find_channel_by_type (McpDispatchOperation *self,
     TpClientFactory *client_factory,
     guint start_from,
-    TpHandleType handle_type,
+    TpEntityType handle_type,
     GQuark channel_type,
     guint *ret_index,
     gchar **ret_dup_path,
@@ -391,7 +391,7 @@ mcp_dispatch_operation_find_channel_by_type (McpDispatchOperation *self,
           !tp_strdiff (tp_asv_get_string (properties,
               TP_IFACE_CHANNEL ".ChannelType"),
             channel_type_str) &&
-          tp_asv_get_uint32 (properties, TP_IFACE_CHANNEL ".TargetHandleType",
+          tp_asv_get_uint32 (properties, TP_IFACE_CHANNEL ".TargetEntityType",
             &valid) == handle_type &&
           valid)
         {

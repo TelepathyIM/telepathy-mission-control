@@ -38,7 +38,7 @@ def test(q, bus, mc):
     conn = enable_fakecm_account(q, bus, mc, account, params)
 
     text_fixed_properties = dbus.Dictionary({
-        cs.CHANNEL + '.TargetHandleType': cs.HT_CONTACT,
+        cs.CHANNEL + '.TargetEntityType': cs.HT_CONTACT,
         cs.CHANNEL + '.ChannelType': cs.CHANNEL_TYPE_TEXT,
         }, signature='sv')
 
@@ -62,7 +62,7 @@ def test(q, bus, mc):
     cd = ChannelDispatcher(bus)
     request = dbus.Dictionary({
             cs.CHANNEL + '.ChannelType': cs.CHANNEL_TYPE_TEXT,
-            cs.CHANNEL + '.TargetHandleType': cs.HT_CONTACT,
+            cs.CHANNEL + '.TargetEntityType': cs.HT_CONTACT,
             cs.CHANNEL + '.TargetID': 'juliet',
             }, signature='sv')
     (request_path, immutable_props) = cd.CreateChannel(account.object_path,

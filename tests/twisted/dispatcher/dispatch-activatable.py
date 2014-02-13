@@ -50,7 +50,7 @@ def test(q, bus, mc):
 
     channel_properties = dbus.Dictionary(abiword_fixed_properties,
             signature='sv')
-    channel_properties[cs.CHANNEL + '.TargetHandleType'] = cs.HT_CONTACT
+    channel_properties[cs.CHANNEL + '.TargetEntityType'] = cs.HT_CONTACT
     channel_properties[cs.CHANNEL + '.TargetID'] = 'juliet'
     channel_properties[cs.CHANNEL + '.TargetHandle'] = \
             conn.ensure_handle(cs.HT_CONTACT, 'juliet')

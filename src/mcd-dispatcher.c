@@ -1608,11 +1608,11 @@ messages_send_message_start (DBusGMethodInvocation *dbus_context,
     g_value_init (&target, G_TYPE_STRING);
 
     g_value_set_static_string (&c_type, TP_IFACE_CHANNEL_TYPE_TEXT);
-    g_value_set_uint (&h_type, TP_HANDLE_TYPE_CONTACT);
+    g_value_set_uint (&h_type, TP_ENTITY_TYPE_CONTACT);
     g_value_set_string (&target, message->target_id);
 
     g_hash_table_insert (props, TP_PROP_CHANNEL_CHANNEL_TYPE, &c_type);
-    g_hash_table_insert (props, TP_PROP_CHANNEL_TARGET_HANDLE_TYPE, &h_type);
+    g_hash_table_insert (props, TP_PROP_CHANNEL_TARGET_ENTITY_TYPE, &h_type);
     g_hash_table_insert (props, TP_PROP_CHANNEL_TARGET_ID, &target);
 
     /* compare dispatcher_request_channel: we _are_ the handler for     *

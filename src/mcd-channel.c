@@ -625,7 +625,7 @@ mcd_channel_new_from_properties (TpConnection *connection,
  * @object_path: the D-Bus object path of an existing channel.
  * @type: the channel type.
  * @handle: the channel handle.
- * @handle_type: the #TpHandleType.
+ * @handle_type: the #TpEntityType.
  *
  * Creates a #McdChannel with an associated #TpChannel proxy for the channel
  * located at @object_path.
@@ -636,7 +636,7 @@ mcd_channel_new_from_properties (TpConnection *connection,
 McdChannel *
 mcd_channel_new_from_path (TpConnection *connection, const gchar *object_path,
                            const gchar *type, guint handle,
-                           TpHandleType handle_type)
+                           TpEntityType handle_type)
 {
     GHashTable *props;
     GValue v_type = G_VALUE_INIT;
@@ -656,7 +656,7 @@ mcd_channel_new_from_path (TpConnection *connection, const gchar *object_path,
 
     g_value_init (&v_handle_type, G_TYPE_UINT);
     g_value_set_uint (&v_handle_type, handle_type);
-    g_hash_table_insert (props, TP_IFACE_CHANNEL ".TargetHandleType",
+    g_hash_table_insert (props, TP_IFACE_CHANNEL ".TargetEntityType",
                          &v_handle_type);
 
     channel = mcd_channel_new_from_properties (connection, object_path, props);

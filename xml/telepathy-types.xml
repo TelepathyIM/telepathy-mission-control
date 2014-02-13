@@ -13,7 +13,7 @@
       <p>Channel classes SHOULD always include the keys
 	<tp:dbus-ref>org.freedesktop.Telepathy.Channel.ChannelType</tp:dbus-ref>
 	and
-	<tp:dbus-ref>org.freedesktop.Telepathy.Channel.TargetHandleType</tp:dbus-ref>.
+	<tp:dbus-ref>org.freedesktop.Telepathy.Channel.TargetEntityType</tp:dbus-ref>.
 	</p>
     </tp:docstring>
 
@@ -77,7 +77,7 @@
 
 	<p>Each dictionary MUST contain the keys
 	  <tp:dbus-ref>org.freedesktop.Telepathy.Channel.ChannelType</tp:dbus-ref>,
-	  <tp:dbus-ref>org.freedesktop.Telepathy.Channel.TargetHandleType</tp:dbus-ref>,
+	  <tp:dbus-ref>org.freedesktop.Telepathy.Channel.TargetEntityType</tp:dbus-ref>,
 	  <tp:dbus-ref>org.freedesktop.Telepathy.Channel.TargetHandle</tp:dbus-ref>
 	  and
 	  <tp:dbus-ref>org.freedesktop.Telepathy.Channel.TargetID</tp:dbus-ref>.

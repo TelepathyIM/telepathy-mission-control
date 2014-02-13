@@ -36,7 +36,7 @@ def test(q, bus, mc):
     simulated_cm, account = create_fakecm_account(q, bus, mc, params)
 
     text_fixed_properties = dbus.Dictionary({
-        cs.CHANNEL + '.TargetHandleType': cs.HT_CONTACT,
+        cs.CHANNEL + '.TargetEntityType': cs.HT_CONTACT,
         cs.CHANNEL + '.ChannelType': cs.CHANNEL_TYPE_TEXT,
         }, signature='sv')
 

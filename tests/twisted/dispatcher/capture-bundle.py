@@ -38,11 +38,11 @@ def test(q, bus, mc):
     conn = enable_fakecm_account(q, bus, mc, account, params)
 
     text_fixed_properties = dbus.Dictionary({
-        cs.CHANNEL + '.TargetHandleType': cs.HT_CONTACT,
+        cs.CHANNEL + '.TargetEntityType': cs.HT_CONTACT,
         cs.CHANNEL + '.ChannelType': cs.CHANNEL_TYPE_TEXT,
         }, signature='sv')
     voip_fixed_properties = dbus.Dictionary({
-        cs.CHANNEL + '.TargetHandleType': cs.HT_CONTACT,
+        cs.CHANNEL + '.TargetEntityType': cs.HT_CONTACT,
         cs.CHANNEL + '.ChannelType': cs.CHANNEL_TYPE_CALL,
         }, signature='sv')
 
@@ -207,7 +207,7 @@ def test(q, bus, mc):
 
     channel_properties = dbus.Dictionary(text_fixed_properties,
             signature='sv')
-    channel_properties[cs.CHANNEL + '.TargetHandleType'] = cs.HT_CONTACT
+    channel_properties[cs.CHANNEL + '.TargetEntityType'] = cs.HT_CONTACT
     channel_properties[cs.CHANNEL + '.TargetID'] = 'juliet'
     channel_properties[cs.CHANNEL + '.TargetHandle'] = \
             conn.ensure_handle(cs.HT_CONTACT, 'juliet')

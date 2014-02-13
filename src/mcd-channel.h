@@ -90,7 +90,7 @@ mcd_channel_new_from_properties (TpConnection *connection,
 McdChannel *mcd_channel_new_from_path (TpConnection *connection,
                                        const gchar *object_path,
                                        const gchar *type, guint handle,
-                                       TpHandleType handle_type);
+                                       TpEntityType handle_type);
 
 McdChannelStatus mcd_channel_get_status (McdChannel * channel);
 const gchar* mcd_channel_get_object_path (McdChannel *channel);

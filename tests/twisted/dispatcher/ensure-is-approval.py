@@ -47,7 +47,7 @@ def test(q, bus, mc):
         cs.CHANNEL + '.ChannelType': cs.CHANNEL_TYPE_TEXT,
         }, signature='sv')
     text_fixed_properties = dbus.Dictionary({
-        cs.CHANNEL + '.TargetHandleType': cs.HT_CONTACT,
+        cs.CHANNEL + '.TargetEntityType': cs.HT_CONTACT,
         cs.CHANNEL + '.ChannelType': cs.CHANNEL_TYPE_TEXT,
         }, signature='sv')
 
@@ -177,7 +177,7 @@ def test(q, bus, mc):
 
     request = dbus.Dictionary({
             cs.CHANNEL + '.ChannelType': cs.CHANNEL_TYPE_TEXT,
-            cs.CHANNEL + '.TargetHandleType': cs.HT_CONTACT,
+            cs.CHANNEL + '.TargetEntityType': cs.HT_CONTACT,
             cs.CHANNEL + '.TargetID': 'juliet',
             }, signature='sv')
     call_async(q, cd, 'EnsureChannel',

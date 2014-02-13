@@ -31,7 +31,7 @@ import constants as cs
 
 def test(q, bus, mc):
     http_fixed_properties = dbus.Dictionary({
-        cs.CHANNEL + '.TargetHandleType': 1L,
+        cs.CHANNEL + '.TargetEntityType': 1L,
         cs.CHANNEL + '.ChannelType': cs.CHANNEL_TYPE_STREAM_TUBE,
         cs.CHANNEL_TYPE_STREAM_TUBE + '.Service':
             'http'
