@@ -781,7 +781,7 @@ command_show (TpAccount *account)
         puts ("Storage:");
         show ("Provider", storage_provider);
 
-        storage_identifier = tp_account_dup_storage_identifier_variant (
+        storage_identifier = tp_account_dup_storage_identifier (
             account);
         if (storage_identifier != NULL)
           {
