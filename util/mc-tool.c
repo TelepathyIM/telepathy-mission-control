@@ -92,13 +92,13 @@ union command
     {
       struct common common;
       gchar const *manager, *protocol, *display;
-      GHashTable *parameters;
+      GVariant *parameters;
     } add;
 
   struct
     {
       struct common common;
-      GHashTable *set;
+      GVariant *set;
       GPtrArray *unset;
     } update;
 
@@ -155,22 +155,8 @@ ensure_prefix (char const *string)
   return g_strdup_printf ("%s%s", TP_ACCOUNT_OBJECT_PATH_BASE, string);
 }
 
-static void
-_g_value_free (gpointer data)
-{
-  GValue *value = (GValue *) data;
-  g_value_unset (value);
-  g_free (value);
-}
-
-static GHashTable *
-new_params (void)
-{
-  return g_hash_table_new_full (g_str_hash, g_str_equal, g_free, _g_value_free);
-}
-
 static gboolean
-set_param (GHashTable *parameters,
+set_param (GVariantDict *parameters,
      GPtrArray *clear,
      gchar *param_value)
 {
@@ -178,7 +164,7 @@ set_param (GHashTable *parameters,
   gchar **strv_type_key = NULL;
   const gchar *param, *type, *key, *value;
   gboolean ret = 0;
-  GValue *gvalue;
+  GVariant *gvariant = NULL;
 
   if (!param_value)
     return FALSE;
@@ -215,25 +201,18 @@ set_param (GHashTable *parameters,
   key = strv_param_value[0];
   value = strv_param_value[1];
 
-  gvalue = g_new0 (GValue, 1);
-
-  /* Set the key */
   if (strcmp (type, "int") == 0)
     {
-      g_value_init (gvalue, G_TYPE_INT);
-      g_value_set_int (gvalue, strtol (value, NULL, 10));
+      gvariant = g_variant_new_int32 (strtol (value, NULL, 10));
       ret = TRUE;
     }
   else if (strcmp (type, "uint") == 0)
     {
-      g_value_init (gvalue, G_TYPE_UINT);
-      g_value_set_uint (gvalue, strtoul (value, NULL, 10));
+      gvariant = g_variant_new_uint32 (strtoul (value, NULL, 10));
       ret = TRUE;
     }
   else if (strcmp (type, "bool") == 0 || strcmp (type, "boolean") == 0)
     {
-      g_value_init (gvalue, G_TYPE_BOOLEAN);
-
       if (g_ascii_strcasecmp (value, "1") == 0 ||
           g_ascii_strcasecmp (value, "true") == 0 ||
           /* "yes please!" / "yes sir, captain tightpants" */
@@ -242,7 +221,7 @@ set_param (GHashTable *parameters,
           g_ascii_strcasecmp (value, "oui") == 0 ||
           strcmp (value, "ou là là!") == 0)
         {
-          g_value_set_boolean (gvalue, TRUE);
+          gvariant = g_variant_new_boolean (TRUE);
           ret = TRUE;
         }
       else if (g_ascii_strcasecmp (value, "0") == 0 ||
@@ -251,27 +230,23 @@ set_param (GHashTable *parameters,
                g_ascii_strcasecmp (value, "nope") == 0 ||
                g_ascii_strcasecmp (value, "non") == 0)
         {
-          g_value_set_boolean (gvalue, FALSE);
+          gvariant = g_variant_new_boolean (FALSE);
           ret = TRUE;
         }
     }
   else if (strcmp (type, "string") == 0)
     {
-      g_value_init (gvalue, G_TYPE_STRING);
-      g_value_set_string (gvalue, value);
+      gvariant = g_variant_new_string (value);
       ret = TRUE;
     }
   else if (strcmp (type, "path") == 0)
   {
-    g_value_init (gvalue, DBUS_TYPE_G_OBJECT_PATH);
-    g_value_set_boxed (gvalue, value);
+    gvariant = g_variant_new_object_path (value);
     ret = TRUE;
   }
 
-  if (ret)
-    g_hash_table_replace (parameters, g_strdup (key), gvalue);
-  else
-    g_free (gvalue);
+  if (gvariant != NULL)
+    g_variant_dict_insert_value (parameters, key, gvariant);
 
 CLEANUP:
   g_strfreev (strv_param_value);
@@ -280,41 +255,42 @@ CLEANUP:
 }
 
 static void
-show_param (gchar const *key, GValue *value)
+show_param (gchar const *key,
+    GVariant *value)
 {
   gchar const *type;
   gchar *decoded = NULL;
   int width;
 
-  if (G_VALUE_HOLDS_STRING (value))
+  if (g_variant_is_of_type (value, G_VARIANT_TYPE_STRING))
     {
       type = "string";
-      decoded = g_value_dup_string (value);
+      decoded = g_variant_dup_string (value, NULL);
     }
-  else if (G_VALUE_HOLDS_UINT (value))
+  else if (g_variant_is_of_type (value, G_VARIANT_TYPE_UINT32))
     {
       type = "uint";
-      decoded = g_strdup_printf ("%u", g_value_get_uint (value));
+      decoded = g_strdup_printf ("%u", g_variant_get_uint32 (value));
     }
-  else if (G_VALUE_HOLDS_INT (value))
+  else if (g_variant_is_of_type (value, G_VARIANT_TYPE_INT32))
     {
       type = "int";
-      decoded = g_strdup_printf ("%i", g_value_get_int (value));
+      decoded = g_strdup_printf ("%i", g_variant_get_int32 (value));
     }
-  else if (G_VALUE_HOLDS_BOOLEAN (value))
+  else if (g_variant_is_of_type (value, G_VARIANT_TYPE_BOOLEAN))
     {
       type = "bool";
-      decoded = g_strdup (g_value_get_boolean (value) ? "true" : "false");
+      decoded = g_strdup (g_variant_get_boolean (value) ? "true" : "false");
     }
-  else if (G_VALUE_HOLDS (value, DBUS_TYPE_G_OBJECT_PATH))
+  else if (g_variant_is_of_type (value, G_VARIANT_TYPE_OBJECT_PATH))
     {
       type = "path";
-      decoded = g_value_dup_boxed (value);
+      decoded = g_variant_dup_string (value, NULL);
     }
   else
     {
-      type = G_VALUE_TYPE_NAME (value);
-      decoded = g_strdup_value_contents (value);
+      type = g_variant_get_type_string (value);
+      decoded = g_variant_print (value, TRUE);
     }
 
   width = 11 - strlen (type);
@@ -655,7 +631,7 @@ callback_for_create_account (GObject *source,
 static gboolean
 command_add (TpAccountManager *manager)
 {
-  GHashTable *properties = tp_asv_new (NULL, NULL);
+  GVariant *properties = g_variant_new ("a{sv}", NULL);
 
   tp_account_manager_create_account_async (manager,
       command.add.manager,
@@ -769,9 +745,8 @@ dup_storage_restrictions (TpAccount *account)
 static gboolean
 command_show (TpAccount *account)
 {
-  const GHashTable *parameters;
-  GHashTableIter i[1];
-  gpointer keyp, valuep;
+  GVariant *parameters, *entry;
+  GVariantIter i;
   struct presence automatic, current, requested;
   const gchar * const *schemes;
   const gchar *storage_provider;
@@ -852,12 +827,20 @@ command_show (TpAccount *account)
     }
 
   puts ("");
-  parameters = tp_account_get_parameters (account);
+  parameters = tp_account_dup_parameters (account);
 
-  for (g_hash_table_iter_init (i, (GHashTable *) parameters);
-      g_hash_table_iter_next (i, &keyp, &valuep);)
+  g_variant_iter_init (&i, parameters);
+  while ((entry = g_variant_iter_next_value (&i)))
     {
-      show_param (keyp, valuep);
+      gchar *key;
+      GVariant *value;
+
+      g_variant_get (entry, "{sv}", &key, &value);
+
+      show_param (key, value);
+
+      g_free (key);
+      g_variant_unref (value);
     }
 
   command.common.ret = 0;
@@ -924,7 +907,7 @@ static gboolean
 command_get (TpAccount *account)
 {
   GPtrArray *args = command.get.args;
-  GHashTable *parameters = NULL;
+  GVariant *parameters = NULL;
   guint i;
 
   command.common.ret = 0;
@@ -979,15 +962,13 @@ command_get (TpAccount *account)
         }
       else
         {
-          GValue *gvalue;
+          GVariant *gvariant;
           gchar *value;
 
           if (parameters == NULL)
-            parameters = (GHashTable *) tp_account_get_parameters(account);
+            parameters = tp_account_dup_parameters(account);
 
-          gvalue = g_hash_table_lookup (parameters, getter->name);
-
-          if (gvalue == NULL)
+          if (!g_variant_lookup (parameters, getter->name, "v", &gvariant))
             {
               command.common.ret = 1;
               fprintf (stderr, "%s %s: param=%s: %s\n",
@@ -996,7 +977,7 @@ command_get (TpAccount *account)
               continue;
             }
 
-          value = g_strdup_value_contents (gvalue);
+          value = g_variant_print (gvariant, TRUE);
           puts(value);
           g_free(value);
         }
@@ -1134,6 +1115,7 @@ parse (int argc, char **argv)
   if (strcmp (argv[1], "add") == 0)
     {
       gchar **strv;
+      GVariantDict dict;
 
       /* Add account */
       if (argc < 4)
@@ -1157,11 +1139,11 @@ parse (int argc, char **argv)
       command.ready.manager = command_add;
       command.add.display = argv[3];
 
-      command.add.parameters = new_params ();
+      g_variant_dict_init (&dict, NULL);
 
       for (i = 4; i < argc; i++)
         {
-          status = set_param (command.add.parameters, NULL, argv[i]);
+          status = set_param (&dict, NULL, argv[i]);
 
           if (!status)
             {
@@ -1169,6 +1151,8 @@ parse (int argc, char **argv)
               exit (1);
             }
         }
+
+      command.add.parameters = g_variant_dict_end (&dict);
     }
   else if (strcmp (argv[1], "list") == 0)
     {
@@ -1322,25 +1306,29 @@ parse (int argc, char **argv)
   else if (strcmp (argv[1], "update") == 0
       || strcmp (argv[1], "set") == 0)
     {
+      GVariantDict dict;
+
       /* Set account parameter (s) */
       if (argc < 4)
           show_help ("Invalid update command.");
 
       command.ready.account = command_update;
       command.common.account = argv[2];
-      command.update.set = new_params ();
       command.update.unset = g_ptr_array_new ();
+
+      g_variant_dict_init (&dict, NULL);
 
       for (i = 3; i < argc; i++)
         {
-          status = set_param (command.update.set, command.update.unset,
-              argv[i]);
+          status = set_param (&dict, command.update.unset, argv[i]);
           if (!status)
             {
               g_warning ("%s: bad parameter: %s", argv[1], argv[i]);
               exit (1);
             }
         }
+
+      command.update.set = g_variant_dict_end (&dict);
 
       g_ptr_array_add (command.update.unset, NULL);
     }
