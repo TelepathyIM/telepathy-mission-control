@@ -165,7 +165,7 @@ AC_DEFINE([TP_VERSION_MAX_ALLOWED], [TP_VERSION_1_0],
 AC_DEFINE([TP_SEAL_ENABLE], [], [Define to hide deprecated struct fields])
 
 PKG_CHECK_MODULES([GLIB],
-	[glib-2.0 >= 2.36, gobject-2.0, gmodule-no-export-2.0, gio-2.0])
+	[glib-2.0 >= 2.39.90, gobject-2.0, gmodule-no-export-2.0, gio-2.0])
 
 PKG_CHECK_MODULES([GIO_UNIX], [gio-unix-2.0],
   [
@@ -176,7 +176,7 @@ PKG_CHECK_MODULES([GIO_UNIX], [gio-unix-2.0],
   [])
 
 AC_DEFINE([GLIB_VERSION_MIN_REQUIRED], [GLIB_VERSION_2_30], [Ignore post 2.30 deprecations])
-AC_DEFINE([GLIB_VERSION_MAX_ALLOWED], [GLIB_VERSION_2_36], [Prevent post 2.36 APIs])
+AC_DEFINE([GLIB_VERSION_MAX_ALLOWED], [GLIB_VERSION_2_40], [Prevent post 2.40 APIs])
 
 # -----------------------------------------------------------
 # Connectivity integration
