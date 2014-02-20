@@ -1468,18 +1468,28 @@ _mcd_connection_release_tp_connection (McdConnection *connection,
     }
     else
     {
-        const gchar *dbus_error = NULL;
-        const GHashTable *details = NULL;
+        gchar *dbus_error = NULL;
+        GHashTable *details_asv = NULL;
 
         if (priv->tp_conn != NULL)
         {
-            dbus_error = tp_connection_get_detailed_error (priv->tp_conn,
+            GVariant *details;
+
+            dbus_error = tp_connection_dup_detailed_error (priv->tp_conn,
                 &details);
+
+            details_asv = tp_asv_from_vardict (details);
+            g_variant_unref (details);
         }
 
         g_signal_emit (connection, signals[CONNECTION_STATUS_CHANGED], 0,
                        TP_CONNECTION_STATUS_DISCONNECTED,
-                       priv->abort_reason, priv->tp_conn, dbus_error, details);
+                       priv->abort_reason, priv->tp_conn, dbus_error,
+                       details_asv);
+
+        g_free (dbus_error);
+        if (details_asv != NULL)
+            g_hash_table_unref (details_asv);
     }
 
     if (priv->tp_conn)

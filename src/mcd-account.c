@@ -5014,8 +5014,9 @@ mcd_account_connection_ready_cb (McdAccount *account,
     TpConnection *tp_connection;
     TpConnectionStatus status;
     TpConnectionStatusReason reason;
-    const gchar *dbus_error = NULL;
-    const GHashTable *details = NULL;
+    gchar *dbus_error = NULL;
+    GVariant *details = NULL;
+    GHashTable *details_asv;
 
     g_return_if_fail (MCD_IS_ACCOUNT (account));
     g_return_if_fail (connection == priv->connection);
@@ -5028,9 +5029,19 @@ mcd_account_connection_ready_cb (McdAccount *account,
                                     TP_CONNECTION_FEATURE_CONNECTED));
 
     status = tp_connection_get_status (tp_connection, &reason);
-    dbus_error = tp_connection_get_detailed_error (tp_connection, &details);
+    dbus_error = tp_connection_dup_detailed_error (tp_connection, &details);
+
+    if (details != NULL)
+        details_asv = tp_asv_from_vardict (details);
+    else
+        details_asv = tp_asv_new (NULL, NULL);
+
     _mcd_account_set_connection_status (account, status, reason,
-                                        tp_connection, dbus_error, details);
+                                        tp_connection, dbus_error, details_asv);
+    g_free (dbus_error);
+    if (details != NULL)
+        g_variant_unref (details);
+    g_hash_table_unref (details_asv);
 
     tp_g_signal_connect_object (tp_connection, "notify::self-contact",
         G_CALLBACK (mcd_account_self_contact_changed_cb), account,
