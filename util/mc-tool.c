@@ -968,7 +968,8 @@ command_get (TpAccount *account)
           if (parameters == NULL)
             parameters = tp_account_dup_parameters(account);
 
-          if (!g_variant_lookup (parameters, getter->name, "v", &gvariant))
+          gvariant = g_variant_lookup_value (parameters, getter->name, NULL);
+          if (gvariant == NULL)
             {
               command.common.ret = 1;
               fprintf (stderr, "%s %s: param=%s: %s\n",
@@ -980,6 +981,7 @@ command_get (TpAccount *account)
           value = g_variant_print (gvariant, TRUE);
           puts(value);
           g_free(value);
+          g_variant_unref (gvariant);
         }
     }
 
