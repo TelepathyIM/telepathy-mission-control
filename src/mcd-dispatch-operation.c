@@ -521,7 +521,7 @@ _mcd_dispatch_operation_check_client_locks (McdDispatchOperation *self)
     {
         /* this needs to be copied because we don't use it til after we've
          * freed approval->context */
-        gchar *caller = g_strdup (dbus_g_method_get_sender (
+        gchar *caller = g_strdup (g_dbus_method_invocation_get_sender (
             approval->context));
 
         /* remove this approval from the list, so it won't be treated as a
@@ -852,7 +852,7 @@ _mcd_dispatch_operation_finish (McdDispatchOperation *operation,
                 /* someone else got it - either another Claim() or a handler */
                 g_assert (approval->context != NULL);
                 DEBUG ("denying Claim call from %s",
-                       dbus_g_method_get_sender (approval->context));
+                       g_dbus_method_invocation_get_sender (approval->context));
                 g_dbus_method_invocation_return_gerror (approval->context, priv->result);
                 approval->context = NULL;
                 break;
@@ -1004,7 +1004,7 @@ dispatch_operation_claim (TpSvcChannelDispatchOperation *cdo,
 {
     McdDispatchOperation *self = MCD_DISPATCH_OPERATION (cdo);
     ClaimAttempt *claim_attempt;
-    gchar *sender = dbus_g_method_get_sender (context);
+    const gchar *sender = g_dbus_method_invocation_get_sender (context);
     McpDispatchOperation *plugin_api = MCP_DISPATCH_OPERATION (
         self->priv->plugin_api);
     const GList *p;
@@ -1014,7 +1014,7 @@ dispatch_operation_claim (TpSvcChannelDispatchOperation *cdo,
 
         DEBUG ("Giving error to %s: %s", sender, self->priv->result->message);
         g_dbus_method_invocation_return_gerror (context, self->priv->result);
-        goto finally;
+        return;
     }
 
     claim_attempt = g_slice_new0 (ClaimAttempt);
@@ -1041,9 +1041,6 @@ dispatch_operation_claim (TpSvcChannelDispatchOperation *cdo,
 
     if (claim_attempt->handler_suitable_pending == 0)
         claim_attempt_resolve (claim_attempt);
-
-finally:
-    g_free (sender);
 }
 
 static void

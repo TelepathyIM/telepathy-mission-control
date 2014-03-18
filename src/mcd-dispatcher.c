@@ -1947,7 +1947,7 @@ dispatcher_delegate_channels (
 
     ctx = delegate_channels_ctx_new (self, user_action_time, context);
 
-    sender = dbus_g_method_get_sender (context);
+    sender = g_dbus_method_invocation_get_sender (context);
 
     g_object_get (self->priv->master, "account-manager", &am, NULL);
     g_assert (am != NULL);
