@@ -55,6 +55,8 @@ struct _McdClientRegistryPrivate
   GHashTable *clients;
 
   TpDBusDaemon *dbus_daemon;
+  /* subscription to NameOwnerChanged */
+  guint noc_id;
 
   /* We don't want to start dispatching until startup has finished. This
    * is defined as:
@@ -301,79 +303,45 @@ mcd_client_registry_list_names_cb (TpDBusDaemon *proxy,
    * ReloadConfig), so simplify by doing nothing */
 }
 
-static DBusHandlerResult
-mcd_client_registry_name_owner_filter (DBusConnection *conn,
-    DBusMessage *msg,
-    gpointer data)
+static void
+mcd_client_registry_name_owner_changed_cb (GDBusConnection *conn,
+    const gchar *sender_name,
+    const gchar *object_path,
+    const gchar *interface_name,
+    const gchar *signal_name,
+    GVariant *parameters,
+    gpointer user_data)
 {
-  McdClientRegistry *self = MCD_CLIENT_REGISTRY (data);
+  McdClientRegistry *self = MCD_CLIENT_REGISTRY (user_data);
 
-  /* make sure this is the right kind of signal: */
-  if (dbus_message_is_signal (msg, DBUS_INTERFACE_DBUS, "NameOwnerChanged"))
+  if (g_variant_is_of_type (parameters, G_VARIANT_TYPE ("(sss)")))
     {
       const gchar *dbus_name = NULL;
       const gchar *old_owner = NULL;
       const gchar *new_owner = NULL;
-      gboolean ok = dbus_message_get_args (msg, NULL,
-          DBUS_TYPE_STRING, &dbus_name,
-          DBUS_TYPE_STRING, &old_owner,
-          DBUS_TYPE_STRING, &new_owner,
-          DBUS_TYPE_INVALID);
 
-      /* could not unpack args -> invalid -> stop processing right here */
-      if (!ok)
-        return DBUS_HANDLER_RESULT_NOT_YET_HANDLED;
+      g_variant_get (parameters, "(&s&s&s)", &dbus_name, &old_owner,
+          &new_owner);
 
       if (tp_str_empty (old_owner) && !tp_str_empty (new_owner))
         _mcd_client_registry_found_name (self, dbus_name, new_owner, FALSE);
     }
-
-  /* in case somebody else is also interested */
-  return DBUS_HANDLER_RESULT_NOT_YET_HANDLED;
 }
 
 static void
 watch_clients (McdClientRegistry *self)
 {
   TpDBusDaemon *dbus_daemon = self->priv->dbus_daemon;
-  DBusGConnection *gconn = tp_proxy_get_dbus_connection (dbus_daemon);
-  DBusConnection *dconn = dbus_g_connection_get_connection (gconn);
-  DBusError error = { 0 };
+  GDBusConnection *gconn = tp_proxy_get_dbus_connection (dbus_daemon);
 
-#define MATCH_ITEM(t,x) #t "='" x "'"
-
-#define NAME_OWNER_RULE \
-    MATCH_ITEM (type,      "signal")            "," \
-    MATCH_ITEM (sender,    DBUS_SERVICE_DBUS)   "," \
-    MATCH_ITEM (interface, DBUS_INTERFACE_DBUS) "," \
-    MATCH_ITEM (member,    "NameOwnerChanged")
-
-#define CLIENT_MATCH_RULE \
-    NAME_OWNER_RULE "," \
-    MATCH_ITEM (arg0namespace, "im.telepathy.v1.Client")
-
-  if (!dbus_connection_add_filter (dconn, mcd_client_registry_name_owner_filter,
-        self, NULL))
-    g_critical ("Could not add filter for NameOwnerChanged (out of memory?)");
-
-  dbus_error_init (&error);
-
-  dbus_bus_add_match (dconn, CLIENT_MATCH_RULE, &error);
-  if (dbus_error_is_set (&error))
-    {
-      DEBUG ("Could not add client names match rule (D-Bus 1.6 required): %s",
-          error.message);
-
-      dbus_error_free (&error);
-
-      dbus_bus_add_match (dconn, NAME_OWNER_RULE, &error);
-      if (dbus_error_is_set (&error))
-        {
-          g_critical ("Could not add all dbus names match rule: %s",
-              error.message);
-          dbus_error_free (&error);
-        }
-    }
+  /* for simplicity we now hard-depend on D-Bus 1.6, which is in Debian 7,
+   * Ubuntu LTS, etc. */
+  self->priv->noc_id = g_dbus_connection_signal_subscribe (gconn,
+      DBUS_SERVICE_DBUS, DBUS_INTERFACE_DBUS, "NameOwnerChanged",
+      NULL, "im.telepathy.v1.Client",
+      G_DBUS_SIGNAL_FLAGS_MATCH_ARG0_NAMESPACE,
+      mcd_client_registry_name_owner_changed_cb,
+      self, NULL);
 }
 
 static void
@@ -444,15 +412,12 @@ mcd_client_registry_dispose (GObject *object)
   void (*chain_up) (GObject *) =
     G_OBJECT_CLASS (_mcd_client_registry_parent_class)->dispose;
 
-  if (self->priv->dbus_daemon != NULL)
+  if (self->priv->dbus_daemon != NULL && self->priv->noc_id != 0)
     {
-      DBusGConnection *gconn =
+      GDBusConnection *gconn =
         tp_proxy_get_dbus_connection (self->priv->dbus_daemon);
-      DBusConnection *dconn = dbus_g_connection_get_connection (gconn);
 
-      dbus_connection_remove_filter (dconn,
-          mcd_client_registry_name_owner_filter,
-          self);
+      g_dbus_connection_signal_unsubscribe (gconn, self->priv->noc_id);
     }
 
   tp_clear_object (&self->priv->dbus_daemon);
