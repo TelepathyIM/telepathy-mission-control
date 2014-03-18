@@ -76,7 +76,9 @@ class MC(dbus.proxies.ProxyObject):
         dbus.proxies.ProxyObject.__init__(self,
             conn=bus,
             bus_name=cs.MC,
-            object_path=cs.MC_PATH,
+            # We need to use an object path that actually exists because
+            # otherwise sync_dbus won't work correctly.
+            object_path=cs.AM_PATH,
             follow_name_owner_changes=True)
 
         self.connectivity = FakeConnectivity(queue, bus, initially_online)
