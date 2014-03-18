@@ -1599,7 +1599,7 @@ _mcd_account_manager_constructed (GObject *obj)
 
     priv->minotaur = mcd_connectivity_monitor_new ();
 
-    priv->storage = mcd_storage_new (priv->dbus_daemon);
+    priv->storage = mcd_storage_new (priv->client_factory);
     priv->accounts = g_hash_table_new_full (g_str_hash, g_str_equal,
                                             NULL, unref_account);
 

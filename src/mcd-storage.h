@@ -29,7 +29,7 @@ G_BEGIN_DECLS
 
 typedef struct {
   GObject parent;
-  TpDBusDaemon *dbusd;
+  TpClientFactory *factory;
   /* owned string => owned McdStorageAccount */
   GHashTable *accounts;
 } McdStorage;
@@ -56,7 +56,7 @@ typedef struct _McdStoragePrivate McdStoragePrivate;
 
 GType mcd_storage_get_type (void);
 
-McdStorage *mcd_storage_new (TpDBusDaemon *dbus_daemon);
+McdStorage *mcd_storage_new (TpClientFactory *factory);
 void mcd_storage_ready (McdStorage *self);
 void mcd_storage_connect_signal (const gchar *signal,
     GCallback func,

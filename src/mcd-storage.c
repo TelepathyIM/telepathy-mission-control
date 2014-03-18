@@ -47,7 +47,7 @@ static GList *stores = NULL;
 static void sort_and_cache_plugins (void);
 
 enum {
-  PROP_DBUS_DAEMON = 1,
+  PROP_CLIENT_FACTORY = 1,
 };
 
 struct _McdStorageClass {
@@ -117,7 +117,7 @@ storage_dispose (GObject *object)
   GObjectFinalizeFunc dispose =
     G_OBJECT_CLASS (mcd_storage_parent_class)->dispose;
 
-  tp_clear_object (&self->dbusd);
+  tp_clear_object (&self->factory);
 
   if (dispose != NULL)
     dispose (object);
@@ -131,9 +131,9 @@ storage_set_property (GObject *obj, guint prop_id,
 
     switch (prop_id)
     {
-      case PROP_DBUS_DAEMON:
-        tp_clear_object (&self->dbusd);
-        self->dbusd = TP_DBUS_DAEMON (g_value_dup_object (val));
+      case PROP_CLIENT_FACTORY:
+        g_assert (self->factory == NULL); /* construct only */
+        self->factory = g_value_dup_object (val);
         break;
 
       default:
@@ -150,8 +150,8 @@ storage_get_property (GObject *obj, guint prop_id,
 
     switch (prop_id)
     {
-      case PROP_DBUS_DAEMON:
-        g_value_set_object (val, self->dbusd);
+      case PROP_CLIENT_FACTORY:
+        g_value_set_object (val, self->factory);
         break;
       default:
         G_OBJECT_WARN_INVALID_PROPERTY_ID (obj, prop_id, pspec);
@@ -163,25 +163,25 @@ static void
 mcd_storage_class_init (McdStorageClass *cls)
 {
   GObjectClass *object_class = (GObjectClass *) cls;
-  GParamSpec *spec = g_param_spec_object ("dbus-daemon",
-      "DBus daemon",
-      "DBus daemon",
-      TP_TYPE_DBUS_DAEMON,
-      G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS);
+  GParamSpec *spec = g_param_spec_object ("client-factory",
+      "client-factory",
+      "TpClientFactory",
+      TP_TYPE_CLIENT_FACTORY,
+      G_PARAM_READWRITE | G_PARAM_CONSTRUCT_ONLY | G_PARAM_STATIC_STRINGS);
 
   object_class->set_property = storage_set_property;
   object_class->get_property = storage_get_property;
   object_class->dispose = storage_dispose;
   object_class->finalize = storage_finalize;
 
-  g_object_class_install_property (object_class, PROP_DBUS_DAEMON, spec);
+  g_object_class_install_property (object_class, PROP_CLIENT_FACTORY, spec);
 }
 
 McdStorage *
-mcd_storage_new (TpDBusDaemon *dbus_daemon)
+mcd_storage_new (TpClientFactory *factory)
 {
   return g_object_new (MCD_TYPE_STORAGE,
-      "dbus-daemon", dbus_daemon,
+      "client-factory", factory,
       NULL);
 }
 
@@ -570,7 +570,8 @@ unique_name (const McpAccountManager *ma,
   gchar *esc_manager, *esc_protocol, *esc_base;
   guint i;
   gsize base_len = strlen (TP_ACCOUNT_OBJECT_PATH_BASE);
-  DBusGConnection *connection = tp_proxy_get_dbus_connection (self->dbusd);
+  TpDBusDaemon *dbus = tp_client_factory_get_dbus_daemon (self->factory);
+  DBusGConnection *connection = tp_proxy_get_dbus_connection (dbus);
 
   esc_manager = tp_escape_as_identifier (manager);
   esc_protocol = g_strdelimit (g_strdup (protocol), "-", '_');
@@ -654,8 +655,8 @@ identify_account_async (McpAccountManager *mcpa,
 
   g_task_set_task_data (task, g_strdup (base), g_free);
 
-  protocol = tp_protocol_new (self->dbusd, manager, protocol_name,
-      NULL, &error);
+  protocol = tp_client_factory_ensure_protocol (self->factory, manager,
+      protocol_name, NULL, &error);
 
   if (protocol == NULL)
     {
