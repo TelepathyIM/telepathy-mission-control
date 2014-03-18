@@ -1498,6 +1498,10 @@ register_dbus_service (McdAccountManager *account_manager)
     if (priv->dbus_registered)
         return;
 
+    tp_dbus_daemon_register_object (priv->dbus_daemon,
+                                    TP_ACCOUNT_MANAGER_OBJECT_PATH,
+                                    account_manager);
+
     if (!tp_dbus_daemon_request_name (priv->dbus_daemon,
                                       TP_ACCOUNT_MANAGER_BUS_NAME,
                                       TRUE /* idempotent */, &error))
@@ -1511,10 +1515,6 @@ register_dbus_service (McdAccountManager *account_manager)
     }
 
     priv->dbus_registered = TRUE;
-
-    tp_dbus_daemon_register_object (priv->dbus_daemon,
-                                    TP_ACCOUNT_MANAGER_OBJECT_PATH,
-                                    account_manager);
 }
 
 static void

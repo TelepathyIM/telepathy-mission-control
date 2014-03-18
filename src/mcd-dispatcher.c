@@ -780,7 +780,6 @@ mcd_dispatcher_update_client_caps (McdDispatcher *self,
 static void
 mcd_dispatcher_constructed (GObject *object)
 {
-    DBusGConnection *dgc;
     McdDispatcherPrivate *priv = MCD_DISPATCHER_PRIV (object);
     GError *error = NULL;
 
@@ -793,7 +792,8 @@ mcd_dispatcher_constructed (GObject *object)
                       G_CALLBACK (mcd_dispatcher_client_registry_ready_cb),
                       object);
 
-    dgc = tp_proxy_get_dbus_connection (TP_PROXY (priv->dbus_daemon));
+    tp_dbus_daemon_register_object (priv->dbus_daemon,
+        TP_CHANNEL_DISPATCHER_OBJECT_PATH, object);
 
     if (!tp_dbus_daemon_request_name (priv->dbus_daemon,
                                       TP_CHANNEL_DISPATCHER_BUS_NAME,
@@ -806,10 +806,6 @@ mcd_dispatcher_constructed (GObject *object)
         g_error_free (error);
         exit (1);
     }
-
-    dbus_g_connection_register_g_object (dgc,
-                                         TP_CHANNEL_DISPATCHER_OBJECT_PATH,
-                                         object);
 }
 
 static void

@@ -2733,7 +2733,6 @@ register_dbus_service (McdAccount *self,
                        const GError *error,
                        gpointer unused G_GNUC_UNUSED)
 {
-    DBusGConnection *dbus_connection;
     TpDBusDaemon *dbus_daemon;
 
     if (error != NULL)
@@ -2756,12 +2755,8 @@ register_dbus_service (McdAccount *self,
     dbus_daemon = self->priv->dbus_daemon;
     g_return_if_fail (dbus_daemon != NULL);
 
-    dbus_connection = tp_proxy_get_dbus_connection (TP_PROXY (dbus_daemon));
-
-    if (G_LIKELY (dbus_connection))
-	dbus_g_connection_register_g_object (dbus_connection,
-					     self->priv->object_path,
-					     (GObject *) self);
+    tp_dbus_daemon_register_object (dbus_daemon, self->priv->object_path,
+        self);
 }
 
 /*
