@@ -1288,7 +1288,7 @@ dispatcher_request_channel (McdDispatcher *self,
     goto finally;
 
 despair:
-    dbus_g_method_return_error (context, error);
+    g_dbus_method_invocation_return_gerror (context, error);
     g_error_free (error);
 
 finally:
@@ -1443,7 +1443,7 @@ message_context_return_error (MessageContext *context, const GError *error)
     if (context->dbus_context == NULL)
         return;
 
-    dbus_g_method_return_error (context->dbus_context, error);
+    g_dbus_method_invocation_return_gerror (context->dbus_context, error);
     context->dbus_context = NULL;
 }
 
@@ -1469,7 +1469,7 @@ message_context_free (gpointer ctx)
 
         error = g_error_new_literal (TP_ERROR, TP_ERROR_TERMINATED,
                                      "Channel request failed");
-        dbus_g_method_return_error (context->dbus_context, error);
+        g_dbus_method_invocation_return_gerror (context->dbus_context, error);
         g_error_free (error);
     }
 
@@ -2016,7 +2016,7 @@ dispatcher_delegate_channels (
     return;
 
 error:
-    dbus_g_method_return_error (context, error);
+    g_dbus_method_invocation_return_gerror (context, error);
     g_error_free (error);
 
     tp_clear_pointer (&ctx, delegate_channels_ctx_free);
@@ -2040,7 +2040,7 @@ present_handle_channel_cb (TpClient *client,
 
     if (error != NULL)
       {
-        dbus_g_method_return_error (context, error);
+        g_dbus_method_invocation_return_gerror (context, error);
         return;
       }
 
@@ -2107,7 +2107,7 @@ dispatcher_present_channel (
     return;
 
 error:
-    dbus_g_method_return_error (context, error);
+    g_dbus_method_invocation_return_gerror (context, error);
     g_error_free (error);
 }
 

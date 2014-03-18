@@ -691,7 +691,7 @@ _mcd_request_proceed (McdRequest *self,
           "Proceed has already been called; stop calling it" };
 
       if (context != NULL)
-        dbus_g_method_return_error (context, &na);
+        g_dbus_method_invocation_return_gerror (context, &na);
 
       return;
     }
@@ -923,7 +923,7 @@ channel_request_cancel (TpSvcChannelRequest *iface,
     }
   else
     {
-      dbus_g_method_return_error (context, error);
+      g_dbus_method_invocation_return_gerror (context, error);
       g_error_free (error);
     }
 }

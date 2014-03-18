@@ -853,7 +853,7 @@ _mcd_dispatch_operation_finish (McdDispatchOperation *operation,
                 g_assert (approval->context != NULL);
                 DEBUG ("denying Claim call from %s",
                        dbus_g_method_get_sender (approval->context));
-                dbus_g_method_return_error (approval->context, priv->result);
+                g_dbus_method_invocation_return_gerror (approval->context, priv->result);
                 approval->context = NULL;
                 break;
 
@@ -881,7 +881,7 @@ _mcd_dispatch_operation_finish (McdDispatchOperation *operation,
                         DEBUG ("HandleWith -> NotYours: wanted %s but "
                                "%s got it instead", approval->client_bus_name,
                                successful_handler);
-                        dbus_g_method_return_error (approval->context,
+                        g_dbus_method_invocation_return_gerror (approval->context,
                                                     priv->result);
                         approval->context = NULL;
                     }
@@ -895,7 +895,7 @@ _mcd_dispatch_operation_finish (McdDispatchOperation *operation,
                     DEBUG ("HandleWith -> error: %s %d: %s",
                            g_quark_to_string (priv->result->domain),
                            priv->result->code, priv->result->message);
-                    dbus_g_method_return_error (approval->context, priv->result);
+                    g_dbus_method_invocation_return_gerror (approval->context, priv->result);
                     approval->context = NULL;
                 }
 
@@ -941,7 +941,7 @@ dispatch_operation_handle_with (TpSvcChannelDispatchOperation *cdo,
 
     if (!mcd_dispatch_operation_check_handle_with (self, handler_name, &error))
     {
-        dbus_g_method_return_error (context, error);
+        g_dbus_method_invocation_return_gerror (context, error);
         g_error_free (error);
         return;
     }
@@ -985,7 +985,7 @@ claim_attempt_suitability_cb (GObject *source,
             MCP_DISPATCH_OPERATION_POLICY (source), res, &error))
     {
         if (claim_attempt->context != NULL)
-            dbus_g_method_return_error (claim_attempt->context, error);
+            g_dbus_method_invocation_return_gerror (claim_attempt->context, error);
 
         claim_attempt->context = NULL;
         g_error_free (error);
@@ -1013,7 +1013,7 @@ dispatch_operation_claim (TpSvcChannelDispatchOperation *cdo,
     {
 
         DEBUG ("Giving error to %s: %s", sender, self->priv->result->message);
-        dbus_g_method_return_error (context, self->priv->result);
+        g_dbus_method_invocation_return_gerror (context, self->priv->result);
         goto finally;
     }
 
@@ -1724,7 +1724,7 @@ _mcd_dispatch_operation_set_handler_failed (McdDispatchOperation *self,
         if (approval->type == APPROVAL_TYPE_HANDLE_WITH &&
             !tp_strdiff (approval->client_bus_name, bus_name))
         {
-            dbus_g_method_return_error (approval->context, (GError *) error);
+            g_dbus_method_invocation_return_gerror (approval->context, (GError *) error);
             approval->context = NULL;
             approval_free (approval);
             g_queue_delete_link (self->priv->approvals, iter);
@@ -2337,7 +2337,7 @@ _mcd_dispatch_operation_try_next_handler (McdDispatchOperation *self)
 
             g_queue_pop_head (self->priv->approvals);
 
-            dbus_g_method_return_error (approval->context, &gone);
+            g_dbus_method_invocation_return_gerror (approval->context, &gone);
 
             approval->context = NULL;
             approval_free (approval);

@@ -198,7 +198,7 @@ dbusprop_set (TpSvcDBusProperties *self,
 			       value, &error);
     if (error)
     {
-	dbus_g_method_return_error (context, error);
+	g_dbus_method_invocation_return_gerror (context, error);
 	g_error_free (error);
 	return;
     }
@@ -247,7 +247,7 @@ dbusprop_get (TpSvcDBusProperties *self,
 
     if (error)
     {
-        dbus_g_method_return_error (context, error);
+        g_dbus_method_invocation_return_gerror (context, error);
         g_error_free (error);
         return;
     }
@@ -322,7 +322,7 @@ dbusprop_get_all (TpSvcDBusProperties *self,
     {
         g_set_error (&error, TP_ERROR, TP_ERROR_INVALID_ARGUMENT,
                      "invalid interface: %s", interface_name);
-        dbus_g_method_return_error (context, error);
+        g_dbus_method_invocation_return_gerror (context, error);
         g_error_free (error);
         return;
     }

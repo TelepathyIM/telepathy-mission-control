@@ -946,7 +946,7 @@ create_account_cb (McdAccountManager *account_manager, McdAccount *account,
 
     if (G_UNLIKELY (error))
     {
-        dbus_g_method_return_error (context, (GError *)error);
+        g_dbus_method_invocation_return_gerror (context, (GError *)error);
 	return;
     }
 

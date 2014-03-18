@@ -2155,7 +2155,7 @@ account_remove_delete_cb (GObject *source,
 
     if (!mcd_account_delete_finish (MCD_ACCOUNT (source), res, &error))
     {
-        dbus_g_method_return_error (data->context, (GError *) error);
+        g_dbus_method_invocation_return_gerror (data->context, (GError *) error);
         g_error_free (error);
         return;
     }
@@ -2635,7 +2635,7 @@ account_update_parameters_cb (McdAccount *account, GPtrArray *not_yet,
 
     if (error != NULL)
     {
-        dbus_g_method_return_error (context, (GError *) error);
+        g_dbus_method_invocation_return_gerror (context, (GError *) error);
         return;
     }
 
