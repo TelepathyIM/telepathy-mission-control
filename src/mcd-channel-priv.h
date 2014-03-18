@@ -58,7 +58,7 @@ G_GNUC_INTERNAL
 gboolean _mcd_channel_get_request_use_existing (McdChannel *channel);
 
 G_GNUC_INTERNAL void _mcd_channel_request_proceed (McdChannel *self,
-    DBusGMethodInvocation *context);
+    GDBusMethodInvocation *context);
 
 G_GNUC_INTERNAL
 void _mcd_channel_copy_details (McdChannel *channel, McdChannel *source);

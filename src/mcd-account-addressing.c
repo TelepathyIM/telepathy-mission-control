@@ -35,7 +35,7 @@ static void
 addressing_set_uri_scheme_association (TpSvcAccountInterfaceAddressing1 *iface,
     const gchar *uri_scheme,
     gboolean association,
-    DBusGMethodInvocation *context)
+    GDBusMethodInvocation *context)
 {
   McdAccount *self = MCD_ACCOUNT (iface);
   const gchar *account = mcd_account_get_unique_name (self);

@@ -2142,7 +2142,7 @@ mc_param_type (const TpConnectionManagerParam *param,
 typedef struct
 {
     McdAccount *self;
-    DBusGMethodInvocation *context;
+    GDBusMethodInvocation *context;
 } RemoveMethodData;
 
 static void
@@ -2168,7 +2168,7 @@ account_remove_delete_cb (GObject *source,
 }
 
 static void
-account_remove (TpSvcAccount *svc, DBusGMethodInvocation *context)
+account_remove (TpSvcAccount *svc, GDBusMethodInvocation *context)
 {
     McdAccount *self = MCD_ACCOUNT (svc);
     RemoveMethodData *data;
@@ -2628,7 +2628,7 @@ account_update_parameters_cb (McdAccount *account, GPtrArray *not_yet,
                               const GError *error, gpointer user_data)
 {
     McdAccountPrivate *priv = account->priv;
-    DBusGMethodInvocation *context = (DBusGMethodInvocation *) user_data;
+    GDBusMethodInvocation *context = (GDBusMethodInvocation *) user_data;
     const gchar *account_name = mcd_account_get_unique_name (account);
     GHashTable *params;
     GValue value = G_VALUE_INIT;
@@ -2659,7 +2659,7 @@ account_update_parameters_cb (McdAccount *account, GPtrArray *not_yet,
 
 static void
 account_update_parameters (TpSvcAccount *self, GHashTable *set,
-			   const gchar **unset, DBusGMethodInvocation *context)
+			   const gchar **unset, GDBusMethodInvocation *context)
 {
     McdAccount *account = MCD_ACCOUNT (self);
     McdAccountPrivate *priv = account->priv;
@@ -2704,7 +2704,7 @@ _mcd_account_reconnect (McdAccount *self,
 
 static void
 account_reconnect (TpSvcAccount *service,
-                   DBusGMethodInvocation *context)
+                   GDBusMethodInvocation *context)
 {
     McdAccount *self = MCD_ACCOUNT (service);
 

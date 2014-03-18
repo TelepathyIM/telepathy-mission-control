@@ -131,16 +131,16 @@ void dbusprop_set (TpSvcDBusProperties *self,
 		   const gchar *interface_name,
 		   const gchar *property_name,
 		   const GValue *value,
-		   DBusGMethodInvocation *context);
+		   GDBusMethodInvocation *context);
 
 void dbusprop_get (TpSvcDBusProperties *self,
 		   const gchar *interface_name,
 		   const gchar *property_name,
-		   DBusGMethodInvocation *context);
+		   GDBusMethodInvocation *context);
 
 void dbusprop_get_all (TpSvcDBusProperties *self,
 		       const gchar *interface_name,
-		       DBusGMethodInvocation *context);
+		       GDBusMethodInvocation *context);
 
 void mcd_dbus_get_interfaces (TpSvcDBusProperties *self,
 			      const gchar *name,

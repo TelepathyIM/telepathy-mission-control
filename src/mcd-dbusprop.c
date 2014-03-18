@@ -190,7 +190,7 @@ dbusprop_set (TpSvcDBusProperties *self,
               const gchar *interface_name,
               const gchar *property_name,
               const GValue *value,
-              DBusGMethodInvocation *context)
+              GDBusMethodInvocation *context)
 {
     GError *error = NULL;
 
@@ -235,7 +235,7 @@ void
 dbusprop_get (TpSvcDBusProperties *self,
               const gchar *interface_name,
               const gchar *property_name,
-              DBusGMethodInvocation *context)
+              GDBusMethodInvocation *context)
 {
     GValue value = G_VALUE_INIT;
     GError *error = NULL;
@@ -259,7 +259,7 @@ dbusprop_get (TpSvcDBusProperties *self,
 typedef struct
 {
     TpSvcDBusProperties *self;
-    DBusGMethodInvocation *context;
+    GDBusMethodInvocation *context;
     GHashTable *properties;
     const McdDBusProp *property;
 } GetAllData;
@@ -309,7 +309,7 @@ typedef struct
 void
 dbusprop_get_all (TpSvcDBusProperties *self,
                   const gchar *interface_name,
-                  DBusGMethodInvocation *context)
+                  GDBusMethodInvocation *context)
 {
     const McdDBusProp *prop_array;
     GError *error = NULL;

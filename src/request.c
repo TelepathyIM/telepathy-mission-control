@@ -677,7 +677,7 @@ _queue_blocked_requests (McdRequest *self)
 
 void
 _mcd_request_proceed (McdRequest *self,
-    DBusGMethodInvocation *context)
+    GDBusMethodInvocation *context)
 {
   McdConnection *connection = NULL;
   McdPluginRequest *plugin_api = NULL;
@@ -912,7 +912,7 @@ _mcd_request_set_uncancellable (McdRequest *self)
 
 static void
 channel_request_cancel (TpSvcChannelRequest *iface,
-                        DBusGMethodInvocation *context)
+                        GDBusMethodInvocation *context)
 {
   McdRequest *self = MCD_REQUEST (iface);
   GError *error = NULL;
@@ -930,7 +930,7 @@ channel_request_cancel (TpSvcChannelRequest *iface,
 
 static void
 channel_request_proceed (TpSvcChannelRequest *iface,
-    DBusGMethodInvocation *context)
+    GDBusMethodInvocation *context)
 {
   McdRequest *self = MCD_REQUEST (iface);
 

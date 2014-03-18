@@ -75,7 +75,7 @@ G_GNUC_INTERNAL GHashTable *_mcd_request_dup_immutable_properties (
     McdRequest *self);
 
 G_GNUC_INTERNAL void _mcd_request_proceed (McdRequest *self,
-    DBusGMethodInvocation *context);
+    GDBusMethodInvocation *context);
 
 G_GNUC_INTERNAL void _mcd_request_start_delay (McdRequest *self);
 G_GNUC_INTERNAL void _mcd_request_end_delay (McdRequest *self);

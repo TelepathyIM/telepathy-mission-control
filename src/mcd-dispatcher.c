@@ -1221,7 +1221,7 @@ dispatcher_request_channel (McdDispatcher *self,
                             gint64 user_action_time,
                             const gchar *preferred_handler,
                             GHashTable *request_metadata,
-                            DBusGMethodInvocation *context,
+                            GDBusMethodInvocation *context,
                             gboolean ensure)
 {
     McdAccountManager *am;
@@ -1304,7 +1304,7 @@ dispatcher_create_channel (TpSvcChannelDispatcher *iface,
     gint64 user_action_time,
     const gchar *preferred_handler,
     GHashTable *hints,
-    DBusGMethodInvocation *context)
+    GDBusMethodInvocation *context)
 {
     dispatcher_request_channel (MCD_DISPATCHER (iface),
                                 account_path,
@@ -1323,7 +1323,7 @@ dispatcher_ensure_channel (TpSvcChannelDispatcher *iface,
     gint64 user_action_time,
     const gchar *preferred_handler,
     GHashTable *hints,
-    DBusGMethodInvocation *context)
+    GDBusMethodInvocation *context)
 {
     dispatcher_request_channel (MCD_DISPATCHER (iface),
                                 account_path,
@@ -1403,7 +1403,7 @@ typedef struct
     guint flags;
     guint tries;
     gboolean close_after;
-    DBusGMethodInvocation *dbus_context;
+    GDBusMethodInvocation *dbus_context;
 } MessageContext;
 
 static MessageContext *
@@ -1449,7 +1449,7 @@ message_context_return_error (MessageContext *context, const GError *error)
 
 static void
 message_context_set_return_context (MessageContext *context,
-                                    DBusGMethodInvocation *dbus_context)
+                                    GDBusMethodInvocation *dbus_context)
 {
     context->dbus_context = dbus_context;
 }
@@ -1486,7 +1486,7 @@ send_message_submitted (TpChannel *proxy,
                         GObject *weak)
 {
     MessageContext *message = data;
-    DBusGMethodInvocation *context = message->dbus_context;
+    GDBusMethodInvocation *context = message->dbus_context;
     McdChannel *channel = MCD_CHANNEL (weak);
     McdRequest *request = _mcd_channel_get_request (channel);
     gboolean close_after = message->close_after;
@@ -1510,7 +1510,7 @@ send_message_submitted (TpChannel *proxy,
         _mcd_channel_close (channel);
 }
 
-static void messages_send_message_start (DBusGMethodInvocation *context,
+static void messages_send_message_start (GDBusMethodInvocation *context,
                                          MessageContext *message);
 
 static void
@@ -1561,7 +1561,7 @@ send_message_got_channel (McdRequest *request,
 }
 
 static void
-messages_send_message_start (DBusGMethodInvocation *dbus_context,
+messages_send_message_start (GDBusMethodInvocation *dbus_context,
                              MessageContext *message)
 {
     McdAccountManager *am;
@@ -1659,7 +1659,7 @@ messages_send_message (TpSvcChannelDispatcherInterfaceMessages1 *iface,
                        const gchar *target_id,
                        const GPtrArray *payload,
                        guint flags,
-                       DBusGMethodInvocation *context)
+                       GDBusMethodInvocation *context)
 {
     McdDispatcher *self= MCD_DISPATCHER (iface);
     MessageContext *message =
@@ -1681,7 +1681,7 @@ typedef struct
 {
     McdDispatcher *self;
     gint64 user_action_time;
-    DBusGMethodInvocation *context;
+    GDBusMethodInvocation *context;
     /* List of owned ChannelToDelegate */
     GList *channels;
     /* array of owned channel path */
@@ -1737,7 +1737,7 @@ free_not_delegated_error (gpointer data)
 static DelegateChannelsCtx *
 delegate_channels_ctx_new (McdDispatcher *self,
     gint64 user_action_time,
-    DBusGMethodInvocation *context)
+    GDBusMethodInvocation *context)
 {
     DelegateChannelsCtx *ctx = g_slice_new0 (DelegateChannelsCtx);
 
@@ -1922,7 +1922,7 @@ dispatcher_delegate_channels (
     const GPtrArray *channels,
     gint64 user_action_time,
     const gchar *preferred_handler,
-    DBusGMethodInvocation *context)
+    GDBusMethodInvocation *context)
 {
     McdDispatcher *self = (McdDispatcher *) iface;
     GError *error = NULL;
@@ -2029,7 +2029,7 @@ present_handle_channel_cb (TpClient *client,
     gpointer user_data,
     GObject *weak_object)
 {
-    DBusGMethodInvocation *context = user_data;
+    GDBusMethodInvocation *context = user_data;
     McdChannel *mcd_channel = MCD_CHANNEL (weak_object);
 
     /* Whether presenting the channel succeeded or failed, the
@@ -2052,7 +2052,7 @@ dispatcher_present_channel (
     TpSvcChannelDispatcher *iface,
     const gchar *channel_path,
     gint64 user_action_time,
-    DBusGMethodInvocation *context)
+    GDBusMethodInvocation *context)
 {
     McdDispatcher *self = (McdDispatcher *) iface;
     McdAccountManager *am;

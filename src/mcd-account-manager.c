@@ -941,7 +941,7 @@ static void
 create_account_cb (McdAccountManager *account_manager, McdAccount *account,
                    const GError *error, gpointer user_data)
 {
-    DBusGMethodInvocation *context = user_data;
+    GDBusMethodInvocation *context = user_data;
     const gchar *object_path;
 
     if (G_UNLIKELY (error))
@@ -962,7 +962,7 @@ account_manager_create_account (TpSvcAccountManager *self,
                                 const gchar *display_name,
                                 GHashTable *parameters,
                                 GHashTable *properties,
-                                DBusGMethodInvocation *context)
+                                GDBusMethodInvocation *context)
 {
     _mcd_account_manager_create_account (MCD_ACCOUNT_MANAGER (self),
                                          manager, protocol, display_name,

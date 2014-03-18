@@ -81,12 +81,12 @@ typedef struct {
      * cases, to signify "any handler will do" */
     gchar *client_bus_name;
     /* NULL unless type is CLAIM or HANDLE_WITH */
-    DBusGMethodInvocation *context;
+    GDBusMethodInvocation *context;
 } Approval;
 
 static Approval *
 approval_new_handle_with (const gchar *client_bus_name,
-                          DBusGMethodInvocation *context)
+                          GDBusMethodInvocation *context)
 {
     Approval *approval = g_slice_new0 (Approval);
 
@@ -101,7 +101,7 @@ approval_new_handle_with (const gchar *client_bus_name,
 }
 
 static Approval *
-approval_new_claim (DBusGMethodInvocation *context)
+approval_new_claim (GDBusMethodInvocation *context)
 {
     Approval *approval = g_slice_new0 (Approval);
 
@@ -932,7 +932,7 @@ static void
 dispatch_operation_handle_with (TpSvcChannelDispatchOperation *cdo,
     const gchar *handler_name,
     gint64 user_action_timestamp,
-    DBusGMethodInvocation *context)
+    GDBusMethodInvocation *context)
 {
     GError *error = NULL;
     McdDispatchOperation *self = MCD_DISPATCH_OPERATION (cdo);
@@ -955,7 +955,7 @@ dispatch_operation_handle_with (TpSvcChannelDispatchOperation *cdo,
 
 typedef struct {
     McdDispatchOperation *self;
-    DBusGMethodInvocation *context;
+    GDBusMethodInvocation *context;
     gsize handler_suitable_pending;
 } ClaimAttempt;
 
@@ -1000,7 +1000,7 @@ claim_attempt_suitability_cb (GObject *source,
 
 static void
 dispatch_operation_claim (TpSvcChannelDispatchOperation *cdo,
-                          DBusGMethodInvocation *context)
+                          GDBusMethodInvocation *context)
 {
     McdDispatchOperation *self = MCD_DISPATCH_OPERATION (cdo);
     ClaimAttempt *claim_attempt;
