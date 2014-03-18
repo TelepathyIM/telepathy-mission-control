@@ -412,7 +412,8 @@ mcp_dispatch_operation_find_channel_by_type (McpDispatchOperation *self,
                 mcp_dispatch_operation_ref_connection (self, client_factory);
 
               *ret_ref_channel = tp_client_factory_ensure_channel (
-                  client_factory, connection, channel_path, properties, NULL);
+                  client_factory, connection, channel_path,
+                  tp_asv_to_vardict (properties), NULL);
 
               g_object_unref (connection);
             }
@@ -496,7 +497,7 @@ mcp_dispatch_operation_ref_nth_channel (McpDispatchOperation *self,
     goto finally;
 
   channel = tp_client_factory_ensure_channel (client_factory,
-      connection, channel_path, channel_properties, NULL);
+      connection, channel_path, tp_asv_to_vardict (channel_properties), NULL);
 
 finally:
   tp_clear_object (&connection);

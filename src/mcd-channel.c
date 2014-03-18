@@ -603,7 +603,7 @@ mcd_channel_new_from_properties (TpConnection *connection,
 
     tp_chan = tp_client_factory_ensure_channel (
         tp_proxy_get_factory (connection), connection, object_path,
-        properties, &error);
+        tp_asv_to_vardict (properties), &error);
 
     if (G_UNLIKELY (error))
     {
@@ -690,7 +690,7 @@ _mcd_channel_create_proxy (McdChannel *channel, TpConnection *connection,
 
     tp_chan = tp_client_factory_ensure_channel (
         tp_proxy_get_factory (connection), connection, object_path,
-        properties, &error);
+        tp_asv_to_vardict (properties), &error);
 
     if (G_UNLIKELY (error))
     {
