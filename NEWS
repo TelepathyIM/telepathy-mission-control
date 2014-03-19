@@ -1,15 +1,8 @@
-telepathy-mission-control 5.99.7 (UNRELEASED)
+telepathy-mission-control 5.99.8 (2014-03-19)
 =============================================
 
-…
-
-telepathy-mission-control 5.99.6 (2014-01-13)
-=============================================
-
-• Telepathy 1.0 branch
-
-telepathy-mission-control 5.17.0 (UNRELEASED)
-=============================================
+• Telepathy 1.0 branch; changes below are a summary of changes since 5.16,
+  and might not be complete.
 
 Running this version of Mission Control for the first time will automatically
 migrate some account data to a new format. If you subsequently downgrade
