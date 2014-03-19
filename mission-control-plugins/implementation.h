@@ -77,57 +77,17 @@ struct _McpDispatchOperationIface {
 struct _McpAccountManagerIface {
   GTypeInterface parent;
 
-  void (*set_value) (const McpAccountManager *ma,
-      const gchar *acct,
-      const gchar *key,
-      const gchar *value);
-
-  gchar * (*get_value) (const McpAccountManager *ma,
-      const gchar *acct,
-      const gchar *key);
-
-  gboolean (*is_secret) (const McpAccountManager *ma,
-      const gchar *acct,
-      const gchar *key);
-
-  void (* make_secret) (const McpAccountManager *ma,
-      const gchar *acct,
-      const gchar *key);
-
   gchar * (* unique_name) (const McpAccountManager *ma,
       const gchar *manager,
       const gchar *protocol,
       const gchar *identification);
 
-  GStrv (* list_keys) (const McpAccountManager *ma,
-      const gchar *acct);
-
-  gchar * (* escape_value_for_keyfile) (const McpAccountManager *mcpa,
-      const GValue *value);
-
-  gboolean (* unescape_value_from_keyfile) (const McpAccountManager *mcpa,
-      const gchar *escaped,
-      GValue *value,
-      GError **error);
-
-  gboolean (* init_value_for_attribute) (const McpAccountManager *mcpa,
-      GValue *value,
-      const gchar *attribute);
-
   gchar * (* escape_variant_for_keyfile) (const McpAccountManager *mcpa,
       GVariant *variant);
-
-  void (* set_attribute) (const McpAccountManager *mcpa,
-      const gchar *account,
-      const gchar *attribute,
-      GVariant *value,
-      McpAttributeFlags flags);
-
-  void (* set_parameter) (const McpAccountManager *mcpa,
-      const gchar *account,
-      const gchar *parameter,
-      GVariant *value,
-      McpParameterFlags flags);
+  GVariant *(* unescape_variant_from_keyfile) (const McpAccountManager *mcpa,
+      const gchar *escaped,
+      const GVariantType *type,
+      GError **error);
 
   void (* identify_account_async) (McpAccountManager *mcpa,
       const gchar *manager,

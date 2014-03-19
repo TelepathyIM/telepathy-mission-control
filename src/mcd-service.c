@@ -133,6 +133,10 @@ mcd_service_constructed (GObject *obj)
 {
     DEBUG ("called");
 
+    /* It's actually quite important that we request *a* bus name here,
+     * so we can use it as a mutex for loading and migrating accounts,
+     * all of which we want to have finished before we open up our main
+     * D-Bus API for business. (See also fd.o #24000) */
     mcd_service_obtain_bus_name (MCD_OBJECT (obj));
     mcd_debug_print_tree (obj);
 

@@ -24,6 +24,11 @@ Incompatible changes:
   this functionality (e.g. Empathy's GNOME Online Accounts integration),
   a simple recompile should be sufficient.
 
+• mcp_dispatch_operation_ref_connection(),
+  mcp_dispatch_operation_find_channel_by_type() and
+  mcp_dispatch_operation_ref_nth_channel() now take a
+  TpSimpleClientFactory argument.
+
 • The mcp_account_storage_create() virtual method now takes a single string
   (the result of IdentifyAccount()), instead of a GHashTable (containing all
   the new account's initial parameters).
@@ -37,12 +42,21 @@ Incompatible changes:
 • The Account.I.Hidden and AccountManager.I.Hidden interfaces have been
   removed. See fd.o #70427 for a somewhat similar idea.
 
+• The BypassObservers feature has been removed. See fd.o #30043
+  for attempts to design a better version.
+
 • The Account.I.Conditions interface has finally been removed.
   Most of its supporting code was already deleted between 5.14 and 5.16.
 
 • The ChannelDispatcher.I.Messages.DRAFT interface is now called
   ChannelDispatcher.I.Messages1. This will require some minor changes to
   Telepathy-Qt, its only known user.
+
+• Support for Maemo features (Aegis, MCE and an old libaccounts-glib
+  account storage plugin) has been removed. Users of modern libaccounts-glib
+  versions (like the one in Ubuntu) should use the UOA plugin in Empathy,
+  or help us to disentangle it from Empathy and add it to Mission Control
+  (fd.o #66459).
 
 Dependencies:
 
@@ -64,6 +78,27 @@ Fixes:
   has been removed. This version only supports "take accounts offline before
   suspending" on systems with either systemd-logind, or a reimplementation
   with the same D-Bus API. (fd.o #70458, Simon)
+
+• don't crash in 'mc-tool auto-presence' subcommand (fd.o #74187, Simon)
+
+telepathy-mission-control 5.16.1 (2014-01-27)
+=============================================
+
+The “/Dux magnus gentis venteris saginati/” release.
+
+Fixes:
+
+• Release logind sleep/shutdown inhibitor correctly, fixing slow
+  sleep/shutdown (fd.o #73599, Michael Kuhn)
+
+• Avoid assertion failure for offline accounts that support power saving
+  (fd.o #72652, John Brooks)
+
+• Fix a crash if unable to create XDG_DATA_HOME/telepathy/mission-control
+  (fd.o #72138, Sebastien Bacher)
+
+• connectivity-monitor: start watching 'use-conn' key in constructed,
+  fixing the ability to switch it off (Guillaume Desmottes)
 
 telepathy-mission-control 5.16.0 (2013-10-02)
 =============================================

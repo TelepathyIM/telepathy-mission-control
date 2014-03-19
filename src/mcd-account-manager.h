@@ -66,15 +66,6 @@ McdAccountManager *mcd_account_manager_new (
 TpDBusDaemon *mcd_account_manager_get_dbus_daemon
     (McdAccountManager *account_manager);
 
-typedef void (McdAccountManagerWriteConfCb) (McdAccountManager *account_manager,
-                                             const GError *error,
-                                             gpointer user_data);
-
-void mcd_account_manager_write_conf_async (McdAccountManager *account_manager,
-                                           McdAccount *account,
-                                           McdAccountManagerWriteConfCb callback,
-                                           gpointer user_data);
-
 McdAccount *mcd_account_manager_lookup_account (McdAccountManager *account_manager,
 						const gchar *name);
 McdAccount *mcd_account_manager_lookup_account_by_path (McdAccountManager *account_manager,

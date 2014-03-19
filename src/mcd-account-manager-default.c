@@ -47,12 +47,18 @@ typedef struct {
     /* owned string, parameter (without "param-") => owned string, value
      * parameters of unknwn type to be stored in the variant-file */
     GHashTable *untyped_parameters;
-    /* TRUE if the entire account is pending deletion */
-    gboolean pending_deletion;
     /* TRUE if the account doesn't really exist, but is here to stop us
      * loading it from a lower-priority file */
     gboolean absent;
+    /* TRUE if this account needs saving */
+    gboolean dirty;
 } McdDefaultStoredAccount;
+
+static GVariant *
+variant_ref0 (GVariant *v)
+{
+  return (v == NULL ? NULL : g_variant_ref (v));
+}
 
 static McdDefaultStoredAccount *
 lookup_stored_account (McdAccountManagerDefault *self,
@@ -79,7 +85,6 @@ ensure_stored_account (McdAccountManagerDefault *self,
       g_hash_table_insert (self->accounts, g_strdup (account), sa);
     }
 
-  sa->pending_deletion = FALSE;
   sa->absent = FALSE;
   return sa;
 }
@@ -158,7 +163,6 @@ mcd_account_manager_default_init (McdAccountManagerDefault *self)
   self->directory = account_directory_in (g_get_user_data_dir ());
   self->accounts = g_hash_table_new_full (g_str_hash, g_str_equal, g_free,
       stored_account_free);
-  self->save = FALSE;
   self->loaded = FALSE;
 }
 
@@ -168,7 +172,7 @@ mcd_account_manager_default_class_init (McdAccountManagerDefaultClass *cls)
   DEBUG ("mcd_account_manager_default_class_init");
 }
 
-static gboolean
+static McpAccountStorageSetResult
 set_parameter (McpAccountStorage *self,
     McpAccountManager *am,
     const gchar *account,
@@ -179,22 +183,48 @@ set_parameter (McpAccountStorage *self,
   McdAccountManagerDefault *amd = MCD_ACCOUNT_MANAGER_DEFAULT (self);
   McdDefaultStoredAccount *sa;
 
-  sa = ensure_stored_account (amd, account);
-  amd->save = TRUE;
+  sa = lookup_stored_account (amd, account);
+  g_return_val_if_fail (sa != NULL, MCP_ACCOUNT_STORAGE_SET_RESULT_FAILED);
+  g_return_val_if_fail (!sa->absent, MCP_ACCOUNT_STORAGE_SET_RESULT_FAILED);
 
-  /* remove it from all sets, then re-add it to the right one if
-   * non-null */
-  g_hash_table_remove (sa->parameters, parameter);
-  g_hash_table_remove (sa->untyped_parameters, parameter);
+  if (val == NULL)
+    {
+      gboolean changed = FALSE;
 
-  if (val != NULL)
-    g_hash_table_insert (sa->parameters, g_strdup (parameter),
-        g_variant_ref (val));
+      changed = g_hash_table_remove (sa->parameters, parameter);
+      /* deliberately not ||= - if we removed it from parameters, we
+       * still want to remove it from untyped_parameters if it was there */
+      changed |= g_hash_table_remove (sa->untyped_parameters, parameter);
 
-  return TRUE;
+      if (!changed)
+        return MCP_ACCOUNT_STORAGE_SET_RESULT_UNCHANGED;
+    }
+  else
+    {
+      GVariant *old;
+
+      old = g_hash_table_lookup (sa->parameters, parameter);
+
+      if (old != NULL && g_variant_equal (old, val))
+        {
+          return MCP_ACCOUNT_STORAGE_SET_RESULT_UNCHANGED;
+        }
+
+      /* We haven't checked whether it's in untyped_parameters with the
+       * same value - but if it is, we want to migrate it to parameters
+       * anyway (in order to record its type), so treat it as having
+       * actually changed. */
+
+      g_hash_table_remove (sa->untyped_parameters, parameter);
+      g_hash_table_insert (sa->parameters, g_strdup (parameter),
+          g_variant_ref (val));
+    }
+
+  sa->dirty = TRUE;
+  return MCP_ACCOUNT_STORAGE_SET_RESULT_CHANGED;
 }
 
-static gboolean
+static McpAccountStorageSetResult
 set_attribute (McpAccountStorage *self,
     McpAccountManager *am,
     const gchar *account,
@@ -203,214 +233,195 @@ set_attribute (McpAccountStorage *self,
     McpAttributeFlags flags)
 {
   McdAccountManagerDefault *amd = MCD_ACCOUNT_MANAGER_DEFAULT (self);
-  McdDefaultStoredAccount *sa = ensure_stored_account (amd, account);
+  McdDefaultStoredAccount *sa;
 
-  amd->save = TRUE;
+  sa = lookup_stored_account (amd, account);
+  g_return_val_if_fail (sa != NULL, MCP_ACCOUNT_STORAGE_SET_RESULT_FAILED);
+  g_return_val_if_fail (!sa->absent, MCP_ACCOUNT_STORAGE_SET_RESULT_FAILED);
 
-  if (val != NULL)
-    g_hash_table_insert (sa->attributes, g_strdup (attribute),
-        g_variant_ref (val));
-  else
-    g_hash_table_remove (sa->attributes, attribute);
-
-  return TRUE;
-}
-
-static gboolean
-_set (const McpAccountStorage *self,
-    const McpAccountManager *am,
-    const gchar *account,
-    const gchar *key,
-    const gchar *val)
-{
-  return FALSE;
-}
-
-static gboolean
-get_parameter (const McpAccountStorage *self,
-    const McpAccountManager *am,
-    const gchar *account,
-    const gchar *prefixed,
-    const gchar *parameter)
-{
-  McdAccountManagerDefault *amd = MCD_ACCOUNT_MANAGER_DEFAULT (self);
-  McdDefaultStoredAccount *sa = lookup_stored_account (amd, account);
-
-  if (parameter != NULL)
+  if (val == NULL)
     {
-      gchar *v = NULL;
-      GVariant *variant = NULL;
-
-      if (sa == NULL || sa->absent)
-        return FALSE;
-
-      variant = g_hash_table_lookup (sa->parameters, parameter);
-
-      if (variant != NULL)
-        {
-          mcp_account_manager_set_parameter (am, account, parameter,
-              variant, MCP_PARAMETER_FLAG_NONE);
-          return TRUE;
-        }
-
-      v = g_hash_table_lookup (sa->untyped_parameters, parameter);
-
-      if (v == NULL)
-        return FALSE;
-
-      mcp_account_manager_set_value (am, account, prefixed, v);
+      if (!g_hash_table_remove (sa->attributes, attribute))
+        return MCP_ACCOUNT_STORAGE_SET_RESULT_UNCHANGED;
     }
   else
     {
-      g_assert_not_reached ();
+      GVariant *old;
+
+      old = g_hash_table_lookup (sa->attributes, attribute);
+
+      if (old != NULL && g_variant_equal (old, val))
+        return MCP_ACCOUNT_STORAGE_SET_RESULT_UNCHANGED;
+
+      g_hash_table_insert (sa->attributes, g_strdup (attribute),
+          g_variant_ref (val));
     }
 
-  return TRUE;
+  sa->dirty = TRUE;
+  return MCP_ACCOUNT_STORAGE_SET_RESULT_CHANGED;
 }
 
-static gboolean
-_get (const McpAccountStorage *self,
-    const McpAccountManager *am,
+static GVariant *
+get_attribute (McpAccountStorage *self,
+    McpAccountManager *am,
     const gchar *account,
-    const gchar *key)
+    const gchar *attribute,
+    const GVariantType *type,
+    McpAttributeFlags *flags)
 {
   McdAccountManagerDefault *amd = MCD_ACCOUNT_MANAGER_DEFAULT (self);
   McdDefaultStoredAccount *sa = lookup_stored_account (amd, account);
 
-  if (sa == NULL || sa->absent)
-    return FALSE;
+  if (flags != NULL)
+    *flags = 0;
 
-  if (key != NULL)
-    {
-      GVariant *v = NULL;
+  g_return_val_if_fail (sa != NULL, NULL);
+  g_return_val_if_fail (!sa->absent, NULL);
 
-      if (g_str_has_prefix (key, "param-"))
-        {
-          return get_parameter (self, am, account, key, key + 6);
-        }
+  /* ignore @type, we store every attribute with its type anyway; MC will
+   * coerce values to an appropriate type if needed */
+  return variant_ref0 (g_hash_table_lookup (sa->attributes, attribute));
+}
 
-      v = g_hash_table_lookup (sa->attributes, key);
+static GVariant *
+get_parameter (McpAccountStorage *self,
+    McpAccountManager *am,
+    const gchar *account,
+    const gchar *parameter,
+    const GVariantType *type,
+    McpParameterFlags *flags)
+{
+  McdAccountManagerDefault *amd = MCD_ACCOUNT_MANAGER_DEFAULT (self);
+  McdDefaultStoredAccount *sa = lookup_stored_account (amd, account);
+  GVariant *variant;
+  gchar *str;
 
-      if (v == NULL)
-        return FALSE;
+  if (flags != NULL)
+    *flags = 0;
 
-      mcp_account_manager_set_attribute (am, account, key, v,
-          MCP_ATTRIBUTE_FLAG_NONE);
-    }
-  else
-    {
-      GHashTableIter iter;
-      gpointer k, v;
+  g_return_val_if_fail (sa != NULL, NULL);
+  g_return_val_if_fail (!sa->absent, NULL);
 
-      g_hash_table_iter_init (&iter, sa->attributes);
+  variant = g_hash_table_lookup (sa->parameters, parameter);
 
-      while (g_hash_table_iter_next (&iter, &k, &v))
-        {
-          if (v != NULL)
-            mcp_account_manager_set_attribute (am, account, k,
-                v, MCP_ATTRIBUTE_FLAG_NONE);
-        }
+  if (variant != NULL)
+    return g_variant_ref (variant);
 
-      g_hash_table_iter_init (&iter, sa->parameters);
+  str = g_hash_table_lookup (sa->untyped_parameters, parameter);
 
-      while (g_hash_table_iter_next (&iter, &k, &v))
-        {
-          if (v != NULL)
-            mcp_account_manager_set_parameter (am, account, k, v,
-                MCP_PARAMETER_FLAG_NONE);
-        }
+  if (str == NULL)
+    return NULL;
 
-      g_hash_table_iter_init (&iter, sa->untyped_parameters);
-
-      while (g_hash_table_iter_next (&iter, &k, &v))
-        {
-          if (v != NULL)
-            {
-              gchar *prefixed = g_strdup_printf ("param-%s",
-                  (const gchar *) k);
-
-              mcp_account_manager_set_value (am, account, prefixed, v);
-              g_free (prefixed);
-            }
-        }
-    }
-
-  return TRUE;
+  return mcp_account_manager_unescape_variant_from_keyfile (am,
+      str, type, NULL);
 }
 
 static gchar *
-_create (const McpAccountStorage *self,
-    const McpAccountManager *am,
+_create (McpAccountStorage *self,
+    McpAccountManager *am,
     const gchar *manager,
     const gchar *protocol,
     const gchar *identification,
     GError **error)
 {
+  McdAccountManagerDefault *amd = MCD_ACCOUNT_MANAGER_DEFAULT (self);
   gchar *unique_name;
 
-  /* See comment in plugin-account.c::_storage_create_account() before changing
-   * this implementation, it's more subtle than it looks */
   unique_name = mcp_account_manager_get_unique_name (MCP_ACCOUNT_MANAGER (am),
                                                      manager, protocol,
                                                      identification);
   g_return_val_if_fail (unique_name != NULL, NULL);
 
+  ensure_stored_account (amd, unique_name);
   return unique_name;
 }
 
-static gboolean
-_delete (const McpAccountStorage *self,
-      const McpAccountManager *am,
-      const gchar *account,
-      const gchar *key)
+static void
+delete_async (McpAccountStorage *self,
+    McpAccountManager *am,
+    const gchar *account,
+    GCancellable *cancellable,
+    GAsyncReadyCallback callback,
+    gpointer user_data)
 {
   McdAccountManagerDefault *amd = MCD_ACCOUNT_MANAGER_DEFAULT (self);
   McdDefaultStoredAccount *sa = lookup_stored_account (amd, account);
+  GTask *task;
+  gchar *filename = NULL;
+  const gchar * const *iter;
 
-  if (sa == NULL || sa->absent)
+  task = g_task_new (amd, cancellable, callback, user_data);
+
+  g_return_if_fail (sa != NULL);
+  g_return_if_fail (!sa->absent);
+
+  filename = account_file_in (g_get_user_data_dir (), account);
+
+  DEBUG ("Deleting account %s from %s", account, filename);
+
+  if (g_unlink (filename) != 0)
     {
-      /* Apparently we never had this account anyway. The plugin API
-       * considers this to be "success". */
-      return TRUE;
-    }
+      int e = errno;
 
-  if (key == NULL)
-    {
-      amd->save = TRUE;
-
-      /* flag the whole account as purged */
-      sa->pending_deletion = TRUE;
-      g_hash_table_remove_all (sa->attributes);
-      g_hash_table_remove_all (sa->parameters);
-      g_hash_table_remove_all (sa->untyped_parameters);
-    }
-  else
-    {
-      if (g_str_has_prefix (key, "param-"))
+      /* ENOENT is OK, anything else is more upsetting */
+      if (e != ENOENT)
         {
-          if (g_hash_table_remove (sa->parameters, key + 6))
-            amd->save = TRUE;
-
-          if (g_hash_table_remove (sa->untyped_parameters, key + 6))
-            amd->save = TRUE;
-        }
-      else
-        {
-          if (g_hash_table_remove (sa->attributes, key))
-            amd->save = TRUE;
-        }
-
-      /* if that was the last attribute or parameter, the account is gone
-       * too */
-      if (g_hash_table_size (sa->attributes) == 0 &&
-          g_hash_table_size (sa->untyped_parameters) == 0 &&
-          g_hash_table_size (sa->parameters) == 0)
-        {
-          sa->pending_deletion = TRUE;
+          WARNING ("Unable to delete %s: %s", filename,
+              g_strerror (e));
+          g_task_return_new_error (task, G_IO_ERROR, g_io_error_from_errno (e),
+              "Unable to delete %s: %s", filename, g_strerror (e));
+          goto finally;
         }
     }
 
-  return TRUE;
+  for (iter = g_get_system_data_dirs ();
+      iter != NULL && *iter != NULL;
+      iter++)
+    {
+      gchar *other = account_file_in (*iter, account);
+      gboolean other_exists = g_file_test (other, G_FILE_TEST_EXISTS);
+
+      g_free (other);
+
+      if (other_exists)
+        {
+          GError *error = NULL;
+
+          /* There is a lower-priority file that would provide this
+           * account. We can't delete a file from XDG_DATA_DIRS which
+           * are conceptually read-only, but we can mask it with an
+           * empty file (prior art: systemd) */
+          if (!g_file_set_contents (filename, "", 0, &error))
+            {
+              g_prefix_error (&error,
+                  "Unable to save empty account file to %s: ", filename);
+              WARNING ("%s", error->message);
+              g_task_return_error (task, error);
+              g_free (filename);
+              goto finally;
+            }
+
+          break;
+        }
+    }
+
+  /* clean up the mess */
+  g_hash_table_remove (amd->accounts, account);
+  mcp_account_storage_emit_deleted (self, account);
+
+  g_task_return_boolean (task, TRUE);
+
+finally:
+  g_free (filename);
+  g_object_unref (task);
+}
+
+static gboolean
+delete_finish (McpAccountStorage *storage,
+    GAsyncResult *res,
+    GError **error)
+{
+  return g_task_propagate_boolean (G_TASK (res), error);
 }
 
 static gboolean
@@ -428,59 +439,20 @@ am_default_commit_one (McdAccountManagerDefault *self,
   gboolean ret;
   GError *error = NULL;
 
-  filename = account_file_in (g_get_user_data_dir (), account_name);
+  g_return_val_if_fail (sa != NULL, FALSE);
+  g_return_val_if_fail (!sa->absent, FALSE);
 
-  if (sa->pending_deletion)
+  if (!sa->dirty)
+    return TRUE;
+
+  if (!mcd_ensure_directory (self->directory, &error))
     {
-      const gchar * const *iter;
-
-      DEBUG ("Deleting account %s from %s", account_name, filename);
-
-      if (g_unlink (filename) != 0)
-        {
-          int e = errno;
-
-          /* ENOENT is OK, anything else is more upsetting */
-          if (e != ENOENT)
-            {
-              WARNING ("Unable to delete %s: %s", filename,
-                  g_strerror (e));
-              g_free (filename);
-              return FALSE;
-            }
-        }
-
-      for (iter = g_get_system_data_dirs ();
-          iter != NULL && *iter != NULL;
-          iter++)
-        {
-          gchar *other = account_file_in (*iter, account_name);
-          gboolean other_exists = g_file_test (other, G_FILE_TEST_EXISTS);
-
-          g_free (other);
-
-          if (other_exists)
-            {
-              /* There is a lower-priority file that would provide this
-               * account. We can't delete a file from XDG_DATA_DIRS which
-               * are conceptually read-only, but we can mask it with an
-               * empty file (prior art: systemd) */
-              if (!g_file_set_contents (filename, "", 0, &error))
-                {
-                  WARNING ("Unable to save empty account file to %s: %s",
-                      filename, error->message);
-                  g_clear_error (&error);
-                  g_free (filename);
-                  return FALSE;
-                }
-
-              break;
-            }
-        }
-
-      g_free (filename);
-      return TRUE;
+      g_warning ("%s", error->message);
+      g_error_free (error);
+      return FALSE;
     }
+
+  filename = account_file_in (g_get_user_data_dir (), account_name);
 
   DEBUG ("Saving account %s to %s", account_name, filename);
 
@@ -522,6 +494,7 @@ am_default_commit_one (McdAccountManagerDefault *self,
 
   if (g_file_set_contents (filename, content_text, -1, &error))
     {
+      sa->dirty = FALSE;
       ret = TRUE;
     }
   else
@@ -538,57 +511,19 @@ am_default_commit_one (McdAccountManagerDefault *self,
 }
 
 static gboolean
-_commit (const McpAccountStorage *self,
-    const McpAccountManager *am,
+_commit (McpAccountStorage *self,
+    McpAccountManager *am,
     const gchar *account)
 {
   McdAccountManagerDefault *amd = MCD_ACCOUNT_MANAGER_DEFAULT (self);
-  gboolean all_succeeded = TRUE;
-  GError *error = NULL;
-  GHashTableIter outer;
-  gpointer account_p, sa_p;
+  McdDefaultStoredAccount *sa = lookup_stored_account (amd, account);
 
-  if (!amd->save)
-    return TRUE;
+  g_return_val_if_fail (sa != NULL, FALSE);
+  g_return_val_if_fail (!sa->absent, FALSE);
 
-  DEBUG ("Saving accounts to %s", amd->directory);
+  DEBUG ("Saving account %s to %s", account, amd->directory);
 
-  if (!mcd_ensure_directory (amd->directory, &error))
-    {
-      g_warning ("%s", error->message);
-      g_error_free (error);
-      /* fall through anyway: writing to the files will fail, but it does
-       * give us a chance to commit to the keyring too */
-    }
-
-  g_hash_table_iter_init (&outer, amd->accounts);
-
-  while (g_hash_table_iter_next (&outer, &account_p, &sa_p))
-    {
-      if (account == NULL || !tp_strdiff (account, account_p))
-        {
-          if (!am_default_commit_one (amd, account_p, sa_p))
-            all_succeeded = FALSE;
-        }
-    }
-
-  if (all_succeeded)
-    {
-      amd->save = FALSE;
-    }
-
-  g_hash_table_iter_init (&outer, amd->accounts);
-
-  /* forget about any entirely removed accounts */
-  while (g_hash_table_iter_next (&outer, NULL, &sa_p))
-    {
-      McdDefaultStoredAccount *sa = sa_p;
-
-      if (sa->pending_deletion)
-        g_hash_table_iter_remove (&outer);
-    }
-
-  return all_succeeded;
+  return am_default_commit_one (amd, account, sa);
 }
 
 static gboolean
@@ -635,7 +570,7 @@ am_default_load_keyfile (McdAccountManagerDefault *self,
       GStrv keys = g_key_file_get_keys (keyfile, account, &m, NULL);
 
       /* We're going to need to migrate this account. */
-      self->save = TRUE;
+      sa->dirty = TRUE;
 
       for (j = 0; j < m; j++)
         {
@@ -651,7 +586,7 @@ am_default_load_keyfile (McdAccountManagerDefault *self,
             }
           else
             {
-              const gchar *type = mcd_storage_get_attribute_type (key);
+              const GVariantType *type = mcd_storage_get_attribute_type (key);
               GVariant *variant = NULL;
 
               if (type == NULL)
@@ -663,7 +598,7 @@ am_default_load_keyfile (McdAccountManagerDefault *self,
               else
                 {
                   variant = mcd_keyfile_get_variant (keyfile,
-                      account, key, G_VARIANT_TYPE (type), &error);
+                      account, key, type, &error);
                 }
 
               if (variant == NULL)
@@ -875,14 +810,15 @@ am_default_load_directory (McdAccountManagerDefault *self,
 }
 
 static GList *
-_list (const McpAccountStorage *self,
-    const McpAccountManager *am)
+_list (McpAccountStorage *self,
+    McpAccountManager *am)
 {
   GList *rval = NULL;
   McdAccountManagerDefault *amd = MCD_ACCOUNT_MANAGER_DEFAULT (self);
   GHashTableIter hash_iter;
   gchar *migrate_from = NULL;
   gpointer k, v;
+  gboolean save = FALSE;
 
   if (!amd->loaded)
     {
@@ -959,7 +895,7 @@ _list (const McpAccountStorage *self,
           if (!am_default_load_keyfile (amd, migrate_from))
             tp_clear_pointer (&migrate_from, g_free);
           amd->loaded = TRUE;
-          amd->save = TRUE;
+          save = TRUE;
         }
       else
         {
@@ -972,14 +908,45 @@ _list (const McpAccountStorage *self,
     {
       DEBUG ("Creating initial account data");
       amd->loaded = TRUE;
-      amd->save = TRUE;
+      save = TRUE;
     }
 
-  if (amd->save)
+  if (!save)
     {
+      g_hash_table_iter_init (&hash_iter, amd->accounts);
+
+      while (g_hash_table_iter_next (&hash_iter, NULL, &v))
+        {
+          McdDefaultStoredAccount *sa = v;
+
+          if (sa->dirty)
+            {
+              save = TRUE;
+              break;
+            }
+        }
+    }
+
+  if (save)
+    {
+      gboolean all_succeeded = TRUE;
+
       DEBUG ("Saving initial or migrated account data");
 
-      if (_commit (self, am, NULL))
+      g_hash_table_iter_init (&hash_iter, amd->accounts);
+
+      while (g_hash_table_iter_next (&hash_iter, &k, &v))
+        {
+          McdDefaultStoredAccount *sa = v;
+
+          if (sa->absent)
+            continue;
+
+          if (!am_default_commit_one (amd, k, v))
+            all_succeeded = FALSE;
+        }
+
+      if (all_succeeded)
         {
           if (migrate_from != NULL)
             {
@@ -999,7 +966,10 @@ _list (const McpAccountStorage *self,
 
   while (g_hash_table_iter_next (&hash_iter, &k, &v))
     {
-      rval = g_list_prepend (rval, g_strdup (k));
+      McdDefaultStoredAccount *sa = v;
+
+      if (!sa->absent)
+        rval = g_list_prepend (rval, g_strdup (k));
     }
 
   return rval;
@@ -1013,13 +983,14 @@ account_storage_iface_init (McpAccountStorageIface *iface,
   iface->desc = PLUGIN_DESCRIPTION;
   iface->priority = PLUGIN_PRIORITY;
 
-  iface->get = _get;
-  iface->set = _set;
+  iface->get_attribute = get_attribute;
+  iface->get_parameter = get_parameter;
   iface->set_attribute = set_attribute;
   iface->set_parameter = set_parameter;
   iface->create = _create;
-  iface->delete = _delete;
-  iface->commit_one = _commit;
+  iface->delete_async = delete_async;
+  iface->delete_finish = delete_finish;
+  iface->commit = _commit;
   iface->list = _list;
 
 }

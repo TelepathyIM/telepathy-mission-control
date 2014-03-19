@@ -51,7 +51,6 @@ typedef struct {
   GObject parent;
   GHashTable *accounts;
   gchar *directory;
-  gboolean save;
   gboolean loaded;
 } _McdAccountManagerDefault;
 

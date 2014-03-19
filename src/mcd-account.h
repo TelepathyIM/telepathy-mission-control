@@ -61,9 +61,6 @@ GQuark mcd_account_error_quark (void);
 typedef void (*McdAccountLoadCb) (McdAccount *account,
                                   const GError *error,
                                   gpointer user_data);
-typedef void (*McdAccountDeleteCb) (McdAccount *account,
-                                    const GError *error,
-                                    gpointer user_data);
 
 struct _McdAccountClass
 {
@@ -83,12 +80,16 @@ GType mcd_account_get_type (void);
 
 McdAccount *mcd_account_new (McdAccountManager *account_manager,
     const gchar *name,
-    McdConnectivityMonitor *minotaur);
+    McdConnectivityMonitor *minotaur,
+    McpAccountStorage *storage_plugin);
 
-void mcd_account_delete (McdAccount *account,
-                         McdDBusPropSetFlags flags,
-                         McdAccountDeleteCb callback,
-                         gpointer user_data);
+void mcd_account_delete_async (McdAccount *account,
+    McdDBusPropSetFlags flags,
+    GAsyncReadyCallback callback,
+    gpointer user_data);
+gboolean mcd_account_delete_finish (McdAccount *account,
+    GAsyncResult *result,
+    GError **error);
 
 const gchar *mcd_account_get_unique_name (McdAccount *account);
 const gchar *mcd_account_get_object_path (McdAccount *account);
@@ -129,9 +130,6 @@ McdConnection *mcd_account_get_connection (McdAccount *account);
 gboolean mcd_account_check_request (McdAccount *account, GHashTable *request,
                                     GError **error);
 
-gboolean mcd_account_parameter_is_secret (McdAccount *self,
-                                              const gchar *name);
-
 void mcd_account_altered_by_plugin (McdAccount *account, const gchar *name);
 
 gchar * mcd_account_dup_display_name (McdAccount *self);
@@ -142,6 +140,7 @@ gboolean mcd_account_get_parameter (McdAccount *account, const gchar *name,
 
 gboolean mcd_account_get_parameter_of_known_type (McdAccount *account,
                                                   const gchar *name,
+                                                  const GVariantType *variant_type,
                                                   GType type,
                                                   GValue *parameter,
                                                   GError **error);
@@ -160,6 +159,8 @@ void mcd_account_set_waiting_for_connectivity (McdAccount *self,
 void mcd_account_connection_proceed (McdAccount *account, gboolean success);
 void mcd_account_connection_proceed_with_reason
     (McdAccount *account, gboolean success, TpConnectionStatusReason reason);
+
+McpAccountStorage *mcd_account_get_storage_plugin (McdAccount *account);
 
 G_END_DECLS
 

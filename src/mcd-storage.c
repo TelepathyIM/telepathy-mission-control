@@ -61,39 +61,11 @@ G_DEFINE_TYPE_WITH_CODE (McdStorage, mcd_storage,
     G_TYPE_OBJECT,
     G_IMPLEMENT_INTERFACE (MCP_TYPE_ACCOUNT_MANAGER, plugin_iface_init))
 
-typedef struct {
-    /* owned string => GVariant
-     * e.g. { 'DisplayName': <'Frederick Bloggs'> } */
-    GHashTable *attributes;
-    /* owned string => owned GVariant
-     * e.g. { 'account': <'fred@example.com'>, 'password': <'foo'> } */
-    GHashTable *parameters;
-    /* owned string => owned string escaped as if for a keyfile
-     * e.g. { 'account': 'fred@example.com', 'password': 'foo' }
-     * keys of @parameters and @escaped_parameters are disjoint */
-    GHashTable *escaped_parameters;
-    /* set of owned strings
-     * e.g. { 'password': 'password' } */
-    GHashTable *secrets;
-} McdStorageAccount;
-
-static void
-mcd_storage_account_free (gpointer p)
-{
-  McdStorageAccount *sa = p;
-
-  g_hash_table_unref (sa->attributes);
-  g_hash_table_unref (sa->parameters);
-  g_hash_table_unref (sa->escaped_parameters);
-  g_hash_table_unref (sa->secrets);
-  g_slice_free (McdStorageAccount, sa);
-}
-
 static void
 mcd_storage_init (McdStorage *self)
 {
   self->accounts = g_hash_table_new_full (g_str_hash, g_str_equal,
-      g_free, mcd_storage_account_free);
+      g_free, g_object_unref);
 }
 
 static void
@@ -200,84 +172,6 @@ mcd_keyfile_escape_variant (GVariant *variant)
   return ret;
 }
 
-static McdStorageAccount *
-lookup_account (McdStorage *self,
-    const gchar *account)
-{
-  return g_hash_table_lookup (self->accounts, account);
-}
-
-static McdStorageAccount *
-ensure_account (McdStorage *self,
-    const gchar *account)
-{
-  McdStorageAccount *sa = lookup_account (self, account);
-
-  if (sa == NULL)
-    {
-      sa = g_slice_new (McdStorageAccount);
-      sa->attributes = g_hash_table_new_full (g_str_hash, g_str_equal,
-          g_free, (GDestroyNotify) g_variant_unref);
-      sa->parameters = g_hash_table_new_full (g_str_hash, g_str_equal,
-          g_free, (GDestroyNotify) g_variant_unref);
-      sa->escaped_parameters = g_hash_table_new_full (g_str_hash, g_str_equal,
-          g_free, g_free);
-      sa->secrets = g_hash_table_new_full (g_str_hash, g_str_equal,
-          g_free, NULL);
-      g_hash_table_insert (self->accounts, g_strdup (account), sa);
-    }
-
-  return sa;
-}
-
-static gchar *
-get_value (const McpAccountManager *ma,
-    const gchar *account,
-    const gchar *key)
-{
-  McdStorage *self = MCD_STORAGE (ma);
-  McdStorageAccount *sa = lookup_account (self, account);
-  GVariant *variant;
-  gchar *ret;
-
-  if (sa == NULL)
-    return NULL;
-
-  if (g_str_has_prefix (key, "param-"))
-    {
-      variant = g_hash_table_lookup (sa->parameters, key + 6);
-
-      if (variant != NULL)
-        {
-          ret = mcd_keyfile_escape_variant (variant);
-          g_variant_unref (variant);
-          return ret;
-        }
-      else
-        {
-          /* OK, we don't have it as a variant. How about the keyfile-escaped
-           * version? */
-          return g_strdup (g_hash_table_lookup (sa->escaped_parameters,
-                key + 6));
-        }
-    }
-  else
-    {
-      variant = g_hash_table_lookup (sa->attributes, key);
-
-      if (variant != NULL)
-        {
-          ret = mcd_keyfile_escape_variant (variant);
-          g_variant_unref (variant);
-          return ret;
-        }
-      else
-        {
-          return NULL;
-        }
-    }
-}
-
 static struct {
     const gchar *type;
     const gchar *name;
@@ -318,7 +212,7 @@ static struct {
       { NULL, NULL }
 };
 
-const gchar *
+const GVariantType *
 mcd_storage_get_attribute_type (const gchar *attribute)
 {
   guint i;
@@ -326,7 +220,7 @@ mcd_storage_get_attribute_type (const gchar *attribute)
   for (i = 0; known_attributes[i].type != NULL; i++)
     {
       if (!tp_strdiff (attribute, known_attributes[i].name))
-        return known_attributes[i].type;
+        return G_VARIANT_TYPE (known_attributes[i].type);
     }
 
   return NULL;
@@ -334,14 +228,18 @@ mcd_storage_get_attribute_type (const gchar *attribute)
 
 gboolean
 mcd_storage_init_value_for_attribute (GValue *value,
-    const gchar *attribute)
+    const gchar *attribute,
+    const GVariantType **variant_type)
 {
-  const gchar *s = mcd_storage_get_attribute_type (attribute);
+  const GVariantType *s = mcd_storage_get_attribute_type (attribute);
 
   if (s == NULL)
     return FALSE;
 
-  switch (s[0])
+  if (variant_type != NULL)
+    *variant_type = s;
+
+  switch (g_variant_type_peek_string (s)[0])
     {
       case 's':
         g_value_init (value, G_TYPE_STRING);
@@ -358,7 +256,7 @@ mcd_storage_init_value_for_attribute (GValue *value,
 
       case 'a':
           {
-            switch (s[1])
+            switch (g_variant_type_peek_string (s)[1])
               {
                 case 'o':
                   g_value_init (value, TP_ARRAY_TYPE_OBJECT_PATH_LIST);
@@ -373,7 +271,7 @@ mcd_storage_init_value_for_attribute (GValue *value,
 
       case '(':
           {
-            if (!tp_strdiff (s, "(uss)"))
+            if (g_variant_type_equal (s, G_VARIANT_TYPE ("(uss)")))
               {
                 g_value_init (value, TP_STRUCT_TYPE_PRESENCE);
                 return TRUE;
@@ -383,181 +281,6 @@ mcd_storage_init_value_for_attribute (GValue *value,
     }
 
   return FALSE;
-}
-
-static gboolean
-mcpa_init_value_for_attribute (const McpAccountManager *mcpa,
-    GValue *value,
-    const gchar *attribute)
-{
-  return mcd_storage_init_value_for_attribute (value, attribute);
-}
-
-static void
-mcpa_set_attribute (const McpAccountManager *ma,
-    const gchar *account,
-    const gchar *attribute,
-    GVariant *value,
-    McpAttributeFlags flags)
-{
-  McdStorage *self = MCD_STORAGE (ma);
-  McdStorageAccount *sa = ensure_account (self, account);
-
-  if (value != NULL)
-    {
-      g_hash_table_insert (sa->attributes, g_strdup (attribute),
-          g_variant_ref_sink (value));
-    }
-  else
-    {
-      g_hash_table_remove (sa->attributes, attribute);
-    }
-}
-
-static void
-mcpa_set_parameter (const McpAccountManager *ma,
-    const gchar *account,
-    const gchar *parameter,
-    GVariant *value,
-    McpParameterFlags flags)
-{
-  McdStorage *self = MCD_STORAGE (ma);
-  McdStorageAccount *sa = ensure_account (self, account);
-
-  g_hash_table_remove (sa->parameters, parameter);
-  g_hash_table_remove (sa->escaped_parameters, parameter);
-
-  if (value != NULL)
-    g_hash_table_insert (sa->parameters, g_strdup (parameter),
-        g_variant_ref_sink (value));
-
-  if (flags & MCP_PARAMETER_FLAG_SECRET)
-    {
-      DEBUG ("flagging %s parameter %s as secret", account, parameter);
-      g_hash_table_add (sa->secrets, g_strdup (parameter));
-    }
-}
-
-static void
-set_value (const McpAccountManager *ma,
-    const gchar *account,
-    const gchar *key,
-    const gchar *value)
-{
-  McdStorage *self = MCD_STORAGE (ma);
-  McdStorageAccount *sa = ensure_account (self, account);
-
-  if (g_str_has_prefix (key, "param-"))
-    {
-      g_hash_table_remove (sa->parameters, key + 6);
-      g_hash_table_remove (sa->escaped_parameters, key + 6);
-
-      if (value != NULL)
-        g_hash_table_insert (sa->escaped_parameters, g_strdup (key + 6),
-            g_strdup (value));
-    }
-  else
-    {
-      if (value != NULL)
-        {
-          GValue tmp = G_VALUE_INIT;
-          GError *error = NULL;
-
-          if (!mcd_storage_init_value_for_attribute (&tmp, key))
-            {
-              g_warning ("Not sure what the type of '%s' is, assuming string",
-                  key);
-              g_value_init (&tmp, G_TYPE_STRING);
-            }
-
-          if (mcd_keyfile_unescape_value (value, &tmp, &error))
-            {
-              g_hash_table_insert (sa->attributes, g_strdup (key),
-                  g_variant_ref_sink (dbus_g_value_build_g_variant (&tmp)));
-              g_value_unset (&tmp);
-            }
-          else
-            {
-              g_warning ("Could not decode attribute '%s':'%s' from plugin: %s",
-                  key, value, error->message);
-              g_error_free (error);
-              g_hash_table_remove (sa->attributes, key);
-            }
-        }
-      else
-        {
-          g_hash_table_remove (sa->attributes, key);
-        }
-    }
-}
-
-static GStrv
-list_keys (const McpAccountManager *ma,
-           const gchar * account)
-{
-  McdStorage *self = MCD_STORAGE (ma);
-  GPtrArray *ret = g_ptr_array_new ();
-  McdStorageAccount *sa = lookup_account (self, account);
-
-  if (sa != NULL)
-    {
-      GHashTableIter iter;
-      gpointer k;
-
-      g_hash_table_iter_init (&iter, sa->attributes);
-
-      while (g_hash_table_iter_next (&iter, &k, NULL))
-        g_ptr_array_add (ret, g_strdup (k));
-
-      g_hash_table_iter_init (&iter, sa->parameters);
-
-      while (g_hash_table_iter_next (&iter, &k, NULL))
-        g_ptr_array_add (ret, g_strdup_printf ("param-%s", (gchar *) k));
-    }
-
-  g_ptr_array_add (ret, NULL);
-  return (GStrv) g_ptr_array_free (ret, FALSE);
-}
-
-static gboolean
-is_secret (const McpAccountManager *ma,
-    const gchar *account,
-    const gchar *key)
-{
-  McdStorage *self = MCD_STORAGE (ma);
-  McdStorageAccount *sa = lookup_account (self, account);
-
-  if (sa == NULL || !g_str_has_prefix (key, "param-"))
-    return FALSE;
-
-  return g_hash_table_contains (sa->secrets, key + 6);
-}
-
-static void
-mcd_storage_make_secret (McdStorage *self,
-    const gchar *account,
-    const gchar *key)
-{
-  McdStorageAccount *sa;
-
-  g_return_if_fail (MCD_IS_STORAGE (self));
-  g_return_if_fail (account != NULL);
-  g_return_if_fail (key != NULL);
-
-  if (!g_str_has_prefix (key, "param-"))
-    return;
-
-  DEBUG ("flagging %s parameter %s as secret", account, key + 6);
-  sa = ensure_account (self, account);
-  g_hash_table_add (sa->secrets, g_strdup (key + 6));
-}
-
-static void
-make_secret (const McpAccountManager *ma,
-    const gchar *account,
-    const gchar *key)
-{
-  mcd_storage_make_secret (MCD_STORAGE (ma), account, key);
 }
 
 static gchar *
@@ -607,17 +330,26 @@ identify_account_cb (TpProxy *proxy,
 {
   if (error == NULL)
     {
+      DEBUG ("identified account: %s", identification);
       g_task_return_pointer (task, g_strdup (identification), g_free);
     }
-  else if (g_error_matches (error, TP_ERROR, TP_ERROR_NOT_IMPLEMENTED) ||
-      g_error_matches (error, DBUS_GERROR, DBUS_GERROR_SERVICE_UNKNOWN))
+  else if (g_error_matches (error, TP_ERROR, TP_ERROR_INVALID_HANDLE) ||
+      g_error_matches (error, TP_ERROR, TP_ERROR_INVALID_ARGUMENT))
     {
-      g_task_return_pointer (task, g_strdup (g_task_get_task_data (task)),
-          g_free);
+      /* The connection manager didn't like our account parameters.
+       * Give up now. */
+      DEBUG ("failed to identify account: %s #%d: %s",
+          g_quark_to_string (error->domain), error->code, error->message);
+      g_task_return_error (task, g_error_copy (error));
     }
   else
     {
-      g_task_return_error (task, g_error_copy (error));
+      /* We weren't able to identify the account, but carry on and hope
+       * for the best... */
+      DEBUG ("ignoring failure to identify account: %s #%d: %s",
+          g_quark_to_string (error->domain), error->code, error->message);
+      g_task_return_pointer (task, g_strdup (g_task_get_task_data (task)),
+          g_free);
     }
 }
 
@@ -678,8 +410,8 @@ identify_account_async (McpAccountManager *mcpa,
 static gint
 account_storage_cmp (gconstpointer a, gconstpointer b)
 {
-    gint pa = mcp_account_storage_priority (a);
-    gint pb = mcp_account_storage_priority (b);
+    gint pa = mcp_account_storage_priority ((McpAccountStorage *) a);
+    gint pb = mcp_account_storage_priority ((McpAccountStorage *) b);
 
     if (pa > pb) return -1;
     if (pa < pb) return 1;
@@ -767,11 +499,9 @@ mcd_storage_load (McdStorage *self)
 
   sort_and_cache_plugins ();
 
-  store = g_list_last (stores);
-
-  /* fetch accounts stored in plugins, in reverse priority so higher prio *
-   * plugins can overwrite lower prio ones' account data                  */
-  while (store != NULL)
+  /* fetch accounts stored in plugins, highest priority first, so that
+   * low priority plugins can be overidden by high priority */
+  for (store = stores; store != NULL; store = store->next)
     {
       GList *account;
       McpAccountStorage *plugin = store->data;
@@ -782,80 +512,38 @@ mcd_storage_load (McdStorage *self)
       DEBUG ("listing from plugin %s [prio: %d]", pname, prio);
       for (account = stored; account != NULL; account = g_list_next (account))
         {
+          GError *error = NULL;
           gchar *name = account->data;
 
           DEBUG ("fetching %s from plugin %s [prio: %d]", name, pname, prio);
-          mcd_storage_add_account_from_plugin (self, plugin, name);
+
+          if (!mcd_storage_add_account_from_plugin (self, plugin, name,
+                &error))
+            {
+              DEBUG ("%s", error->message);
+              g_clear_error (&error);
+            }
+
           g_free (name);
         }
 
       /* already freed the contents, just need to free the list itself */
       g_list_free (stored);
-      store = g_list_previous (store);
     }
 }
 
 /*
- * mcd_storage_dup_accounts:
+ * mcd_storage_get_accounts:
  * @storage: An object implementing the #McdStorage interface
  * @n: place for the number of accounts to be written to (or %NULL)
  *
- * Returns: a newly allocated GStrv containing the unique account names,
- * which must be freed by the caller with g_strfreev().
+ * Returns: (transfer none) (element-type utf8 Mcp.AccountStorage): a
+ *  map from account object path tail to plugin
  */
-GStrv
-mcd_storage_dup_accounts (McdStorage *self,
-    gsize *n)
+GHashTable *
+mcd_storage_get_accounts (McdStorage *self)
 {
-  GPtrArray *ret = g_ptr_array_new ();
-  GHashTableIter iter;
-  gpointer k, v;
-
-  g_hash_table_iter_init (&iter, self->accounts);
-
-  while (g_hash_table_iter_next (&iter, &k, &v))
-    {
-      McdStorageAccount *sa = v;
-
-      if (g_hash_table_size (sa->attributes) > 0)
-        g_ptr_array_add (ret, g_strdup (k));
-    }
-
-  g_ptr_array_add (ret, NULL);
-  return (GStrv) g_ptr_array_free (ret, FALSE);
-}
-
-/*
- * mcd_storage_dup_attributes:
- * @storage: An object implementing the #McdStorage interface
- * @account: unique name of the account
- * @n: place for the number of attributes to be written to (or %NULL)
- *
- * Returns: a newly allocated GStrv containing the names of all the
- * attributes or parameters currently stored for @account. Must be
- * freed by the caller with g_strfreev().
- */
-GStrv
-mcd_storage_dup_attributes (McdStorage *self,
-    const gchar *account,
-    gsize *n)
-{
-  GPtrArray *ret = g_ptr_array_new ();
-  McdStorageAccount *sa = lookup_account (self, account);
-
-  if (sa != NULL)
-    {
-      GHashTableIter iter;
-      gpointer k;
-
-      g_hash_table_iter_init (&iter, sa->attributes);
-
-      while (g_hash_table_iter_next (&iter, &k, NULL))
-        g_ptr_array_add (ret, g_strdup (k));
-    }
-
-  g_ptr_array_add (ret, NULL);
-  return (GStrv) g_ptr_array_free (ret, FALSE);
+  return self->accounts;
 }
 
 /*
@@ -875,22 +563,15 @@ McpAccountStorage *
 mcd_storage_get_plugin (McdStorage *self,
     const gchar *account)
 {
-  GList *store = stores;
-  McpAccountManager *ma = MCP_ACCOUNT_MANAGER (self);
-  McpAccountStorage *owner = NULL;
+  McpAccountStorage *plugin;
 
   g_return_val_if_fail (MCD_IS_STORAGE (self), NULL);
   g_return_val_if_fail (account != NULL, NULL);
 
-  for (; store != NULL && owner == NULL; store = g_list_next (store))
-    {
-      McpAccountStorage *plugin = store->data;
+  plugin = g_hash_table_lookup (self->accounts, account);
+  g_return_val_if_fail (plugin != NULL, NULL);
 
-      if (mcp_account_storage_owns (plugin, ma, account))
-        owner = plugin;
-    }
-
-  return owner;
+  return plugin;
 }
 
 /*
@@ -917,7 +598,8 @@ mcd_storage_dup_string (McdStorage *self,
 
   g_value_init (&tmp, G_TYPE_STRING);
 
-  if (!mcd_storage_get_attribute (self, account, attribute, &tmp, NULL))
+  if (!mcd_storage_get_attribute (self, account, attribute,
+        G_VARIANT_TYPE_STRING, &tmp, NULL))
     return NULL;
 
   ret = g_value_dup_string (&tmp);
@@ -964,36 +646,42 @@ gboolean
 mcd_storage_get_attribute (McdStorage *self,
     const gchar *account,
     const gchar *attribute,
+    const GVariantType *type,
     GValue *value,
     GError **error)
 {
-  McdStorageAccount *sa;
+  McpAccountManager *ma = MCP_ACCOUNT_MANAGER (self);
+  McpAccountStorage *plugin;
   GVariant *variant;
+  gboolean ret;
 
   g_return_val_if_fail (MCD_IS_STORAGE (self), FALSE);
   g_return_val_if_fail (account != NULL, FALSE);
   g_return_val_if_fail (attribute != NULL, FALSE);
   g_return_val_if_fail (!g_str_has_prefix (attribute, "param-"), FALSE);
 
-  sa = lookup_account (self, account);
+  plugin = g_hash_table_lookup (self->accounts, account);
 
-  if (sa == NULL)
+  if (plugin == NULL)
     {
       g_set_error (error, TP_ERROR, TP_ERROR_NOT_AVAILABLE,
           "Account %s does not exist", account);
       return FALSE;
     }
 
-  variant = g_hash_table_lookup (sa->attributes, attribute);
+  variant = mcp_account_storage_get_attribute (plugin, ma, account,
+      attribute, type, NULL);
 
   if (variant == NULL)
     {
       g_set_error (error, TP_ERROR, TP_ERROR_NOT_AVAILABLE,
-          "Setting '%s' not stored by account %s", attribute, account);
+          "Account %s has no attribute '%s'", account, attribute);
       return FALSE;
     }
 
-  return mcd_storage_coerce_variant_to_value (variant, value, error);
+  ret = mcd_storage_coerce_variant_to_value (variant, value, error);
+  g_variant_unref (variant);
+  return ret;
 }
 
 /*
@@ -1008,52 +696,42 @@ gboolean
 mcd_storage_get_parameter (McdStorage *self,
     const gchar *account,
     const gchar *parameter,
+    const GVariantType *type,
     GValue *value,
     GError **error)
 {
-  McdStorageAccount *sa;
-  const gchar *escaped;
+  McpAccountManager *ma = MCP_ACCOUNT_MANAGER (self);
+  McpAccountStorage *plugin;
   GVariant *variant;
+  gboolean ret;
 
   g_return_val_if_fail (MCD_IS_STORAGE (self), FALSE);
   g_return_val_if_fail (account != NULL, FALSE);
   g_return_val_if_fail (parameter != NULL, FALSE);
+  g_return_val_if_fail (!g_str_has_prefix (parameter, "param-"), FALSE);
 
-  sa = lookup_account (self, account);
+  plugin = g_hash_table_lookup (self->accounts, account);
 
-  if (sa == NULL)
+  if (plugin == NULL)
     {
       g_set_error (error, TP_ERROR, TP_ERROR_NOT_AVAILABLE,
           "Account %s does not exist", account);
       return FALSE;
     }
 
-  variant = g_hash_table_lookup (sa->parameters, parameter);
+  variant = mcp_account_storage_get_parameter (plugin, ma, account,
+      parameter, type, NULL);
 
-  if (variant != NULL)
-    return mcd_storage_coerce_variant_to_value (variant, value, error);
-
-  /* OK, we don't have it as a variant. How about the keyfile-escaped
-   * version? */
-  escaped = g_hash_table_lookup (sa->escaped_parameters, parameter);
-
-  if (escaped == NULL)
+  if (variant == NULL)
     {
       g_set_error (error, TP_ERROR, TP_ERROR_NOT_AVAILABLE,
-          "Parameter '%s' not stored by account %s", parameter, account);
+          "Account %s has no parameter '%s'", account, parameter);
       return FALSE;
     }
 
-  return mcd_keyfile_unescape_value (escaped, value, error);
-}
-
-static gboolean
-mcpa_unescape_value_from_keyfile (const McpAccountManager *unused G_GNUC_UNUSED,
-    const gchar *escaped,
-    GValue *value,
-    GError **error)
-{
-  return mcd_keyfile_unescape_value (escaped, value, error);
+  ret = mcd_storage_coerce_variant_to_value (variant, value, error);
+  g_variant_unref (variant);
+  return ret;
 }
 
 /*
@@ -1509,7 +1187,8 @@ mcd_storage_get_boolean (McdStorage *self,
 
   g_value_init (&tmp, G_TYPE_BOOLEAN);
 
-  if (!mcd_storage_get_attribute (self, account, attribute, &tmp, NULL))
+  if (!mcd_storage_get_attribute (self, account, attribute,
+        G_VARIANT_TYPE_BOOLEAN, &tmp, NULL))
     return FALSE;
 
   return g_value_get_boolean (&tmp);
@@ -1537,65 +1216,60 @@ mcd_storage_get_integer (McdStorage *self,
 
   g_value_init (&tmp, G_TYPE_INT);
 
-  if (!mcd_storage_get_attribute (self, account, attribute, &tmp, NULL))
+  if (!mcd_storage_get_attribute (self, account, attribute,
+        G_VARIANT_TYPE_INT32, &tmp, NULL))
     return FALSE;
 
   return g_value_get_int (&tmp);
 }
 
-static void
+static gboolean
 update_storage (McdStorage *self,
     const gchar *account,
+    gboolean parameter,
     const gchar *key,
-    GVariant *variant,
-    const gchar *escaped,
-    gboolean secret)
+    GVariant *variant)
 {
-  GList *store;
-  gboolean done = FALSE;
-  gboolean parameter = g_str_has_prefix (key, "param-");
   McpAccountManager *ma = MCP_ACCOUNT_MANAGER (self);
+  gboolean updated = FALSE;
+  McpAccountStorage *plugin;
+  const gchar *pn;
+  McpAccountStorageSetResult res;
 
-  if (secret)
-    mcd_storage_make_secret (self, account, key);
+  plugin = g_hash_table_lookup (self->accounts, account);
+  g_return_val_if_fail (plugin != NULL, FALSE);
+  pn = mcp_account_storage_name (plugin);
 
-  /* we're deleting, which is unconditional, no need to check if anyone *
-   * claims this setting for themselves                                 */
-  if (escaped == NULL)
-    done = TRUE;
+  if (parameter)
+    res = mcp_account_storage_set_parameter (plugin, ma, account,
+        key, variant, MCP_PARAMETER_FLAG_NONE);
+  else
+    res = mcp_account_storage_set_attribute (plugin, ma, account,
+        key, variant, MCP_ATTRIBUTE_FLAG_NONE);
 
-  for (store = stores; store != NULL; store = g_list_next (store))
+  switch (res)
     {
-      McpAccountStorage *plugin = store->data;
-      const gchar *pn = mcp_account_storage_name (plugin);
+      case MCP_ACCOUNT_STORAGE_SET_RESULT_CHANGED:
+        DEBUG ("MCP:%s -> store %s %s.%s", pn,
+            parameter ? "parameter" : "attribute", account, key);
+        updated = TRUE;
+        break;
 
-      if (done)
-        {
-          DEBUG ("MCP:%s -> delete %s.%s", pn, account, key);
-          mcp_account_storage_delete (plugin, ma, account, key);
-        }
-      else if (variant != NULL && !parameter &&
-          mcp_account_storage_set_attribute (plugin, ma, account, key, variant,
-            MCP_ATTRIBUTE_FLAG_NONE))
-        {
-          done = TRUE;
-          DEBUG ("MCP:%s -> store attribute %s.%s", pn, account, key);
-        }
-      else if (variant != NULL && parameter &&
-          mcp_account_storage_set_parameter (plugin, ma, account, key + 6,
-            variant,
-            secret ? MCP_PARAMETER_FLAG_SECRET : MCP_PARAMETER_FLAG_NONE))
-        {
-          done = TRUE;
-          DEBUG ("MCP:%s -> store parameter %s.%s", pn, account, key);
-        }
-      else
-        {
-          done = mcp_account_storage_set (plugin, ma, account, key, escaped);
-          DEBUG ("MCP:%s -> %s %s.%s",
-              pn, done ? "store" : "ignore", account, key);
-        }
+      case MCP_ACCOUNT_STORAGE_SET_RESULT_FAILED:
+        DEBUG ("MCP:%s -> failed to store %s %s.%s",
+            pn, parameter ? "parameter" : "attribute", account, key);
+        break;
+
+      case MCP_ACCOUNT_STORAGE_SET_RESULT_UNCHANGED:
+        DEBUG ("MCP:%s -> no change to %s %s.%s",
+            pn, parameter ? "parameter" : "attribute", account, key);
+        break;
+
+      default:
+        g_warn_if_reached ();
     }
+
+  return updated;
 }
 
 /*
@@ -1666,45 +1340,24 @@ mcd_storage_set_attribute (McdStorage *self,
     const gchar *attribute,
     const GValue *value)
 {
-  McdStorageAccount *sa;
-  GVariant *old_v;
   GVariant *new_v;
   gboolean updated = FALSE;
+  McpAccountStorage *plugin;
 
   g_return_val_if_fail (MCD_IS_STORAGE (self), FALSE);
   g_return_val_if_fail (account != NULL, FALSE);
   g_return_val_if_fail (attribute != NULL, FALSE);
   g_return_val_if_fail (!g_str_has_prefix (attribute, "param-"), FALSE);
 
-  sa = ensure_account (self, account);
+  plugin = g_hash_table_lookup (self->accounts, account);
+  g_return_val_if_fail (plugin != NULL, FALSE);
 
   if (value != NULL)
     new_v = g_variant_ref_sink (dbus_g_value_build_g_variant (value));
   else
     new_v = NULL;
 
-  old_v = g_hash_table_lookup (sa->attributes, attribute);
-
-  if (!mcd_nullable_variant_equal (old_v, new_v))
-    {
-      gchar *escaped = NULL;
-
-      /* First put it in the attributes hash table. (Watch out, this might
-       * invalidate old_v.) */
-      if (new_v == NULL)
-        g_hash_table_remove (sa->attributes, attribute);
-      else
-        g_hash_table_insert (sa->attributes, g_strdup (attribute),
-            g_variant_ref (new_v));
-
-      /* OK now we have to escape it in a stupid way for plugins */
-      if (value != NULL)
-        escaped = mcd_keyfile_escape_value (value);
-
-      update_storage (self, account, attribute, new_v, escaped, FALSE);
-      g_free (escaped);
-      updated = TRUE;
-    }
+  updated = update_storage (self, account, FALSE, attribute, new_v);
 
   tp_clear_pointer (&new_v, g_variant_unref);
   return updated;
@@ -1716,8 +1369,6 @@ mcd_storage_set_attribute (McdStorage *self,
  * @account: the unique name of an account
  * @parameter: the name of the parameter, e.g. "account"
  * @value: the value to be stored (or %NULL to erase it)
- * @secret: whether the value is confidential (might get stored in the
- * keyring, for example)
  *
  * Copies and stores the supplied @value (or removes it if %NULL) in the
  * internal cache.
@@ -1732,64 +1383,28 @@ gboolean
 mcd_storage_set_parameter (McdStorage *self,
     const gchar *account,
     const gchar *parameter,
-    const GValue *value,
-    gboolean secret)
+    const GValue *value)
 {
-  GVariant *old_v;
   GVariant *new_v = NULL;
-  const gchar *old_escaped;
-  gchar *new_escaped = NULL;
-  McdStorageAccount *sa;
   gboolean updated = FALSE;
+  McpAccountStorage *plugin;
 
   g_return_val_if_fail (MCD_IS_STORAGE (self), FALSE);
   g_return_val_if_fail (account != NULL, FALSE);
   g_return_val_if_fail (parameter != NULL, FALSE);
 
-  sa = ensure_account (self, account);
+  plugin = g_hash_table_lookup (self->accounts, account);
+  g_return_val_if_fail (plugin != NULL, FALSE);
 
   if (value != NULL)
     {
-      new_escaped = mcd_keyfile_escape_value (value);
       new_v = g_variant_ref_sink (dbus_g_value_build_g_variant (value));
     }
 
-  old_v = g_hash_table_lookup (sa->parameters, parameter);
-  old_escaped = g_hash_table_lookup (sa->escaped_parameters, parameter);
+  updated = update_storage (self, account, TRUE, parameter, new_v);
 
-  if (old_v != NULL)
-    updated = !mcd_nullable_variant_equal (old_v, new_v);
-  else if (old_escaped != NULL)
-    updated = tp_strdiff (old_escaped, new_escaped);
-  else
-    updated = (value != NULL);
-
-  if (updated)
-    {
-      gchar key[MAX_KEY_LENGTH];
-
-      g_hash_table_remove (sa->parameters, parameter);
-      g_hash_table_remove (sa->escaped_parameters, parameter);
-
-      if (new_v != NULL)
-        g_hash_table_insert (sa->parameters, g_strdup (parameter),
-            g_variant_ref (new_v));
-
-      g_snprintf (key, sizeof (key), "param-%s", parameter);
-      update_storage (self, account, key, new_v, new_escaped, secret);
-      return TRUE;
-    }
-
-  g_free (new_escaped);
   tp_clear_pointer (&new_v, g_variant_unref);
   return updated;
-}
-
-static gchar *
-mcpa_escape_value_for_keyfile (const McpAccountManager *unused G_GNUC_UNUSED,
-    const GValue *value)
-{
-  return mcd_keyfile_escape_value (value);
 }
 
 /*
@@ -2048,6 +1663,7 @@ mcd_keyfile_set_variant (GKeyFile *keyfile,
  * @manager: the name of the manager
  * @protocol: the name of the protocol
  * @identification: the result of IdentifyAccount
+ * @plugin_out: (out) (transfer full): the plugin we used
  * @error: a #GError to fill when returning %NULL
  *
  * Create a new account in storage. This should not store any
@@ -2063,10 +1679,15 @@ mcd_storage_create_account (McdStorage *self,
     const gchar *manager,
     const gchar *protocol,
     const gchar *identification,
+    McpAccountStorage **plugin_out,
     GError **error)
 {
   GList *store;
   McpAccountManager *ma = MCP_ACCOUNT_MANAGER (self);
+  gchar *ret;
+
+  if (plugin_out != NULL)
+    *plugin_out = NULL;
 
   g_return_val_if_fail (MCD_IS_STORAGE (self), NULL);
   g_return_val_if_fail (!tp_str_empty (manager), NULL);
@@ -2081,8 +1702,21 @@ mcd_storage_create_account (McdStorage *self,
 
           if (!tp_strdiff (mcp_account_storage_provider (plugin), provider))
             {
-              return mcp_account_storage_create (plugin, ma, manager,
+              ret = mcp_account_storage_create (plugin, ma, manager,
                   protocol, identification, error);
+              if (mcd_storage_add_account_from_plugin (self, plugin, ret,
+                    error))
+                {
+                  if (plugin_out != NULL)
+                    *plugin_out = g_object_ref (plugin);
+
+                  return ret;
+                }
+              else
+                {
+                  g_free (ret);
+                  return NULL;
+                }
             }
         }
 
@@ -2094,50 +1728,30 @@ mcd_storage_create_account (McdStorage *self,
 
   /* No provider specified, let's pick the first plugin able to create this
    * account in priority order.
-   *
-   * FIXME: This is rather subtle, and relies on the fact that accounts
-   * aren't always strongly tied to a single plugin.
-   *
-   * For plugins that only store their accounts set up specifically
-   * through them (like the libaccounts/SSO pseudo-plugin,
-   * McdAccountManagerSSO), create() will fail as unimplemented,
-   * and we'll fall through to the next plugin. Eventually we'll
-   * reach the default keyfile+gnome-keyring plugin, or another
-   * plugin that accepts arbitrary accounts. When set() is called,
-   * the libaccounts/SSO plugin will reject that too, and again,
-   * we'll fall through to a plugin that accepts arbitrary
-   * accounts.
-   *
-   * Plugins that will accept arbitrary accounts being created
-   * via D-Bus (like the default keyfile+gnome-keyring plugin,
-   * and the account-diversion plugin in tests/twisted)
-   * should, in principle, implement create() to be successful.
-   * If they do, their create() will succeed, and later, so will
-   * their set().
-   *
-   * We can't necessarily rely on all such plugins implementing
-   * create(), because it isn't a mandatory part of the plugin
-   * API (it was added later). However, as it happens, the
-   * default plugin returns successfully from create() without
-   * really doing anything. When we iterate through the accounts again
-   * to call set(), higher-priority plugins are given a second
-   * chance to intercept that; so we end up with create() in
-   * the default plugin being followed by set() from the
-   * higher-priority plugin. In theory that's bad because it
-   * splits the account across two plugins, but in practice
-   * it isn't a problem because the default plugin's create()
-   * doesn't really do anything anyway.
    */
   for (store = stores; store != NULL; store = g_list_next (store))
     {
       McpAccountStorage *plugin = store->data;
-      gchar *ret;
 
       ret = mcp_account_storage_create (plugin, ma, manager, protocol,
           identification, error);
 
       if (ret != NULL)
-        return ret;
+        {
+          if (mcd_storage_add_account_from_plugin (self, plugin, ret,
+                error))
+            {
+              if (plugin_out != NULL)
+                *plugin_out = g_object_ref (plugin);
+
+              return ret;
+            }
+          else
+            {
+              g_free (ret);
+              return NULL;
+            }
+        }
 
       g_clear_error (error);
     }
@@ -2151,6 +1765,29 @@ mcd_storage_create_account (McdStorage *self,
   return NULL;
 }
 
+static void
+delete_cb (GObject *source,
+    GAsyncResult *res,
+    gpointer user_data)
+{
+  GError *error = NULL;
+  const gchar *account_name = user_data;
+
+  if (mcp_account_storage_delete_finish (MCP_ACCOUNT_STORAGE (source),
+        res, &error))
+    {
+      DEBUG ("deleted account %s", account_name);
+    }
+  else
+    {
+      DEBUG ("could not delete account %s (but no way to signal that): "
+          "%s #%d: %s", account_name,
+          g_quark_to_string (error->domain), error->code, error->message);
+      g_error_free (error);
+    }
+
+  g_free (user_data);
+}
 
 /*
  * mcd_storage_delete_account:
@@ -2166,20 +1803,19 @@ void
 mcd_storage_delete_account (McdStorage *self,
     const gchar *account)
 {
-  GList *store;
   McpAccountManager *ma = MCP_ACCOUNT_MANAGER (self);
+  McpAccountStorage *plugin;
 
   g_return_if_fail (MCD_IS_STORAGE (self));
   g_return_if_fail (account != NULL);
 
-  g_hash_table_remove (self->accounts, account);
+  plugin = g_hash_table_lookup (self->accounts, account);
+  g_return_if_fail (plugin != NULL);
 
-  for (store = stores; store != NULL; store = g_list_next (store))
-    {
-      McpAccountStorage *plugin = store->data;
-
-      mcp_account_storage_delete (plugin, ma, account, NULL);
-    }
+  /* FIXME: stop ignoring the error (if any), and make this method async
+   * in order to pass the error up to McdAccount */
+  mcp_account_storage_delete_async (plugin, ma, account, NULL,
+      delete_cb, g_strdup (account));
 }
 
 /*
@@ -2193,27 +1829,21 @@ mcd_storage_delete_account (McdStorage *self,
 void
 mcd_storage_commit (McdStorage *self, const gchar *account)
 {
-  GList *store;
   McpAccountManager *ma = MCP_ACCOUNT_MANAGER (self);
+  McpAccountStorage *plugin;
+  const gchar *pname;
 
   g_return_if_fail (MCD_IS_STORAGE (self));
+  g_return_if_fail (account != NULL);
 
-  for (store = stores; store != NULL; store = g_list_next (store))
-    {
-      McpAccountStorage *plugin = store->data;
-      const gchar *pname = mcp_account_storage_name (plugin);
+  plugin = g_hash_table_lookup (self->accounts, account);
+  g_return_if_fail (plugin != NULL);
 
-      if (account != NULL)
-        {
-          DEBUG ("flushing plugin %s %s to long term storage", pname, account);
-          mcp_account_storage_commit_one (plugin, ma, account);
-        }
-      else
-        {
-          DEBUG ("flushing plugin %s to long term storage", pname);
-          mcp_account_storage_commit (plugin, ma);
-        }
-    }
+  pname = mcp_account_storage_name (plugin);
+
+  /* FIXME: fd.o #29563: this should be async, really */
+  DEBUG ("flushing plugin %s %s to long term storage", pname, account);
+  mcp_account_storage_commit (plugin, ma, account);
 }
 
 /*
@@ -2270,40 +1900,62 @@ mcd_storage_ready (McdStorage *self)
     }
 }
 
+static GVariant *
+mcpa_unescape_variant_from_keyfile (const McpAccountManager *mcpa,
+    const gchar *escaped,
+    const GVariantType *type,
+    GError **error)
+{
+  GKeyFile *keyfile;
+  GVariant *ret;
+
+  g_return_val_if_fail (escaped != NULL, NULL);
+  g_return_val_if_fail (type != NULL, NULL);
+
+  keyfile = g_key_file_new ();
+  g_key_file_set_value (keyfile, "g", "k", escaped);
+  ret = mcd_keyfile_get_variant (keyfile, "g", "k", type, error);
+  g_key_file_free (keyfile);
+
+  if (ret != NULL)
+    g_variant_ref_sink (ret);
+
+  return ret;
+}
+
 static void
 plugin_iface_init (McpAccountManagerIface *iface,
     gpointer unused G_GNUC_UNUSED)
 {
   DEBUG ();
 
-  iface->get_value = get_value;
-  iface->set_value = set_value;
-  iface->set_attribute = mcpa_set_attribute;
-  iface->set_parameter = mcpa_set_parameter;
-  iface->is_secret = is_secret;
-  iface->make_secret = make_secret;
   iface->unique_name = unique_name;
   iface->identify_account_async = identify_account_async;
   iface->identify_account_finish = identify_account_finish;
-  iface->list_keys = list_keys;
-  iface->escape_value_for_keyfile = mcpa_escape_value_for_keyfile;
   iface->escape_variant_for_keyfile = mcpa_escape_variant_for_keyfile;
-  iface->unescape_value_from_keyfile = mcpa_unescape_value_from_keyfile;
-  iface->init_value_for_attribute = mcpa_init_value_for_attribute;
+  iface->unescape_variant_from_keyfile = mcpa_unescape_variant_from_keyfile;
 }
 
 gboolean
 mcd_storage_add_account_from_plugin (McdStorage *self,
     McpAccountStorage *plugin,
-    const gchar *account)
+    const gchar *account,
+    GError **error)
 {
-  if (!mcp_account_storage_get (plugin, MCP_ACCOUNT_MANAGER (self),
-      account, NULL))
+  McpAccountStorage *other = g_hash_table_lookup (self->accounts, account);
+
+  if (other != NULL)
     {
-      g_warning ("plugin %s disowned account %s",
-                 mcp_account_storage_name (plugin), account);
+      g_set_error (error, TP_ERROR, TP_ERROR_NOT_AVAILABLE,
+          "account %s already exists in plugin '%s', cannot create "
+          "for plugin '%s'",
+          account,
+          mcp_account_storage_name (other),
+          mcp_account_storage_name (plugin));
       return FALSE;
     }
 
+  g_hash_table_insert (self->accounts, g_strdup (account),
+      g_object_ref (plugin));
   return TRUE;
 }

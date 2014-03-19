@@ -24,6 +24,7 @@ import dbus
 """
 
 import os
+import os.path
 
 import dbus
 import dbus.service
@@ -68,8 +69,12 @@ def preseed(q, bus, fake_accounts_service):
         'password': r'\\\\ionstorm\\\\',
         })
 
-    os.makedirs(accounts_dir + '/' + account_id)
-    avatar_bin = open(accounts_dir + '/' + account_id + '/avatar.bin', 'w')
+    avatar_filename = account_id
+    avatar_filename = avatar_filename.replace('/', '-') + '.avatar'
+    avatar_filename = (os.environ['XDG_DATA_HOME'] +
+        '/telepathy-1/mission-control/' + avatar_filename)
+    os.makedirs(os.path.dirname(avatar_filename))
+    avatar_bin = open(avatar_filename, 'w')
     avatar_bin.write('Deus Ex')
     avatar_bin.close()
 
