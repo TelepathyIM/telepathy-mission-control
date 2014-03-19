@@ -56,6 +56,7 @@
  *   iface->desc = "The FOO storage backend";
  *   iface->provider = "im.telepathy.v1.MissionControl6.FooStorage";
  *
+ *   iface->get_flags = foo_plugin_get_flags;
  *   iface->delete_async = foo_plugin_delete_async;
  *   iface->delete_finish = foo_plugin_delete_finish;
  *   iface->commit = foo_plugin_commit;
@@ -67,6 +68,8 @@
  *   iface->create = foo_plugin_create;
  *   iface->get_attribute = foo_plugin_get_attribute;
  *   iface->get_parameter = foo_plugin_get_parameter;
+ *   iface->list_typed_parameters = foo_plugin_list_typed_parameters;
+ *   iface->list_untyped_parameters = foo_plugin_list_untyped_parameters;
  *   iface->set_attribute = foo_plugin_set_attribute;
  *   iface->set_parameter = foo_plugin_set_parameter;
  * }
@@ -98,6 +101,15 @@
 #define SDEBUG(_p, _format, ...) do {} while (0);
 
 #endif /* ENABLE_DEBUG */
+
+/**
+ * McpAccountStorageFlags:
+ * @MCP_ACCOUNT_STORAGE_FLAG_NONE: no particular flags
+ * @MCP_ACCOUNT_STORAGE_FLAG_STORES_TYPES: this backend can store parameter
+ *  values' types
+ *
+ * Flags describing the features and capabilities of a backend.
+ */
 
 enum
 {
@@ -205,6 +217,21 @@ default_set_parameter (McpAccountStorage *storage,
   return MCP_ACCOUNT_STORAGE_SET_RESULT_FAILED;
 }
 
+static gchar **
+default_list_untyped_parameters (McpAccountStorage *storage,
+    McpAccountManager *am,
+    const gchar *account)
+{
+  return NULL;
+}
+
+static McpAccountStorageFlags
+default_get_flags (McpAccountStorage *storage,
+    const gchar *account)
+{
+  return MCP_ACCOUNT_STORAGE_FLAG_NONE;
+}
+
 static void
 class_init (gpointer klass,
     gpointer data)
@@ -212,6 +239,7 @@ class_init (gpointer klass,
   GType type = G_TYPE_FROM_CLASS (klass);
   McpAccountStorageIface *iface = klass;
 
+  iface->get_flags = default_get_flags;
   iface->create = default_create;
   iface->delete_async = default_delete_async;
   iface->delete_finish = default_delete_finish;
@@ -222,6 +250,7 @@ class_init (gpointer klass,
   iface->get_restrictions = default_get_restrictions;
   iface->set_attribute = default_set_attribute;
   iface->set_parameter = default_set_parameter;
+  iface->list_untyped_parameters = default_list_untyped_parameters;
 
   if (signals[CREATED] != 0)
     {
@@ -258,8 +287,9 @@ class_init (gpointer klass,
    * or mcp_account_storage_get_parameter() will return the new value
    * when queried.
    *
-   * Note that mcp_account_manager_get_parameter() and
-   * mcp_account_manager_set_parameter() do not use the
+   * Note that mcp_account_storage_get_parameter(),
+   * mcp_account_storage_list_typed_parameters() and
+   * mcp_account_storage_set_parameter() do not use the
    * "param-" prefix, but this signal does.
    *
    * Should not be fired until mcp_account_storage_ready() has been called
@@ -475,7 +505,7 @@ mcp_account_storage_get_attribute (McpAccountStorage *storage,
  * @am: an #McpAccountManager instance
  * @account: the unique name of the account
  * @parameter: the name of a parameter, e.g. "require-encryption"
- * @type: the expected type of @parameter, as a hint for
+ * @type: (allow-none): the expected type of @parameter, as a hint for
  *  legacy account storage plugins that do not store parameters' types
  * @flags: (allow-none) (out): used to return parameter flags
  *
@@ -488,6 +518,9 @@ mcp_account_storage_get_attribute (McpAccountStorage *storage,
  * Mission Control will coerce it to an appropriate type if required. In
  * particular, plugins that store strongly-typed parameters may return
  * the stored type, not the expected type, if they differ.
+ *
+ * If @type is %NULL, the plugin must return the parameter with its stored
+ * type, or return %NULL if the type is not stored.
  *
  * Returns: (transfer full): the value of the parameter, or %NULL if it
  *  is not present
@@ -502,14 +535,90 @@ mcp_account_storage_get_parameter (McpAccountStorage *storage,
 {
   McpAccountStorageIface *iface = MCP_ACCOUNT_STORAGE_GET_IFACE (storage);
 
-  SDEBUG (storage, "%s.%s (type '%.*s')", account, parameter,
-      (int) g_variant_type_get_string_length (type),
-      g_variant_type_peek_string (type));
+  if (type == NULL)
+    SDEBUG (storage, "%s.%s (if type is stored)", account, parameter);
+  else
+    SDEBUG (storage, "%s.%s (type '%.*s')", account, parameter,
+        (int) g_variant_type_get_string_length (type),
+        g_variant_type_peek_string (type));
 
   g_return_val_if_fail (iface != NULL, FALSE);
   g_return_val_if_fail (iface->get_parameter != NULL, FALSE);
 
   return iface->get_parameter (storage, am, account, parameter, type, flags);
+}
+
+/**
+ * mcp_account_storage_list_typed_parameters:
+ * @storage: an #McpAccountStorage instance
+ * @am: an #McpAccountManager instance
+ * @account: the unique name of the account
+ *
+ * List the names of all parameters whose corresponding types are known.
+ *
+ * Ideally, all parameters are <firstterm>typed parameters</firstterm>, whose
+ * types are stored alongside the values. This function produces
+ * those as its return value.
+ *
+ * However, the Mission Control API has not traditionally required
+ * account-storage backends to store parameters' types, so some backends
+ * will contain <firstterm>untyped parameters</firstterm>,
+ * returned by mcp_account_storage_list_untyped_parameters().
+ *
+ * This method is mandatory to implement.
+ *
+ * Returns: (array zero-terminated=1) (transfer full) (element-type utf8): a #GStrv
+ *  containing the typed parameters; %NULL or empty if there are no
+ *  typed parameters
+ */
+gchar **
+mcp_account_storage_list_typed_parameters (McpAccountStorage *storage,
+    McpAccountManager *am,
+    const gchar *account)
+{
+  McpAccountStorageIface *iface = MCP_ACCOUNT_STORAGE_GET_IFACE (storage);
+
+  SDEBUG (storage, "%s", account);
+
+  g_return_val_if_fail (iface != NULL, NULL);
+  g_return_val_if_fail (iface->list_typed_parameters != NULL, NULL);
+
+  return iface->list_typed_parameters (storage, am, account);
+}
+
+/**
+ * mcp_account_storage_list_untyped_parameters:
+ * @storage: an #McpAccountStorage instance
+ * @am: an #McpAccountManager instance
+ * @account: the unique name of the account
+ *
+ * List the names of all parameters whose types are unknown.
+ * The values are not listed, because interpreting the value
+ * correctly requires a type.
+ *
+ * See mcp_account_storage_list_typed_parameters() for more on
+ * typed vs. untyped parameters.
+ *
+ * The default implementation just returns %NULL, and is appropriate
+ * for "legacy-free" backends that store a type with every parameter.
+ *
+ * Returns: (array zero-terminated=1) (transfer full) (element-type utf8): a #GStrv
+ *  containing the untyped parameters; %NULL or empty if there are no
+ *  untyped parameters
+ */
+gchar **
+mcp_account_storage_list_untyped_parameters (McpAccountStorage *storage,
+    McpAccountManager *am,
+    const gchar *account)
+{
+  McpAccountStorageIface *iface = MCP_ACCOUNT_STORAGE_GET_IFACE (storage);
+
+  SDEBUG (storage, "%s", account);
+
+  g_return_val_if_fail (iface != NULL, NULL);
+  g_return_val_if_fail (iface->list_untyped_parameters != NULL, NULL);
+
+  return iface->list_untyped_parameters (storage, am, account);
 }
 
 /**
@@ -1113,4 +1222,76 @@ mcp_account_storage_emit_reconnect (McpAccountStorage *storage,
 {
   SDEBUG (storage, "%s", account);
   g_signal_emit (storage, signals[RECONNECT], 0, account);
+}
+
+/**
+ * mcp_account_storage_get_flags:
+ * @storage: an #McpAccountStorage instance
+ * @account: the unique name of the account to inspect
+ *
+ * Get the backend's features and capabilities. The default implementation
+ * returns %MCP_ACCOUNT_STORAGE_FLAG_NONE. Additionally providing
+ * %MCP_ACCOUNT_STORAGE_FLAG_STORES_TYPES is strongly recommended.
+ *
+ * Returns: a bitmask of API features that apply to @account
+ */
+McpAccountStorageFlags
+mcp_account_storage_get_flags (McpAccountStorage *storage,
+    const gchar *account)
+{
+  McpAccountStorageIface *iface = MCP_ACCOUNT_STORAGE_GET_IFACE (storage);
+
+  g_return_val_if_fail (iface != NULL, MCP_ACCOUNT_STORAGE_FLAG_NONE);
+  g_return_val_if_fail (iface->get_flags != NULL,
+      MCP_ACCOUNT_STORAGE_FLAG_NONE);
+
+  return iface->get_flags (storage, account);
+}
+
+/**
+ * mcp_account_storage_has_all_flags:
+ * @storage: an #McpAccountStorage instance
+ * @account: the unique name of the account to inspect
+ * @require_all: bitwise "or" of zero or more flags
+ *
+ * Return whether this account has all of the specified flags,
+ * according to mcp_account_storage_get_flags().
+ *
+ * If @require_all is 0, the result will always be %TRUE
+ * (the account has all of the flags in the empty set).
+ *
+ * Returns: %TRUE if @account has every flag in @require_all
+ */
+gboolean
+mcp_account_storage_has_all_flags (McpAccountStorage *storage,
+    const gchar *account,
+    McpAccountStorageFlags require_all)
+{
+  return ((mcp_account_storage_get_flags (storage, account) & require_all) ==
+    require_all);
+}
+
+
+/**
+ * mcp_account_storage_has_any_flag:
+ * @storage: an #McpAccountStorage instance
+ * @account: the unique name of the account to inspect
+ * @require_one: bitwise "or" of one or more flags
+ *
+ * Return whether this account has at least one of the required flags,
+ * according to mcp_account_storage_get_flags().
+ *
+ * If @require_one is 0, the result will always be %FALSE
+ * (it is not true that the account has at least one of the flags
+ * in the empty set).
+ *
+ * Returns: %TRUE if @account has every flag in @require_all
+ */
+gboolean
+mcp_account_storage_has_any_flag (McpAccountStorage *storage,
+    const gchar *account,
+    McpAccountStorageFlags require_one)
+{
+  return ((mcp_account_storage_get_flags (storage, account) & require_one)
+      != 0);
 }

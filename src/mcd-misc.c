@@ -37,9 +37,6 @@
 
 #include "mcd-debug.h"
 
-#include "_gen/signals-marshal.h"
-#include "_gen/register-dbus-glib-marshallers-body.h"
-
 #include <dbus/dbus.h>
 #include <dbus/dbus-glib-lowlevel.h>
 

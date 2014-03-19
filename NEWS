@@ -58,10 +58,13 @@ Incompatible changes:
   or help us to disentangle it from Empathy and add it to Mission Control
   (fd.o #66459).
 
+• Account.I.ExternalPasswordStorage and CM.I.AccountStorage have been
+  removed (fd.o #33485, #44512, #69006)
+
 Dependencies:
 
 • GLib ≥ 2.36 (including GObject, GModule and GIO) is now required
-• telepathy-glib ≥ 0.23 is now required
+• telepathy-glib ≥ 0.23.1 is now required
 
 Enhancements:
 
@@ -69,6 +72,9 @@ Enhancements:
 
 • Store accounts in one file per account, with a GVariant-based
   text format that preserves data types (fd.o #54875, Simon)
+
+• Re-save parameters with their types when edited, or when we discover
+  what type the connection manager expects (fd.o #71093, Simon)
 
 • Use telepathy-glib 0.23 for CD.I.Messages (fd.o #37380, Simon)
 

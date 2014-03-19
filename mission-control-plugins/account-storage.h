@@ -47,6 +47,12 @@ typedef enum {
     MCP_ACCOUNT_STORAGE_SET_RESULT_UNCHANGED
 } McpAccountStorageSetResult;
 
+typedef enum /*< flags >*/
+{
+    MCP_ACCOUNT_STORAGE_FLAG_NONE = 0,
+    MCP_ACCOUNT_STORAGE_FLAG_STORES_TYPES = (1 << 0)
+} McpAccountStorageFlags;
+
 /* API for plugins to implement */
 typedef struct _McpAccountStorage McpAccountStorage;
 typedef struct _McpAccountStorageIface McpAccountStorageIface;
@@ -155,6 +161,16 @@ struct _McpAccountStorageIface
       const gchar *parameter,
       GVariant *val,
       McpParameterFlags flags);
+
+  gchar **(*list_typed_parameters) (McpAccountStorage *storage,
+      McpAccountManager *am,
+      const gchar *account);
+  gchar **(*list_untyped_parameters) (McpAccountStorage *storage,
+      McpAccountManager *am,
+      const gchar *account);
+
+  McpAccountStorageFlags (*get_flags) (McpAccountStorage *storage,
+      const gchar *account);
 };
 
 /* virtual methods */
@@ -217,6 +233,12 @@ GVariant *mcp_account_storage_get_parameter (McpAccountStorage *storage,
       const gchar *parameter,
       const GVariantType *type,
       McpParameterFlags *flags);
+gchar **mcp_account_storage_list_typed_parameters (McpAccountStorage *storage,
+    McpAccountManager *am,
+    const gchar *account);
+gchar **mcp_account_storage_list_untyped_parameters (McpAccountStorage *storage,
+    McpAccountManager *am,
+    const gchar *account);
 
 McpAccountStorageSetResult mcp_account_storage_set_attribute (
     McpAccountStorage *storage,
@@ -232,6 +254,18 @@ McpAccountStorageSetResult mcp_account_storage_set_parameter (
     const gchar *parameter,
     GVariant *value,
     McpParameterFlags flags);
+
+McpAccountStorageFlags mcp_account_storage_get_flags (
+    McpAccountStorage *storage,
+    const gchar *account);
+gboolean mcp_account_storage_has_all_flags (
+    McpAccountStorage *storage,
+    const gchar *account,
+    McpAccountStorageFlags require_all);
+gboolean mcp_account_storage_has_any_flag (
+    McpAccountStorage *storage,
+    const gchar *account,
+    McpAccountStorageFlags require_one);
 
 void mcp_account_storage_emit_created (McpAccountStorage *storage,
     const gchar *account);

@@ -238,6 +238,11 @@ _get_parameter (McpAccountStorage *self,
   if (flags != NULL)
     *flags = 0;
 
+  /* this plugin does not store parameters' types, so we can't invent
+   * a sensible type from nowhere */
+  if (type == NULL)
+    return NULL;
+
   key = g_strdup_printf ("param-%s", parameter);
   v = g_key_file_get_value (adp->keyfile, account, key, NULL);
   g_free (key);
@@ -248,6 +253,43 @@ _get_parameter (McpAccountStorage *self,
   ret = mcp_account_manager_unescape_variant_from_keyfile (am, v, type, NULL);
   g_free (v);
   return ret;
+}
+
+static gchar **
+list_typed_parameters (McpAccountStorage *storage,
+    McpAccountManager *am,
+    const gchar *account_name)
+{
+  /* this plugin can't store parameters' types */
+  return NULL;
+}
+
+static gchar **
+list_untyped_parameters (McpAccountStorage *storage,
+    McpAccountManager *am,
+    const gchar *account_name)
+{
+  AccountDiversionPlugin *adp = ACCOUNT_DIVERSION_PLUGIN (storage);
+  gchar **keys;
+  gsize i;
+  GPtrArray *arr;
+
+  keys = g_key_file_get_keys (adp->keyfile, account_name, &i, NULL);
+
+  if (keys == NULL)
+    return NULL;
+
+  arr = g_ptr_array_sized_new (i);
+
+  for (i = 0; keys[i] != NULL; i++)
+    {
+      if (g_str_has_prefix (keys[i], "param-"))
+        g_ptr_array_add (arr, g_strdup (keys[i] + 6));
+    }
+
+  g_strfreev (keys);
+  g_ptr_array_add (arr, NULL);
+  return (gchar **) g_ptr_array_free (arr, FALSE);
 }
 
 static gboolean _commit (McpAccountStorage *self,
@@ -386,6 +428,8 @@ account_storage_iface_init (McpAccountStorageIface *iface,
 
   iface->get_attribute = _get_attribute;
   iface->get_parameter = _get_parameter;
+  iface->list_typed_parameters = list_typed_parameters;
+  iface->list_untyped_parameters = list_untyped_parameters;
   iface->set_attribute = _set_attribute;
   iface->set_parameter = _set_parameter;
   iface->delete_async = delete_async;

@@ -1017,7 +1017,7 @@ test_dbus_account_plugin_get_parameter (McpAccountStorage *storage,
     {
       return g_variant_ref (v);
     }
-  else if (s != NULL)
+  else if (s != NULL && type != NULL)
     {
       return mcp_account_manager_unescape_variant_from_keyfile (am,
           s, type, NULL);
@@ -1026,6 +1026,59 @@ test_dbus_account_plugin_get_parameter (McpAccountStorage *storage,
     {
       return NULL;
     }
+}
+
+static gchar **
+test_dbus_account_plugin_list_typed_parameters (McpAccountStorage *storage,
+    McpAccountManager *am,
+    const gchar *account_name)
+{
+  TestDBusAccountPlugin *self = TEST_DBUS_ACCOUNT_PLUGIN (storage);
+  Account *account = lookup_account (self, account_name);
+  GPtrArray *arr;
+  GHashTableIter iter;
+  gpointer k;
+
+  g_return_val_if_fail (self->active, NULL);
+  g_return_val_if_fail (account != NULL, NULL);
+
+  arr = g_ptr_array_sized_new (g_hash_table_size (account->parameters) + 1);
+
+  g_hash_table_iter_init (&iter, account->parameters);
+
+  while (g_hash_table_iter_next (&iter, &k, NULL))
+    g_ptr_array_add (arr, g_strdup (k));
+
+  g_ptr_array_add (arr, NULL);
+
+  return (gchar **) g_ptr_array_free (arr, FALSE);
+}
+
+static gchar **
+test_dbus_account_plugin_list_untyped_parameters (McpAccountStorage *storage,
+    McpAccountManager *am,
+    const gchar *account_name)
+{
+  TestDBusAccountPlugin *self = TEST_DBUS_ACCOUNT_PLUGIN (storage);
+  Account *account = lookup_account (self, account_name);
+  GPtrArray *arr;
+  GHashTableIter iter;
+  gpointer k;
+
+  g_return_val_if_fail (self->active, NULL);
+  g_return_val_if_fail (account != NULL, NULL);
+
+  arr = g_ptr_array_sized_new (
+      g_hash_table_size (account->untyped_parameters) + 1);
+
+  g_hash_table_iter_init (&iter, account->untyped_parameters);
+
+  while (g_hash_table_iter_next (&iter, &k, NULL))
+    g_ptr_array_add (arr, g_strdup (k));
+
+  g_ptr_array_add (arr, NULL);
+
+  return (gchar **) g_ptr_array_free (arr, FALSE);
 }
 
 static McpAccountStorageSetResult
@@ -1490,6 +1543,13 @@ test_dbus_account_plugin_get_restrictions (McpAccountStorage *storage,
   return account->restrictions;
 }
 
+static McpAccountStorageFlags
+test_dbus_account_plugin_get_flags (McpAccountStorage *storage,
+    const gchar *account)
+{
+  return MCP_ACCOUNT_STORAGE_FLAG_STORES_TYPES;
+}
+
 static void
 account_storage_iface_init (McpAccountStorageIface *iface)
 {
@@ -1498,8 +1558,13 @@ account_storage_iface_init (McpAccountStorageIface *iface)
   /* this should be higher priority than the diverted-keyfile one */
   iface->priority = MCP_ACCOUNT_STORAGE_PLUGIN_PRIO_NORMAL + 100;
 
+  iface->get_flags = test_dbus_account_plugin_get_flags;
   iface->get_attribute = test_dbus_account_plugin_get_attribute;
   iface->get_parameter = test_dbus_account_plugin_get_parameter;
+  iface->list_typed_parameters =
+    test_dbus_account_plugin_list_typed_parameters;
+  iface->list_untyped_parameters =
+    test_dbus_account_plugin_list_untyped_parameters;
   iface->set_attribute = test_dbus_account_plugin_set_attribute;
   iface->set_parameter = test_dbus_account_plugin_set_parameter;
   iface->list = test_dbus_account_plugin_list;

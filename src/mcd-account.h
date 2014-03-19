@@ -96,12 +96,8 @@ const gchar *mcd_account_get_object_path (McdAccount *account);
 
 gboolean mcd_account_is_usable (McdAccount *account);
 
-typedef void (*McdAccountCheckUsabilityCb) (McdAccount *account,
-    const GError *unusable_reason,
-    gpointer user_data);
-void mcd_account_check_usability (McdAccount *account,
-    McdAccountCheckUsabilityCb callback,
-    gpointer user_data);
+gboolean mcd_account_check_usability (McdAccount *account,
+    GError **error);
 
 gboolean mcd_account_is_enabled (McdAccount *account);
 
@@ -134,10 +130,6 @@ void mcd_account_altered_by_plugin (McdAccount *account, const gchar *name);
 
 gchar * mcd_account_dup_display_name (McdAccount *self);
 
-gboolean mcd_account_get_parameter (McdAccount *account, const gchar *name,
-                           GValue *parameter,
-                           GError **error);
-
 gboolean mcd_account_get_parameter_of_known_type (McdAccount *account,
                                                   const gchar *name,
                                                   const GVariantType *variant_type,
@@ -155,10 +147,6 @@ McdConnectivityMonitor *mcd_account_get_connectivity_monitor (
 gboolean mcd_account_get_waiting_for_connectivity (McdAccount *self);
 void mcd_account_set_waiting_for_connectivity (McdAccount *self,
     gboolean waiting);
-
-void mcd_account_connection_proceed (McdAccount *account, gboolean success);
-void mcd_account_connection_proceed_with_reason
-    (McdAccount *account, gboolean success, TpConnectionStatusReason reason);
 
 McpAccountStorage *mcd_account_get_storage_plugin (McdAccount *account);
 

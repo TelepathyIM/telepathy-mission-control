@@ -35,11 +35,6 @@
 
 #include <telepathy-glib/proxy-subclass.h>
 
-/* auto-generated stubs */
-#include "_gen/svc-Account_Interface_External_Password_Storage.h"
-
-#include "_gen/cli-Connection_Manager_Interface_Account_Storage.h"
-
 G_GNUC_INTERNAL void _mcd_account_maybe_autoconnect (McdAccount *account);
 G_GNUC_INTERNAL void _mcd_account_connect (McdAccount *account,
                                            GHashTable *params);
@@ -127,19 +122,6 @@ G_GNUC_INTERNAL McdChannel *_mcd_account_create_request (
     const gchar *preferred_handler, GHashTable *request_metadata,
     gboolean use_existing,
     McdRequest **request_out, GError **error);
-
-typedef struct _McdAccountConnectionContext McdAccountConnectionContext;
-
-G_GNUC_INTERNAL
-McdAccountConnectionContext *_mcd_account_get_connection_context
-    (McdAccount *self);
-
-G_GNUC_INTERNAL
-void _mcd_account_set_connection_context (McdAccount *self,
-                                          McdAccountConnectionContext *c);
-
-G_GNUC_INTERNAL void _mcd_account_connection_context_free
-    (McdAccountConnectionContext *c);
 
 typedef void (*McdAccountDupParametersCb) (McdAccount *account,
                                            GHashTable *params,

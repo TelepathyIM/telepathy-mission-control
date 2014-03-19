@@ -44,11 +44,6 @@
 #include "mcd-master-priv.h"
 #include "mcd-dbusprop.h"
 
-#include "_gen/interfaces.h"
-#include "_gen/enums.h"
-#include "_gen/gtypes.h"
-#include "_gen/cli-Connection_Manager_Interface_Account_Storage-body.h"
-
 #define MC_OLD_AVATAR_FILENAME	"avatar.bin"
 
 #define MCD_ACCOUNT_PRIV(account) (MCD_ACCOUNT (account)->priv)
@@ -62,14 +57,10 @@ static void account_avatar_iface_init (TpSvcAccountInterfaceAvatar1Class *iface,
 static void account_storage_iface_init (
     TpSvcAccountInterfaceStorage1Class *iface,
     gpointer iface_data);
-static void account_external_password_storage_iface_init (
-    McSvcAccountInterfaceExternalPasswordStorageClass *iface,
-    gpointer iface_data);
 
 static const McdDBusProp account_properties[];
 static const McdDBusProp account_avatar_properties[];
 static const McdDBusProp account_storage_properties[];
-static const McdDBusProp account_external_password_storage_properties[];
 
 static const McdInterfaceData account_interfaces[] = {
     MCD_IMPLEMENT_IFACE (tp_svc_account_get_type, account, TP_IFACE_ACCOUNT),
@@ -82,10 +73,6 @@ static const McdInterfaceData account_interfaces[] = {
     MCD_IMPLEMENT_IFACE (tp_svc_account_interface_addressing1_get_type,
         account_addressing,
         TP_IFACE_ACCOUNT_INTERFACE_ADDRESSING1),
-    MCD_IMPLEMENT_OPTIONAL_IFACE (
-        mc_svc_account_interface_external_password_storage_get_type,
-        account_external_password_storage,
-        MC_IFACE_ACCOUNT_INTERFACE_EXTERNAL_PASSWORD_STORAGE),
 
     { G_TYPE_INVALID, }
 };
@@ -100,6 +87,11 @@ typedef struct {
     McdOnlineRequestCb callback;
     gpointer user_data;
 } McdOnlineRequestData;
+
+typedef struct {
+    GHashTable *params;
+    gboolean user_initiated;
+} McdAccountConnectionContext;
 
 struct _McdAccountPrivate
 {
@@ -192,8 +184,18 @@ enum
     LAST_SIGNAL
 };
 
+static void
+_mcd_account_connection_context_free (McdAccountConnectionContext *c)
+{
+    g_hash_table_unref (c->params);
+    g_free (c);
+}
+
 static guint _mcd_account_signals[LAST_SIGNAL] = { 0 };
 static GQuark account_ready_quark = 0;
+
+static void mcd_account_changed_property (McdAccount *account,
+    const gchar *key, const GValue *value);
 
 GQuark
 mcd_account_error_quark (void)
@@ -403,7 +405,7 @@ static GType mc_param_type (const TpConnectionManagerParam *param,
 /**
  * mcd_account_get_parameter:
  * @account: the #McdAccount.
- * @name: the parameter name.
+ * @param: a connection manager parameter
  * @parameter: location at which to store the parameter's current value, or
  *  %NULL if you don't actually care about the parameter's value.
  * @error: location at which to store an error if the parameter cannot be
@@ -413,19 +415,17 @@ static GType mc_param_type (const TpConnectionManagerParam *param,
  *
  * Returns: %TRUE if the parameter could be retrieved; %FALSE otherwise
  */
-gboolean
-mcd_account_get_parameter (McdAccount *account, const gchar *name,
+static gboolean
+mcd_account_get_parameter (McdAccount *account,
+                           const TpConnectionManagerParam *param,
                            GValue *parameter,
                            GError **error)
 {
-    McdAccountPrivate *priv = account->priv;
-    const TpConnectionManagerParam *param;
     GType type;
     const GVariantType *variant_type;
     gboolean ret;
+    const gchar *name = tp_connection_manager_param_get_name (param);
 
-    param = mcd_manager_get_protocol_param (priv->manager,
-                                            priv->protocol_name, name);
     type = mc_param_type (param, &variant_type);
 
     ret = mcd_account_get_parameter_of_known_type (account, name,
@@ -461,169 +461,63 @@ mcd_account_get_parameter_of_known_type (McdAccount *account,
     return FALSE;
 }
 
-typedef void (*CheckParametersCb) (
-    McdAccount *account,
-    const GError *unusable_reason,
-    gpointer user_data);
-static void mcd_account_check_parameters (McdAccount *account,
-    CheckParametersCb callback, gpointer user_data);
-
-static void
-manager_ready_check_params_cb (McdAccount *account,
-    const GError *unusable_reason,
-    gpointer user_data)
-{
-    McdAccountPrivate *priv = account->priv;
-
-    g_clear_error (&priv->unusable_reason);
-    if (unusable_reason != NULL)
-    {
-        priv->unusable_reason = g_error_copy (unusable_reason);
-    }
-
-    mcd_account_loaded (account);
-}
-
-static void
-account_external_password_storage_get_accounts_cb (TpProxy *cm,
-    const GValue *value,
-    const GError *in_error,
-    gpointer user_data,
-    GObject *self)
-{
-  McdAccount *account = MCD_ACCOUNT (self);
-  const char *account_id = user_data;
-  GHashTable *map, *props;
-
-  if (in_error != NULL)
-    {
-      DEBUG ("Failed to get Account property: %s", in_error->message);
-      return;
-    }
-
-  g_return_if_fail (G_VALUE_HOLDS (value, MC_HASH_TYPE_ACCOUNT_FLAGS_MAP));
-
-  map = g_value_get_boxed (value);
-
-  account->priv->password_saved =
-    GPOINTER_TO_UINT (g_hash_table_lookup (map, account_id)) &
-      MC_ACCOUNT_FLAG_CREDENTIALS_STORED;
-
-  DEBUG ("PasswordSaved = %u", account->priv->password_saved);
-
-  /* emit the changed signal */
-  props = tp_asv_new (
-      "PasswordSaved", G_TYPE_BOOLEAN, account->priv->password_saved,
-      NULL);
-
-  tp_svc_dbus_properties_emit_properties_changed (account,
-      MC_IFACE_ACCOUNT_INTERFACE_EXTERNAL_PASSWORD_STORAGE,
-      props,
-      NULL);
-
-  g_hash_table_unref (props);
-}
-
-static void
-account_setup_identify_account_cb (TpProxy *protocol,
-    const char *account_id,
-    const GError *in_error,
-    gpointer user_data,
-    GObject *self)
-{
-  McdAccount *account = MCD_ACCOUNT (self);
-  TpConnectionManager *cm = mcd_account_get_cm (account);
-
-  if (in_error != NULL)
-    {
-      DEBUG ("Error identifying account: %s", in_error->message);
-      return;
-    }
-
-  DEBUG ("Identified account as %s", account_id);
-
-  /* look up the current value of the CM.I.AS.Accounts property
-   * and monitor future changes */
-  tp_cli_dbus_properties_call_get (cm, -1,
-      MC_IFACE_CONNECTION_MANAGER_INTERFACE_ACCOUNT_STORAGE,
-      "Accounts",
-      account_external_password_storage_get_accounts_cb,
-      g_strdup (account_id), g_free, G_OBJECT (account));
-}
-
-static void
-account_external_password_storage_properties_changed_cb (TpProxy *cm,
-    const char *iface,
-    GHashTable *changed_properties,
-    const char **invalidated_properties,
-    gpointer user_data,
-    GObject *self)
-{
-  McdAccount *account = MCD_ACCOUNT (self);
-  TpProtocol *protocol = tp_connection_manager_get_protocol (
-      TP_CONNECTION_MANAGER (cm), account->priv->protocol_name);
-  GHashTable *params;
-
-  if (tp_strdiff (iface,
-        MC_IFACE_CONNECTION_MANAGER_INTERFACE_ACCOUNT_STORAGE))
-    return;
-
-  /* look up account identity so we can look up our value in
-   * the Accounts map */
-  params = _mcd_account_dup_parameters (account);
-  tp_cli_protocol_call_identify_account (protocol, -1, params,
-      account_setup_identify_account_cb,
-      NULL, NULL, G_OBJECT (account));
-
-  g_hash_table_unref (params);
-}
+static gboolean mcd_account_check_parameters (McdAccount *account,
+    GError **unusable_reason);
 
 static void on_manager_ready (McdManager *manager, const GError *error,
                               gpointer user_data)
 {
     McdAccount *account = MCD_ACCOUNT (user_data);
+    GError *unusable_reason = NULL;
+    TpProtocol *protocol;
 
     if (error)
     {
         DEBUG ("got error: %s", error->message);
-        mcd_account_loaded (account);
+    }
+    else if (!mcd_account_check_parameters (account, &unusable_reason))
+    {
+        g_clear_error (&account->priv->unusable_reason);
+        account->priv->unusable_reason = unusable_reason;
     }
     else
     {
-        TpConnectionManager *cm = mcd_manager_get_tp_proxy (manager);
-
-        mcd_account_check_parameters (account, manager_ready_check_params_cb,
-                                      NULL);
-
-        /* determine if we support Acct.I.ExternalPasswordStorage */
-        if (tp_proxy_has_interface_by_id (cm,
-                MC_IFACE_QUARK_CONNECTION_MANAGER_INTERFACE_ACCOUNT_STORAGE))
-        {
-            TpProtocol *protocol = tp_connection_manager_get_protocol (
-                cm, account->priv->protocol_name);
-            GHashTable *params;
-
-            DEBUG ("CM %s has CM.I.AccountStorage iface",
-                   mcd_manager_get_name (manager));
-
-            mcd_dbus_activate_optional_interface (
-                TP_SVC_DBUS_PROPERTIES (account),
-                MC_TYPE_SVC_ACCOUNT_INTERFACE_EXTERNAL_PASSWORD_STORAGE);
-
-            /* look up account identity so we can look up our value in
-             * the Accounts map */
-            params = _mcd_account_dup_parameters (account);
-            tp_cli_protocol_call_identify_account (protocol, -1, params,
-                account_setup_identify_account_cb,
-                NULL, NULL, G_OBJECT (account));
-
-            tp_cli_dbus_properties_connect_to_properties_changed (cm,
-                account_external_password_storage_properties_changed_cb,
-                NULL, NULL, G_OBJECT (account), NULL);
-
-            g_hash_table_unref (params);
-        }
+        g_clear_error (&account->priv->unusable_reason);
     }
+
+    protocol = _mcd_manager_dup_protocol (account->priv->manager,
+            account->priv->protocol_name);
+
+    if (protocol != NULL)
+    {
+        if (mcd_storage_maybe_migrate_parameters (
+                account->priv->storage,
+                account->priv->unique_name,
+                protocol))
+        {
+            GHashTable *params = _mcd_account_dup_parameters (account);
+
+            if (params != NULL)
+            {
+                GValue value = G_VALUE_INIT;
+
+                g_value_init (&value, TP_HASH_TYPE_STRING_VARIANT_MAP);
+                g_value_take_boxed (&value, params);
+                mcd_account_changed_property (account, "Parameters", &value);
+                g_value_unset (&value);
+            }
+            else
+            {
+                WARNING ("somehow managed to migrate parameters without "
+                    "being able to emit change notification");
+            }
+        }
+
+
+        g_object_unref (protocol);
+    }
+
+    mcd_account_loaded (account);
 }
 
 static gboolean
@@ -667,32 +561,6 @@ get_old_account_data_path (McdAccountPrivate *priv)
 }
 #endif
 
-static void
-account_delete_identify_account_cb (TpProxy *protocol,
-    const char *account_id,
-    const GError *in_error,
-    gpointer user_data,
-    GObject *self)
-{
-  McdAccount *account = MCD_ACCOUNT (self);
-  TpConnectionManager *cm = mcd_account_get_cm (account);
-
-  if (in_error != NULL)
-    {
-      DEBUG ("Error identifying account: %s", in_error->message);
-    }
-  else
-    {
-      DEBUG ("Identified account as %s", account_id);
-
-      mc_cli_connection_manager_interface_account_storage_call_remove_account (
-          cm, -1, account_id,
-          NULL, NULL, NULL, NULL);
-    }
-
-  g_object_unref (account);
-}
-
 static TpStorageRestrictionFlags mcd_account_get_storage_restrictions (
     McdAccount *account);
 
@@ -708,7 +576,6 @@ mcd_account_delete_async (McdAccount *account,
 #endif
     GError *error = NULL;
     const gchar *name = mcd_account_get_unique_name (account);
-    TpConnectionManager *cm = mcd_account_get_cm (account);
     GTask *task;
 
     task = g_task_new (account, NULL, callback, user_data);
@@ -727,29 +594,6 @@ mcd_account_delete_async (McdAccount *account,
                      name);
         g_object_unref (task);
         return;
-    }
-
-    /* If the CM implements CM.I.AccountStorage, we need to tell the CM
-     * to forget any account credentials it knows.
-     *
-     * FIXME: put this in the main flow rather than doing it async and
-     * throwing away its result? */
-    if (tp_proxy_has_interface_by_id (cm,
-            MC_IFACE_QUARK_CONNECTION_MANAGER_INTERFACE_ACCOUNT_STORAGE))
-    {
-        TpProtocol *protocol;
-        GHashTable *params;
-
-        /* identify the account */
-        protocol = tp_connection_manager_get_protocol (cm,
-            account->priv->protocol_name);
-        params = _mcd_account_dup_parameters (account);
-
-        tp_cli_protocol_call_identify_account (protocol, -1, params,
-            account_delete_identify_account_cb,
-            NULL, NULL, g_object_ref (account));
-
-        g_hash_table_unref (params);
     }
 
     /* got to turn the account off before removing it, otherwise we can *
@@ -852,9 +696,6 @@ on_connection_abort (McdConnection *connection, McdAccount *account)
     DEBUG ("called (%p, account %s)", connection, priv->unique_name);
     _mcd_account_set_connection (account, NULL);
 }
-
-static void mcd_account_changed_property (McdAccount *account,
-    const gchar *key, const GValue *value);
 
 static void
 mcd_account_request_presence_int (McdAccount *account,
@@ -2249,113 +2090,6 @@ account_storage_iface_init (TpSvcAccountInterfaceStorage1Class *iface,
 }
 
 static void
-get_password_saved (TpSvcDBusProperties *self,
-    const gchar *name,
-    GValue *value)
-{
-  McdAccount *account = MCD_ACCOUNT (self);
-
-  g_assert_cmpstr (name, ==, "PasswordSaved");
-
-  g_value_init (value, G_TYPE_BOOLEAN);
-  g_value_set_boolean (value, account->priv->password_saved);
-}
-
-static const McdDBusProp account_external_password_storage_properties[] = {
-    { "PasswordSaved", NULL, get_password_saved },
-    { 0 },
-};
-
-static void
-account_external_password_storage_forget_credentials_cb (TpProxy *cm,
-    const GError *in_error,
-    gpointer user_data,
-    GObject *self)
-{
-  DBusGMethodInvocation *context = user_data;
-
-  if (in_error != NULL)
-    {
-      dbus_g_method_return_error (context, in_error);
-      return;
-    }
-
-  mc_svc_account_interface_external_password_storage_return_from_forget_password (context);
-}
-
-static void
-account_external_password_storage_identify_account_cb (TpProxy *protocol,
-    const char *account_id,
-    const GError *in_error,
-    gpointer user_data,
-    GObject *self)
-{
-  McdAccount *account = MCD_ACCOUNT (self);
-  DBusGMethodInvocation *context = user_data;
-  TpConnectionManager *cm = mcd_account_get_cm (account);
-
-  if (in_error != NULL)
-    {
-      dbus_g_method_return_error (context, in_error);
-      return;
-    }
-
-  DEBUG ("Identified account as %s", account_id);
-
-  mc_cli_connection_manager_interface_account_storage_call_forget_credentials (
-      cm, -1, account_id,
-      account_external_password_storage_forget_credentials_cb,
-      context, NULL, self);
-}
-
-static void
-account_external_password_storage_forget_password (
-    McSvcAccountInterfaceExternalPasswordStorage *self,
-    DBusGMethodInvocation *context)
-{
-  McdAccount *account = MCD_ACCOUNT (self);
-  TpConnectionManager *cm = mcd_account_get_cm (account);
-  TpProtocol *protocol;
-  GHashTable *params;
-
-  /* do we support the interface */
-  if (!tp_proxy_has_interface_by_id (cm,
-          MC_IFACE_QUARK_CONNECTION_MANAGER_INTERFACE_ACCOUNT_STORAGE))
-    {
-      GError *error = g_error_new (TP_ERROR, TP_ERROR_NOT_IMPLEMENTED,
-          "CM for this Account does not implement AccountStorage iface");
-
-      dbus_g_method_return_error (context, error);
-      g_error_free (error);
-
-      return;
-    }
-
-  /* identify the account */
-  protocol = tp_connection_manager_get_protocol (cm,
-      account->priv->protocol_name);
-  params = _mcd_account_dup_parameters (account);
-
-  tp_cli_protocol_call_identify_account (protocol, -1, params,
-      account_external_password_storage_identify_account_cb,
-      context, NULL, G_OBJECT (self));
-
-  g_hash_table_unref (params);
-}
-
-static void
-account_external_password_storage_iface_init (
-    McSvcAccountInterfaceExternalPasswordStorageClass *iface,
-    gpointer iface_data)
-{
-#define IMPLEMENT(x) \
-  mc_svc_account_interface_external_password_storage_implement_##x (\
-      iface, account_external_password_storage_##x)
-  IMPLEMENT (forget_password);
-#undef IMPLEMENT
-}
-
-static void
 properties_iface_init (TpSvcDBusPropertiesClass *iface, gpointer iface_data)
 {
 #define IMPLEMENT(x) tp_svc_dbus_properties_implement_##x (\
@@ -2574,25 +2308,22 @@ mcd_account_altered_by_plugin (McdAccount *account,
 }
 
 
-static void
+static gboolean
 mcd_account_check_parameters (McdAccount *account,
-                              CheckParametersCb callback,
-                              gpointer user_data)
+                              GError **error)
 {
     McdAccountPrivate *priv = account->priv;
     TpProtocol *protocol;
     GList *params = NULL;
     GList *iter;
-    GError *error = NULL;
-
-    g_return_if_fail (callback != NULL);
+    GError *inner_error = NULL;
 
     DEBUG ("called for %s", priv->unique_name);
     protocol = _mcd_manager_dup_protocol (priv->manager, priv->protocol_name);
 
     if (protocol == NULL)
     {
-        g_set_error (&error, TP_ERROR, TP_ERROR_INVALID_ARGUMENT,
+        g_set_error (&inner_error, TP_ERROR, TP_ERROR_INVALID_ARGUMENT,
             "CM '%s' doesn't implement protocol '%s'", priv->manager_name,
             priv->protocol_name);
         goto out;
@@ -2603,40 +2334,36 @@ mcd_account_check_parameters (McdAccount *account,
     for (iter = params; iter != NULL; iter = iter->next)
     {
         TpConnectionManagerParam *param = iter->data;
-        const gchar *param_name = tp_connection_manager_param_get_name (param);
 
         if (!tp_connection_manager_param_is_required ((param)))
             continue;
 
-        if (!mcd_account_get_parameter (account, param_name, NULL, NULL))
+        if (!mcd_account_get_parameter (account, param, NULL, NULL))
         {
-            g_set_error (&error, TP_ERROR, TP_ERROR_INVALID_ARGUMENT,
-                "missing required parameter '%s'", param_name);
+            g_set_error (&inner_error, TP_ERROR, TP_ERROR_INVALID_ARGUMENT,
+                "missing required parameter '%s'",
+                tp_connection_manager_param_get_name (param));
             goto out;
         }
     }
 
 out:
-    if (error != NULL)
+    if (inner_error != NULL)
     {
-        DEBUG ("%s", error->message);
+        DEBUG ("%s", inner_error->message);
     }
 
-    callback (account, error, user_data);
-    g_clear_error (&error);
     g_list_free_full (params,
                       (GDestroyNotify) tp_connection_manager_param_free);
     g_clear_object (&protocol);
-}
 
-static void
-set_parameters_maybe_autoconnect_cb (McdAccount *account,
-                                     const GError *unusable_reason,
-                                     gpointer user_data G_GNUC_UNUSED)
-{
-    /* Strictly speaking this doesn't need to be called unless unusable_reason
-     * is NULL, but calling it in all cases gives us clearer debug output */
-    _mcd_account_maybe_autoconnect (account);
+    if (inner_error != NULL)
+    {
+        g_propagate_error (error, inner_error);
+        return FALSE;
+    }
+
+    return TRUE;
 }
 
 static void
@@ -2674,8 +2401,11 @@ apply_parameter_updates (McdAccount *account,
         }
     }
 
-    mcd_account_check_usability (account,
-                                 set_parameters_maybe_autoconnect_cb, NULL);
+    mcd_account_check_usability (account, NULL);
+
+    /* Strictly speaking this doesn't need to be called if not valid,
+     * but calling it in all cases gives us clearer debug output */
+    _mcd_account_maybe_autoconnect (account);
 }
 
 static void
@@ -2746,7 +2476,7 @@ check_one_parameter_update (McdAccount *account,
         /* Check if the parameter's current value (or its default, if it has
          * one and it's not set to anything) matches the new value.
          */
-        if (mcd_account_get_parameter (account, tp_connection_manager_param_get_name (param),
+        if (mcd_account_get_parameter (account, param,
                 &current_value, NULL) ||
             tp_connection_manager_param_get_default (param, &current_value))
         {
@@ -2789,7 +2519,7 @@ check_one_parameter_unset (McdAccount *account,
     {
         GValue current_value = G_VALUE_INIT;
 
-        if (mcd_account_get_parameter (account, tp_connection_manager_param_get_name (param),
+        if (mcd_account_get_parameter (account, param,
                                        &current_value, NULL))
         {
             /* There's an existing value; let's see if it's the same as the
@@ -2976,12 +2706,30 @@ void
 _mcd_account_reconnect (McdAccount *self,
     gboolean user_initiated)
 {
+    DEBUG ("%s", mcd_account_get_unique_name (self));
+
+    /* If the account is disabled, unusable or has offline requested presence,
+     * disconnecting should be a no-op, so we keep this before checking
+     * whether we want to. */
     /* FIXME: this isn't quite right. If we've just called RequestConnection
      * (possibly with out of date parameters) but we haven't got a Connection
      * back from the CM yet, the old parameters will still be used, I think
      * (I can't quite make out what actually happens). */
     if (self->priv->connection)
         mcd_connection_close (self->priv->connection, NULL);
+
+    /* if we can't, or don't want to, connect this method is a no-op */
+    if (!self->priv->enabled ||
+        !mcd_account_is_usable (self) ||
+        self->priv->req_presence_type == TP_CONNECTION_PRESENCE_TYPE_OFFLINE)
+    {
+        DEBUG ("doing nothing (enabled=%c, usable=%c and "
+               "combined presence=%i)",
+               self->priv->enabled ? 'T' : 'F',
+               mcd_account_is_usable (self) ? 'T' : 'F',
+               self->priv->req_presence_type);
+        return;
+    }
 
     _mcd_account_connection_begin (self, user_initiated);
 }
@@ -2991,23 +2739,6 @@ account_reconnect (TpSvcAccount *service,
                    DBusGMethodInvocation *context)
 {
     McdAccount *self = MCD_ACCOUNT (service);
-    McdAccountPrivate *priv = self->priv;
-
-    DEBUG ("%s", mcd_account_get_unique_name (self));
-
-    /* if we can't, or don't want to, connect this method is a no-op */
-    if (!priv->enabled ||
-        !mcd_account_is_usable (self) ||
-        priv->req_presence_type == TP_CONNECTION_PRESENCE_TYPE_OFFLINE)
-    {
-        DEBUG ("doing nothing (enabled=%c, usable=%c and "
-               "combined presence=%i)",
-               self->priv->enabled ? 'T' : 'F',
-               mcd_account_is_usable (self) ? 'T' : 'F',
-               self->priv->req_presence_type);
-        tp_svc_account_return_from_reconnect (context);
-        return;
-    }
 
     /* Reconnect() counts as user-initiated */
     _mcd_account_reconnect (self, TRUE);
@@ -3568,7 +3299,8 @@ _mcd_account_dispose (GObject *object)
     tp_clear_object (&priv->self_contact);
     tp_clear_object (&priv->connectivity);
 
-    _mcd_account_set_connection_context (self, NULL);
+    tp_clear_pointer (&self->priv->connection_context,
+        _mcd_account_connection_context_free);
     _mcd_account_set_connection (self, NULL);
 
     G_OBJECT_CLASS (mcd_account_parent_class)->dispose (object);
@@ -3595,6 +3327,9 @@ _mcd_account_constructor (GType type, guint n_params,
 
     return (GObject *) account;
 }
+
+static void mcd_account_connection_proceed_with_reason
+    (McdAccount *account, gboolean success, TpConnectionStatusReason reason);
 
 static void
 monitor_state_changed_cb (
@@ -3670,16 +3405,6 @@ _mcd_account_constructed (GObject *object)
 }
 
 static void
-mcd_account_add_signals (TpProxy *self,
-    guint quark,
-    DBusGProxy *proxy,
-    gpointer data)
-{
-  mc_cli_Connection_Manager_Interface_Account_Storage_add_signals (self,
-      quark, proxy, data);
-}
-
-static void
 mcd_account_class_init (McdAccountClass * klass)
 {
     GObjectClass *object_class = G_OBJECT_CLASS (klass);
@@ -3744,9 +3469,6 @@ mcd_account_class_init (McdAccountClass * klass)
                       G_TYPE_NONE, 1, G_TYPE_STRING);
 
     account_ready_quark = g_quark_from_static_string ("mcd_account_load");
-
-    tp_proxy_or_subclass_hook_on_interface_add (TP_TYPE_CONNECTION_MANAGER,
-        mcd_account_add_signals);
 }
 
 static void
@@ -3842,6 +3564,39 @@ mcd_account_is_usable (McdAccount *account)
     return priv->unusable_reason == NULL;
 }
 
+/*
+ * mcd_account_dup_protocol:
+ * @self: the account
+ *
+ * Returns: (transfer full): the account's connection manager's protocol,
+ *  possibly %NULL if "not valid"
+ */
+static TpProtocol *
+mcd_account_dup_protocol (McdAccount *self)
+{
+  TpProtocol *protocol;
+
+  if (!self->priv->manager && !load_manager (self))
+    {
+      DEBUG ("unable to load manager for account %s",
+          self->priv->unique_name);
+      return NULL;
+    }
+
+  protocol = _mcd_manager_dup_protocol (self->priv->manager,
+      self->priv->protocol_name);
+
+  if (G_UNLIKELY (protocol == NULL))
+    {
+      DEBUG ("unable to get protocol for %s account %s",
+          self->priv->protocol_name,
+          self->priv->unique_name);
+      return NULL;
+    }
+
+  return protocol;
+}
+
 /**
  * mcd_account_is_enabled:
  * @account: the #McdAccount.
@@ -3869,6 +3624,47 @@ mcd_account_get_object_path (McdAccount *account)
     return account->priv->object_path;
 }
 
+/*
+ * Like _mcd_account_dup_parameters(), but return the parameters as they
+ * would be passed to RequestConnection for the given protocol.
+ */
+static GHashTable *
+mcd_account_coerce_parameters (McdAccount *account,
+                               TpProtocol *protocol)
+{
+    GList *protocol_params;
+    GList *iter;
+    GHashTable *params;
+
+    g_return_val_if_fail (MCD_IS_ACCOUNT (account), NULL);
+
+    DEBUG ("called");
+
+    params = g_hash_table_new_full (g_str_hash, g_str_equal,
+                                    g_free,
+                                    (GDestroyNotify) tp_g_value_slice_free);
+
+    protocol_params = tp_protocol_dup_params (protocol);
+
+    for (iter = protocol_params; iter != NULL; iter = iter->next)
+    {
+        TpConnectionManagerParam *param = iter->data;
+        GValue v = G_VALUE_INIT;
+
+        if (mcd_account_get_parameter (account, param, &v, NULL))
+        {
+            const gchar *name = tp_connection_manager_param_get_name (param);
+            g_hash_table_insert (params, g_strdup (name),
+                                 tp_g_value_slice_dup (&v));
+            g_value_unset (&v);
+        }
+    }
+
+    g_list_free_full (protocol_params,
+                      (GDestroyNotify) tp_connection_manager_param_free);
+    return params;
+}
+
 /**
  * _mcd_account_dup_parameters:
  * @account: the #McdAccount.
@@ -3880,67 +3676,50 @@ mcd_account_get_object_path (McdAccount *account)
  *          retrieved.
  */
 GHashTable *
-_mcd_account_dup_parameters (McdAccount *account)
+_mcd_account_dup_parameters (McdAccount *self)
 {
-    McdAccountPrivate *priv;
-    TpProtocol *protocol;
-    GList *protocol_params;
-    GList *iter;
-    GHashTable *params;
+  McpAccountManager *api;
+  gchar **untyped_parameters;
+  GHashTable *params = NULL;
+  TpProtocol *protocol;
 
-    g_return_val_if_fail (MCD_IS_ACCOUNT (account), NULL);
+  g_return_val_if_fail (MCD_IS_ACCOUNT (self), NULL);
 
-    priv = account->priv;
+  DEBUG ("called");
 
-    DEBUG ("called");
+  /* Maybe our storage plugin knows the types of the parameters? */
 
-    /* FIXME: this is ridiculous. MC stores the parameters for the account, so
-     * it should be able to expose them on D-Bus even if the CM is uninstalled.
-     * It shouldn't need to iterate across the parameters supported by the CM.
-     * But it does, because MC doesn't store the types of parameters. So it
-     * needs the CM (or .manager file) to be around to tell it whether "true"
-     * is a string or a boolean…
-     */
-    if (!priv->manager && !load_manager (account))
+  api = MCP_ACCOUNT_MANAGER (self->priv->storage);
+  untyped_parameters = mcp_account_storage_list_untyped_parameters (
+      self->priv->storage_plugin, api, self->priv->unique_name);
+
+  if (untyped_parameters == NULL || *untyped_parameters == NULL)
     {
-        DEBUG ("unable to load manager for account %s", priv->unique_name);
-        return NULL;
+      /* Happy path: there are no parameters that lack types. */
+      params = mcd_storage_dup_typed_parameters (self->priv->storage,
+          self->priv->unique_name);
+      goto finally;
     }
 
-    protocol = _mcd_manager_dup_protocol (priv->manager,
-                                          priv->protocol_name);
+  /* MC didn't always know parameters' types, so it might need the CM
+   * (or .manager file) to be around to tell it whether "true"
+   * is a string or a boolean… this is ridiculous, but backwards-compatible.
+   */
+  protocol = mcd_account_dup_protocol (self);
 
-    if (G_UNLIKELY (protocol == NULL))
+  if (protocol != NULL)
     {
-        DEBUG ("unable to get protocol for %s account %s", priv->protocol_name,
-               priv->unique_name);
-        return NULL;
+      params = mcd_account_coerce_parameters (self, protocol);
+      g_object_unref (protocol);
+
+      if (params != NULL)
+        goto finally;
     }
 
-    params = g_hash_table_new_full (g_str_hash, g_str_equal,
-                                    g_free,
-                                    (GDestroyNotify) tp_g_value_slice_free);
+finally:
+  g_strfreev (untyped_parameters);
 
-    protocol_params = tp_protocol_dup_params (protocol);
-
-    for (iter = protocol_params; iter != NULL; iter = iter->next)
-    {
-        TpConnectionManagerParam *param = iter->data;
-        const gchar *name = tp_connection_manager_param_get_name (param);
-        GValue v = G_VALUE_INIT;
-
-        if (mcd_account_get_parameter (account, name, &v, NULL))
-        {
-            g_hash_table_insert (params, g_strdup (name),
-                                 tp_g_value_slice_dup (&v));
-            g_value_unset (&v);
-        }
-    }
-
-    g_list_free_full (protocol_params,
-                      (GDestroyNotify) tp_connection_manager_param_free);
-    g_object_unref (protocol);
-    return params;
+  return params;
 }
 
 /**
@@ -4617,23 +4396,22 @@ mcd_account_get_connection (McdAccount *account)
     return priv->connection;
 }
 
-typedef struct
+gboolean
+mcd_account_check_usability (McdAccount *account,
+    GError **error)
 {
-    McdAccountCheckUsabilityCb callback;
-    gpointer user_data;
-} CheckUsabilityData;
-
-static void
-check_usability_check_parameters_cb (McdAccount *account,
-                                    const GError *unusable_reason,
-                                    gpointer user_data)
-{
-    CheckUsabilityData *data = (CheckUsabilityData *) user_data;
     McdAccountPrivate *priv = account->priv;
-    gboolean now_usable = (unusable_reason == NULL);
-    gboolean was_usable = (priv->unusable_reason == NULL);
+    GError *unusable_reason = NULL;
+    gboolean now_usable;
+    gboolean was_usable;
+
+    g_return_val_if_fail (MCD_IS_ACCOUNT (account), FALSE);
+
+    was_usable = (priv->unusable_reason == NULL);
+    now_usable = mcd_account_check_parameters (account, &unusable_reason);
 
     g_clear_error (&priv->unusable_reason);
+
     if (unusable_reason != NULL)
     {
         priv->unusable_reason = g_error_copy (unusable_reason);
@@ -4659,27 +4437,13 @@ check_usability_check_parameters_cb (McdAccount *account,
         }
     }
 
-    if (data->callback != NULL)
-        data->callback (account, unusable_reason, data->user_data);
+    if (unusable_reason != NULL)
+    {
+        g_propagate_error (error, unusable_reason);
+        return FALSE;
+    }
 
-    g_slice_free (CheckUsabilityData, data);
-}
-
-void
-mcd_account_check_usability (McdAccount *account,
-    McdAccountCheckUsabilityCb callback,
-    gpointer user_data)
-{
-    CheckUsabilityData *data;
-
-    g_return_if_fail (MCD_IS_ACCOUNT (account));
-
-    data = g_slice_new0 (CheckUsabilityData);
-    data->callback = callback;
-    data->user_data = user_data;
-
-    mcd_account_check_parameters (account, check_usability_check_parameters_cb,
-                                  data);
+    return TRUE;
 }
 
 /*
@@ -5190,28 +4954,6 @@ _mcd_account_set_has_been_online (McdAccount *account)
     }
 }
 
-McdAccountConnectionContext *
-_mcd_account_get_connection_context (McdAccount *self)
-{
-    g_return_val_if_fail (MCD_IS_ACCOUNT (self), NULL);
-
-    return self->priv->connection_context;
-}
-
-void
-_mcd_account_set_connection_context (McdAccount *self,
-                                     McdAccountConnectionContext *c)
-{
-    g_return_if_fail (MCD_IS_ACCOUNT (self));
-
-    if (self->priv->connection_context != NULL)
-    {
-        _mcd_account_connection_context_free (self->priv->connection_context);
-    }
-
-    self->priv->connection_context = c;
-}
-
 gboolean
 _mcd_account_needs_dispatch (McdAccount *self)
 {
@@ -5278,4 +5020,108 @@ mcd_account_set_waiting_for_connectivity (McdAccount *self,
     gboolean waiting)
 {
   self->priv->waiting_for_connectivity = waiting;
+}
+
+void
+_mcd_account_connection_begin (McdAccount *account,
+                               gboolean user_initiated)
+{
+    McdAccountConnectionContext *ctx;
+    TpProtocol *protocol;
+
+    /* check whether a connection process is already ongoing */
+    if (account->priv->connection_context != NULL)
+    {
+        DEBUG ("already trying to connect");
+        return;
+    }
+
+    /* get account params */
+    /* create dynamic params HT */
+    /* run the handlers */
+    ctx = g_malloc (sizeof (McdAccountConnectionContext));
+    ctx->user_initiated = user_initiated;
+
+    /* If we get this far, the account should be usable, so getting the
+     * protocol should succeed.
+     */
+    protocol = mcd_account_dup_protocol (account);
+    g_assert (protocol != NULL);
+
+    ctx->params = mcd_account_coerce_parameters (account, protocol);
+    g_assert (ctx->params != NULL);
+    g_object_unref (protocol);
+
+    _mcd_account_set_connection_status (account,
+                                        TP_CONNECTION_STATUS_CONNECTING,
+                                        TP_CONNECTION_STATUS_REASON_REQUESTED,
+                                        NULL, NULL, NULL);
+    account->priv->connection_context = ctx;
+
+    mcd_account_connection_proceed_with_reason
+        (account, TRUE, TP_CONNECTION_STATUS_REASON_NONE_SPECIFIED);
+}
+
+void
+mcd_account_connection_proceed_with_reason (McdAccount *account,
+                                            gboolean success,
+                                            TpConnectionStatusReason reason)
+{
+    McdAccountConnectionContext *ctx;
+    gboolean delayed;
+
+    /* call next handler, or terminate the chain (emitting proper signal).
+     * if everything is fine, call mcd_manager_create_connection() and
+     * _mcd_connection_connect () with the dynamic parameters. Remove that call
+     * from mcd_manager_create_connection() */
+    ctx = account->priv->connection_context;
+    g_return_if_fail (ctx != NULL);
+    g_return_if_fail (ctx->params != NULL);
+
+    if (success)
+    {
+        if (mcd_connectivity_monitor_is_online (
+              mcd_account_get_connectivity_monitor (account)))
+        {
+            DEBUG ("%s wants to connect and we're online - go for it",
+                mcd_account_get_unique_name (account));
+            delayed = FALSE;
+        }
+        else if (!mcd_account_get_waiting_for_connectivity (account))
+        {
+            DEBUG ("%s wants to connect, but we're offline; queuing it up",
+                mcd_account_get_unique_name (account));
+            delayed = TRUE;
+            mcd_account_set_waiting_for_connectivity (account, TRUE);
+        }
+        else
+        {
+            DEBUG ("%s wants to connect, but is already waiting for "
+                "connectivity?", mcd_account_get_unique_name (account));
+            delayed = TRUE;
+        }
+    }
+    else
+    {
+        DEBUG ("%s failed to connect: reason code %d",
+            mcd_account_get_unique_name (account), reason);
+        delayed = FALSE;
+    }
+
+    if (!delayed)
+    {
+	/* end of the chain */
+	if (success)
+	{
+	    _mcd_account_connect (account, ctx->params);
+	}
+        else
+        {
+            _mcd_account_set_connection_status
+                (account, TP_CONNECTION_STATUS_DISCONNECTED, reason, NULL,
+                 TP_ERROR_STR_DISCONNECTED, NULL);
+        }
+        tp_clear_pointer (&account->priv->connection_context,
+            _mcd_account_connection_context_free);
+    }
 }

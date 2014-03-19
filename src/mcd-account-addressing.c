@@ -30,7 +30,6 @@
 
 #include "mcd-account.h"
 #include "mcd-account-priv.h"
-#include "_gen/interfaces.h"
 
 static void
 addressing_set_uri_scheme_association (TpSvcAccountInterfaceAddressing1 *iface,

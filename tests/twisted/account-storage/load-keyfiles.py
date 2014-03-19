@@ -241,8 +241,22 @@ def test(q, bus, mc):
     # The masked account is still masked
     assert open(variant_file_names['masked'], 'r').read() == ''
 
-    # Teach the one that knows its CM that the 'password' is a string.
-    # This results in the higher-priority file being written out.
+    # Because the CM exists, we can work out the correct types
+    # for the 'migration' account's parameters. This triggers a commit
+    # even though nothing has conceptually changed, so we have the type
+    # for later. The file is copied, not moved, because XDG_DATA_DIRS are,
+    # conceptually, read-only.
+    assert not os.path.exists(old_key_file_name)
+    assert not os.path.exists(newer_key_file_name)
+    assert os.path.exists(low_prio_variant_file_names['migration'])
+    assert os.path.exists(variant_file_names['migration'])
+    assertEquals("'password_in_variant_file'",
+        account_store('get', 'variant-file', 'param-password',
+            account=tails['migration']))
+    assertEquals("uint32 42", account_store('get', 'variant-file',
+        'param-snakes', account=tails['migration']))
+
+    # Setting the password still does the right thing.
     account_ifaces['migration'].UpdateParameters({'password': 'hello'}, [])
     q.expect('dbus-signal',
             path=account_paths['migration'],
@@ -252,21 +266,16 @@ def test(q, bus, mc):
                 e.args[0] == cs.ACCOUNT and
                 'Parameters' in e.args[1]),
             )
-    # Check the account has copied (not moved! XDG_DATA_DIRS are,
-    # conceptually, read-only) 'migration' from the old to the new name
     assert not os.path.exists(old_key_file_name)
     assert not os.path.exists(newer_key_file_name)
     assert os.path.exists(low_prio_variant_file_names['migration'])
     assert os.path.exists(variant_file_names['migration'])
-    assertEquals("'hello'", account_store('get', 'variant-file',
-        'param-password', account=tails['migration']))
-    # Parameters whose types are still unknown are copied too, but their
-    # types are still unknown
-    assertEquals("keyfile-escaped '42'", account_store('get', 'variant-file',
-        'param-snakes', account=tails['migration']))
+    assertEquals("'hello'",
+        account_store('get', 'variant-file', 'param-password',
+            account=tails['migration']))
 
     # 'absentcm' is still only in the low-priority location: we can't
-    # known the types of its parameters
+    # known the types of its parameters, so it doesn't get migrated.
     assert not os.path.exists(old_key_file_name)
     assert not os.path.exists(newer_key_file_name)
     assert os.path.exists(low_prio_variant_file_names['absentcm'])

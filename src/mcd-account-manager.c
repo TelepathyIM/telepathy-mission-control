@@ -49,8 +49,6 @@
 #include "mission-control-plugins/implementation.h"
 #include "plugin-loader.h"
 
-#include "_gen/interfaces.h"
-
 #define PARAM_PREFIX "param-"
 #define WRITE_CONF_DELAY    500
 
@@ -225,20 +223,6 @@ altered_one_cb (McpAccountStorage *storage,
     }
 }
 
-/* callbacks for the various stages in an backend-driven account creation */
-static void
-async_created_usability_cb (McdAccount *account,
-    const GError *unusable_reason,
-    gpointer data)
-{
-    DEBUG ("asynchronously created account %s is %susable",
-           mcd_account_get_unique_name (account),
-           (unusable_reason == NULL) ? "" : "un");
-
-    /* safely cached in the accounts hash by now */
-    g_object_unref (account);
-}
-
 static void
 async_created_manager_cb (McdManager *cm, const GError *error, gpointer data)
 {
@@ -247,6 +231,7 @@ async_created_manager_cb (McdManager *cm, const GError *error, gpointer data)
     McdAccountManager *am = lad->account_manager;
     McpAccountStorage *plugin = lad->storage_plugin;
     const gchar *name = NULL;
+    gboolean ok;
 
     g_assert (lad->account_lock > 0);
     g_assert (MCD_IS_ACCOUNT (lad->account));
@@ -269,9 +254,15 @@ async_created_manager_cb (McdManager *cm, const GError *error, gpointer data)
 
     /* this triggers the final parameter check which results in dbus signals *
      * being fired and (potentially) the account going online automatically  */
-    mcd_account_check_usability (account, async_created_usability_cb, NULL);
+    ok = mcd_account_check_usability (account, NULL);
+    DEBUG ("asynchronously created account %s is %susable",
+           mcd_account_get_unique_name (account),
+           ok ? "" : "un");
 
     g_object_unref (cm);
+
+    /* safely cached in the accounts hash by now */
+    g_object_unref (account);
 }
 
 /* account created by an McpAccountStorage plugin after the initial setup   *
@@ -800,23 +791,6 @@ complete_account_creation_finish (McdAccount *account,
 }
 
 static void
-complete_account_creation_check_usability_cb (McdAccount *account,
-                                             const GError *unusable_reason,
-                                             gpointer user_data)
-{
-    McdCreateAccountData *cad = user_data;
-
-    if (unusable_reason != NULL)
-    {
-        cad->ok = FALSE;
-        g_set_error_literal (&cad->error, unusable_reason->domain,
-            unusable_reason->code, unusable_reason->message);
-    }
-
-    complete_account_creation_finish (account, cad);
-}
-
-static void
 complete_account_creation_set_cb (McdAccount *account, GPtrArray *not_yet,
                                   const GError *set_error, gpointer user_data)
 {
@@ -841,13 +815,12 @@ complete_account_creation_set_cb (McdAccount *account, GPtrArray *not_yet,
     if (cad->ok)
     {
         add_account (account_manager, account, G_STRFUNC);
-        mcd_account_check_usability (account,
-            complete_account_creation_check_usability_cb, cad);
+
+        if (!mcd_account_check_usability (account, &cad->error))
+            cad->ok = FALSE;
     }
-    else
-    {
-        complete_account_creation_finish (account, cad);
-    }
+
+    complete_account_creation_finish (account, cad);
 }
 
 static void

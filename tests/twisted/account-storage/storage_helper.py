@@ -141,12 +141,12 @@ AutomaticPresence=2;available;;
     assertEquals("'Second to none'",
             account_store('get', 'variant-file', 'DisplayName',
                 account=a2_tail))
-    # MC doesn't currently ensure that parameters are stored with their
-    # proper types.
-    assertEquals("keyfile-escaped 'dontdivert1@example.com'",
+    # Because the CM is installed, we can work out the right types
+    # for the parameters, too.
+    assertEquals("'dontdivert1@example.com'",
             account_store('get', 'variant-file', 'param-account',
                 account=a1_tail))
-    assertEquals("keyfile-escaped 'dontdivert2@example.com'",
+    assertEquals("'dontdivert2@example.com'",
             account_store('get', 'variant-file', 'param-account',
                 account=a2_tail))
 

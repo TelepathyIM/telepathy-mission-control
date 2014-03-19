@@ -1787,8 +1787,6 @@ mcd_connection_class_init (McdConnectionClass * klass)
     object_class->set_property = _mcd_connection_set_property;
     object_class->get_property = _mcd_connection_get_property;
 
-    _mcd_ext_register_dbus_glib_marshallers ();
-
     tp_connection_init_known_interfaces ();
 
     /* Properties */
