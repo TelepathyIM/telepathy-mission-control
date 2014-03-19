@@ -278,7 +278,7 @@ created_cb (McdStorage *storage,
     account = mcd_account_new (am, name, priv->minotaur, plugin);
     g_assert (MCD_IS_ACCOUNT (account));
 
-    lad = g_slice_new (McdLoadAccountsData);
+    lad = g_slice_new0 (McdLoadAccountsData);
     lad->account_manager = g_object_ref (am);
     lad->storage_plugin = g_object_ref (plugin);
     lad->account_lock = 1; /* released at the end of this function */
