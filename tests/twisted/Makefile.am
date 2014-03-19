@@ -122,6 +122,14 @@ TWISTED_OTHER_FILES = \
 mc-twisted-tests.list:
 	$(AM_V_GEN)echo $(TWISTED_BASIC_TESTS) $(TWISTED_SEPARATE_TESTS) > $@
 
+twisted-tests.test: Makefile
+	$(AM_V_GEN)( echo '[Test]'; \
+		echo 'Exec=${twistedtestsdir}/run-test.sh'; \
+		echo 'Type=session'; \
+		echo 'Output=TAP' ) > $@.tmp
+	@chmod +x $@.tmp
+	@mv $@.tmp $@
+
 run-test.sh: run-test.sh.in Makefile
 	$(AM_V_GEN)sed \
 		-e "s|[@]mctestsdir[@]|@mctestsdir@|g" \
@@ -130,6 +138,9 @@ run-test.sh: run-test.sh.in Makefile
 	@chmod +x $@
 
 if ENABLE_INSTALLED_TESTS
+insttestdir = ${datadir}/installed-tests/telepathy-mission-control
+nodist_insttest_DATA = twisted-tests.test
+
 # Install files in each directory. They could be tests, pristine data files,
 # scripts or built source
 twistedtestsdir = @mctestsdir@/twisted
@@ -161,6 +172,7 @@ config.py: Makefile
 BUILT_SOURCES = \
 	config.py \
 	mc-twisted-tests.list \
+	twisted-tests.test \
 	run-test.sh \
 	$(NULL)
 

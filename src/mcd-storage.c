@@ -50,6 +50,17 @@ enum {
   PROP_CLIENT_FACTORY = 1,
 };
 
+enum {
+  SIGNAL_CREATED,
+  SIGNAL_TOGGLED,
+  SIGNAL_DELETED,
+  SIGNAL_ALTERED_ONE,
+  SIGNAL_RECONNECT,
+  N_SIGNALS
+};
+
+static guint signals[N_SIGNALS] = { 0 };
+
 struct _McdStorageClass {
     GObjectClass parent;
 };
@@ -147,6 +158,31 @@ mcd_storage_class_init (McdStorageClass *cls)
   object_class->finalize = storage_finalize;
 
   g_object_class_install_property (object_class, PROP_CLIENT_FACTORY, spec);
+
+  signals[SIGNAL_CREATED] = g_signal_new ("created",
+      MCD_TYPE_STORAGE, G_SIGNAL_RUN_LAST, 0, NULL, NULL,
+      NULL, G_TYPE_NONE,
+      2, MCP_TYPE_ACCOUNT_STORAGE, G_TYPE_STRING);
+
+  signals[SIGNAL_ALTERED_ONE] = g_signal_new ("altered-one",
+      MCD_TYPE_STORAGE, G_SIGNAL_RUN_LAST, 0, NULL, NULL,
+      NULL, G_TYPE_NONE,
+      3, MCP_TYPE_ACCOUNT_STORAGE, G_TYPE_STRING, G_TYPE_STRING);
+
+  signals[SIGNAL_DELETED] = g_signal_new ("deleted",
+      MCD_TYPE_STORAGE, G_SIGNAL_RUN_LAST, 0, NULL, NULL,
+      NULL, G_TYPE_NONE,
+      2, MCP_TYPE_ACCOUNT_STORAGE, G_TYPE_STRING);
+
+  signals[SIGNAL_TOGGLED] = g_signal_new ("toggled",
+      MCD_TYPE_STORAGE, G_SIGNAL_RUN_LAST, 0, NULL, NULL,
+      NULL, G_TYPE_NONE,
+      3, MCP_TYPE_ACCOUNT_STORAGE, G_TYPE_STRING, G_TYPE_BOOLEAN);
+
+  signals[SIGNAL_RECONNECT] = g_signal_new ("reconnect",
+      MCD_TYPE_STORAGE, G_SIGNAL_RUN_LAST, 0, NULL, NULL,
+      NULL, G_TYPE_NONE,
+      2, MCP_TYPE_ACCOUNT_STORAGE, G_TYPE_STRING);
 }
 
 McdStorage *
@@ -464,21 +500,119 @@ sort_and_cache_plugins ()
     plugins_cached = TRUE;
 }
 
-void
-mcd_storage_connect_signal (const gchar *signame,
-    GCallback func,
-    gpointer user_data)
+static void
+created_cb (McpAccountStorage *plugin,
+    const gchar *account_name,
+    McdStorage *self)
 {
-  GList *p;
+  GError *error = NULL;
 
-  for (p = stores; p != NULL; p = g_list_next (p))
+  g_return_if_fail (MCP_IS_ACCOUNT_STORAGE (plugin));
+  g_return_if_fail (MCD_IS_STORAGE (self));
+
+  if (mcd_storage_add_account_from_plugin (self, plugin, account_name, &error))
     {
-      McpAccountStorage *plugin = p->data;
-
-      DEBUG ("connecting handler to %s plugin signal %s ",
-          mcp_account_storage_name (plugin), signame);
-      g_signal_connect (plugin, signame, func, user_data);
+      DEBUG ("%s", account_name);
+      g_signal_emit (self, signals[SIGNAL_CREATED], 0, plugin, account_name);
     }
+  else
+    {
+      WARNING ("%s", error->message);
+      g_error_free (error);
+    }
+}
+
+static gboolean
+check_is_responsible (McdStorage *self,
+    McpAccountStorage *plugin,
+    const gchar *account_name,
+    const gchar *changing,
+    GError **error)
+{
+  McpAccountStorage *other = g_hash_table_lookup (self->accounts,
+      account_name);
+
+  if (other == NULL)
+    {
+      WARNING ("account %s does not exist, preventing plugin '%s' from "
+          "%s it", account_name, mcp_account_storage_name (plugin), changing);
+      return FALSE;
+    }
+
+  if (other != plugin)
+    {
+      WARNING ("account %s is in plugin '%s', preventing plugin '%s' from "
+          "%s it", account_name, mcp_account_storage_name (other),
+          mcp_account_storage_name (plugin), changing);
+      return FALSE;
+    }
+
+  return TRUE;
+}
+
+static void
+toggled_cb (McpAccountStorage *plugin,
+    const gchar *account_name,
+    gboolean on,
+    McdStorage *self)
+{
+  GError *error = NULL;
+
+  g_return_if_fail (MCP_IS_ACCOUNT_STORAGE (plugin));
+  g_return_if_fail (MCD_IS_STORAGE (self));
+
+  if (check_is_responsible (self, plugin, account_name, "toggling", &error))
+    g_signal_emit (self, signals[SIGNAL_TOGGLED], 0, plugin,
+        account_name, on);
+}
+
+static void
+deleted_cb (McpAccountStorage *plugin,
+    const gchar *account_name,
+    McdStorage *self)
+{
+  GError *error = NULL;
+
+  g_return_if_fail (MCP_IS_ACCOUNT_STORAGE (plugin));
+  g_return_if_fail (MCD_IS_STORAGE (self));
+
+  if (check_is_responsible (self, plugin, account_name, "deleting",
+        &error))
+    g_signal_emit (self, signals[SIGNAL_DELETED], 0, plugin,
+        account_name);
+}
+
+static void
+altered_one_cb (McpAccountStorage *plugin,
+    const gchar *account_name,
+    const gchar *key,
+    McdStorage *self)
+{
+  GError *error = NULL;
+
+  g_return_if_fail (MCP_IS_ACCOUNT_STORAGE (plugin));
+  g_return_if_fail (MCD_IS_STORAGE (self));
+
+  if (check_is_responsible (self, plugin, account_name, "altering",
+        &error))
+    g_signal_emit (self, signals[SIGNAL_ALTERED_ONE], 0, plugin,
+        account_name, key);
+}
+
+static void
+reconnect_cb (McpAccountStorage *plugin,
+    const gchar *account_name,
+    McdStorage *self)
+{
+  GError *error = NULL;
+
+  g_return_if_fail (MCP_IS_ACCOUNT_STORAGE (plugin));
+  g_return_if_fail (MCD_IS_STORAGE (self));
+
+  if (check_is_responsible (self, plugin, account_name, "reconnecting",
+        &error))
+    g_signal_emit (self, signals[SIGNAL_RECONNECT], 0, plugin,
+        account_name);
 }
 
 /*
@@ -505,11 +639,28 @@ mcd_storage_load (McdStorage *self)
     {
       GList *account;
       McpAccountStorage *plugin = store->data;
-      GList *stored = mcp_account_storage_list (plugin, ma);
+      GList *stored;
       const gchar *pname = mcp_account_storage_name (plugin);
       const gint prio = mcp_account_storage_priority (plugin);
 
-      DEBUG ("listing from plugin %s [prio: %d]", pname, prio);
+      DEBUG ("listing initial accounts from plugin %s [prio: %d]", pname, prio);
+      stored = mcp_account_storage_list (plugin, ma);
+
+      /* Connect to signals for non-initial accounts. We only do this
+       * after we have called list(), to make sure the plugins don't need
+       * to queue up change-notification signals until after we've
+       * called the old "ready" vfunc. */
+      g_signal_connect_object (plugin, "created", G_CALLBACK (created_cb),
+          self, 0);
+      g_signal_connect_object (plugin, "toggled", G_CALLBACK (toggled_cb),
+          self, 0);
+      g_signal_connect_object (plugin, "deleted", G_CALLBACK (deleted_cb),
+          self, 0);
+      g_signal_connect_object (plugin, "altered-one",
+          G_CALLBACK (altered_one_cb), self, 0);
+      g_signal_connect_object (plugin, "reconnect", G_CALLBACK (reconnect_cb),
+          self, 0);
+
       for (account = stored; account != NULL; account = g_list_next (account))
         {
           GError *error = NULL;
@@ -915,6 +1066,29 @@ mcd_keyfile_get_variant (GKeyFile *keyfile,
           }
         break;
 
+      case G_VARIANT_CLASS_INT16:
+          {
+            GError *e = NULL;
+            gint v_int = g_key_file_get_integer (keyfile, group,
+                key, &e);
+
+            if (e != NULL)
+              {
+                g_propagate_error (error, e);
+              }
+            else if (v_int < G_MININT16 || v_int > G_MAXINT16)
+              {
+                g_set_error (error, TP_ERROR, TP_ERROR_INVALID_ARGUMENT,
+                    "integer %d out of range [%d,%d]",
+                    v_int, G_MININT16, G_MAXINT16);
+              }
+            else
+              {
+                ret = g_variant_new_int16 (v_int);
+              }
+          }
+        break;
+
       case G_VARIANT_CLASS_INT32:
           {
             GError *e = NULL;
@@ -945,6 +1119,28 @@ mcd_keyfile_get_variant (GKeyFile *keyfile,
             else
               {
                 ret = g_variant_new_int64 (v_int);
+              }
+          }
+        break;
+
+      case G_VARIANT_CLASS_UINT16:
+          {
+            GError *e = NULL;
+            gint v_int = g_key_file_get_integer (keyfile, group,
+                key, &e);
+
+            if (e != NULL)
+              {
+                g_propagate_error (error, e);
+              }
+            else if (v_int < 0 || (unsigned) v_int > G_MAXUINT16)
+              {
+                g_set_error (error, TP_ERROR, TP_ERROR_INVALID_ARGUMENT,
+                    "integer %d out of range [0,%d]", v_int, G_MAXUINT16);
+              }
+            else
+              {
+                ret = g_variant_new_uint16 (v_int);
               }
           }
         break;
@@ -1884,22 +2080,6 @@ mcd_storage_set_strv (McdStorage *storage,
   return ret;
 }
 
-void
-mcd_storage_ready (McdStorage *self)
-{
-  GList *store;
-  McpAccountManager *ma = MCP_ACCOUNT_MANAGER (self);
-
-  for (store = stores; store != NULL; store = g_list_next (store))
-    {
-      McpAccountStorage *plugin = store->data;
-      const gchar *plugin_name = mcp_account_storage_name (plugin);
-
-      DEBUG ("Unblocking async account ops by %s", plugin_name);
-      mcp_account_storage_ready (plugin, ma);
-    }
-}
-
 static GVariant *
 mcpa_unescape_variant_from_keyfile (const McpAccountManager *mcpa,
     const gchar *escaped,
@@ -2098,7 +2278,6 @@ mcd_storage_maybe_migrate_parameters (McdStorage *self,
       const gchar *param_name = untyped_parameters[i];
       const TpConnectionManagerParam *param = tp_protocol_get_param (protocol,
           param_name);
-      GError *error = NULL;
       GVariantType *type = NULL;
       GVariant *value;
       McpAccountStorageSetResult res;
@@ -2123,10 +2302,7 @@ mcd_storage_maybe_migrate_parameters (McdStorage *self,
 
       if (value == NULL)
         {
-          DEBUG ("cannot migrate parameter '%s': %s #%d: %s",
-              param_name, g_quark_to_string (error->domain), error->code,
-              error->message);
-          g_error_free (error);
+          DEBUG ("cannot migrate parameter '%s'", param_name);
           goto next_param;
         }
 

@@ -122,29 +122,6 @@ async_data_free (AsyncData *ad)
   g_slice_free (AsyncData, ad);
 }
 
-typedef enum {
-    EVENT_PARAMS,
-    EVENT_ATTRS,
-    EVENT_CREATION,
-    EVENT_DELETION
-} EventType;
-
-typedef struct {
-    EventType type;
-    GVariant *args;
-} Event;
-
-static Event *
-event_new (EventType type,
-    GVariant *args)
-{
-  Event *e = g_slice_new0 (Event);
-
-  e->type = type;
-  e->args = g_variant_ref_sink (args);
-  return e;
-}
-
 static Account *
 lookup_account (TestDBusAccountPlugin *self,
     const gchar *account_name)
@@ -311,9 +288,15 @@ test_dbus_account_plugin_add_account (TestDBusAccountPlugin *self,
 }
 
 static void
-test_dbus_account_plugin_process_account_creation (TestDBusAccountPlugin *self,
-    GVariant *args)
+account_created_cb (GDBusConnection *bus,
+    const gchar *sender_name,
+    const gchar *object_path,
+    const gchar *iface_name,
+    const gchar *signal_name,
+    GVariant *tuple,
+    gpointer user_data)
 {
+  TestDBusAccountPlugin *self = TEST_DBUS_ACCOUNT_PLUGIN (user_data);
   const gchar *account_name;
   Account *account;
   GVariant *attrs;
@@ -323,7 +306,7 @@ test_dbus_account_plugin_process_account_creation (TestDBusAccountPlugin *self,
   GVariant *param_flags;
   guint32 restrictions;
 
-  g_variant_get (args, "(&s@a{sv}@a{su}@a{sv}@a{ss}@a{su}u)",
+  g_variant_get (tuple, "(&s@a{sv}@a{su}@a{sv}@a{ss}@a{su}u)",
       &account_name, &attrs, &attr_flags,
       &params, &untyped_params, &param_flags,
       &restrictions);
@@ -361,13 +344,19 @@ test_dbus_account_plugin_process_account_creation (TestDBusAccountPlugin *self,
 }
 
 static void
-test_dbus_account_plugin_process_account_deletion (TestDBusAccountPlugin *self,
-    GVariant *args)
+account_deleted_cb (GDBusConnection *bus,
+    const gchar *sender_name,
+    const gchar *object_path,
+    const gchar *iface_name,
+    const gchar *signal_name,
+    GVariant *tuple,
+    gpointer user_data)
 {
+  TestDBusAccountPlugin *self = TEST_DBUS_ACCOUNT_PLUGIN (user_data);
   const gchar *account_name;
   Account *account;
 
-  g_variant_get (args, "(&s)", &account_name);
+  g_variant_get (tuple, "(&s)", &account_name);
   DEBUG ("%s", account_name);
   account = lookup_account (self, account_name);
 
@@ -395,16 +384,22 @@ test_dbus_account_plugin_process_account_deletion (TestDBusAccountPlugin *self,
 }
 
 static void
-test_dbus_account_plugin_process_attributes (TestDBusAccountPlugin *self,
-    GVariant *args)
+attributes_changed_cb (GDBusConnection *bus,
+    const gchar *sender_name,
+    const gchar *object_path,
+    const gchar *iface_name,
+    const gchar *signal_name,
+    GVariant *tuple,
+    gpointer user_data)
 {
+  TestDBusAccountPlugin *self = TEST_DBUS_ACCOUNT_PLUGIN (user_data);
   const gchar *account_name;
   Account *account;
   GVariant *attrs;
   GVariant *attr_flags;
   GVariant *deleted;
 
-  g_variant_get (args, "(&s@a{sv}@a{su}@as)",
+  g_variant_get (tuple, "(&s@a{sv}@a{su}@as)",
       &account_name, &attrs, &attr_flags, &deleted);
   DEBUG ("%s", account_name);
   account = lookup_account (self, account_name);
@@ -501,9 +496,15 @@ test_dbus_account_plugin_process_attributes (TestDBusAccountPlugin *self,
 }
 
 static void
-test_dbus_account_plugin_process_parameters (TestDBusAccountPlugin *self,
-    GVariant *args)
+parameters_changed_cb (GDBusConnection *bus,
+    const gchar *sender_name,
+    const gchar *object_path,
+    const gchar *iface_name,
+    const gchar *signal_name,
+    GVariant *tuple,
+    gpointer user_data)
 {
+  TestDBusAccountPlugin *self = TEST_DBUS_ACCOUNT_PLUGIN (user_data);
   const gchar *account_name;
   Account *account;
   GVariant *params;
@@ -511,7 +512,7 @@ test_dbus_account_plugin_process_parameters (TestDBusAccountPlugin *self,
   GVariant *param_flags;
   GVariant *deleted;
 
-  g_variant_get (args, "(&s@a{sv}@a{ss}@a{su}@as)",
+  g_variant_get (tuple, "(&s@a{sv}@a{ss}@a{su}@as)",
       &account_name, &params, &untyped_params, &param_flags, &deleted);
   DEBUG ("%s", account_name);
   account = lookup_account (self, account_name);
@@ -630,123 +631,6 @@ test_dbus_account_plugin_process_parameters (TestDBusAccountPlugin *self,
   g_variant_unref (deleted);
 }
 
-static void
-test_dbus_account_plugin_process_events (TestDBusAccountPlugin *self)
-{
-  Event *event;
-
-  if (self->feedback == NULL)
-    return;
-
-  while ((event = g_queue_pop_head (&self->events)) != NULL)
-    {
-      switch (event->type)
-        {
-          case EVENT_CREATION:
-            test_dbus_account_plugin_process_account_creation (self,
-                event->args);
-            break;
-
-          case EVENT_DELETION:
-            test_dbus_account_plugin_process_account_deletion (self,
-                event->args);
-            break;
-
-          case EVENT_ATTRS:
-            test_dbus_account_plugin_process_attributes (self,
-                event->args);
-            break;
-
-          case EVENT_PARAMS:
-            test_dbus_account_plugin_process_parameters (self,
-                event->args);
-            break;
-        }
-
-      g_variant_unref (event->args);
-      g_slice_free (Event, event);
-    }
-}
-
-static void
-account_created_cb (GDBusConnection *bus,
-    const gchar *sender_name,
-    const gchar *object_path,
-    const gchar *iface_name,
-    const gchar *signal_name,
-    GVariant *tuple,
-    gpointer user_data)
-{
-  TestDBusAccountPlugin *self = TEST_DBUS_ACCOUNT_PLUGIN (user_data);
-  const gchar *account_name;
-
-  g_variant_get (tuple, "(&s@a{sv}@a{su}@a{sv}@a{ss}@a{su}u)",
-      &account_name, NULL, NULL, NULL, NULL, NULL, NULL);
-  DEBUG ("%s", account_name);
-
-  g_queue_push_tail (&self->events, event_new (EVENT_CREATION, tuple));
-  test_dbus_account_plugin_process_events (self);
-}
-
-static void
-account_deleted_cb (GDBusConnection *bus,
-    const gchar *sender_name,
-    const gchar *object_path,
-    const gchar *iface_name,
-    const gchar *signal_name,
-    GVariant *tuple,
-    gpointer user_data)
-{
-  TestDBusAccountPlugin *self = TEST_DBUS_ACCOUNT_PLUGIN (user_data);
-  const gchar *account_name;
-
-  g_variant_get (tuple, "(&s)", &account_name);
-  DEBUG ("%s", account_name);
-
-  g_queue_push_tail (&self->events, event_new (EVENT_DELETION, tuple));
-  test_dbus_account_plugin_process_events (self);
-}
-
-static void
-attributes_changed_cb (GDBusConnection *bus,
-    const gchar *sender_name,
-    const gchar *object_path,
-    const gchar *iface_name,
-    const gchar *signal_name,
-    GVariant *tuple,
-    gpointer user_data)
-{
-  TestDBusAccountPlugin *self = TEST_DBUS_ACCOUNT_PLUGIN (user_data);
-  const gchar *account_name;
-
-  g_variant_get (tuple, "(&s@a{sv}@a{su}@as)", &account_name,
-      NULL, NULL, NULL);
-  DEBUG ("%s", account_name);
-
-  g_queue_push_tail (&self->events, event_new (EVENT_ATTRS, tuple));
-  test_dbus_account_plugin_process_events (self);
-}
-
-static void
-parameters_changed_cb (GDBusConnection *bus,
-    const gchar *sender_name,
-    const gchar *object_path,
-    const gchar *iface_name,
-    const gchar *signal_name,
-    GVariant *tuple,
-    gpointer user_data)
-{
-  TestDBusAccountPlugin *self = TEST_DBUS_ACCOUNT_PLUGIN (user_data);
-  const gchar *account_name;
-
-  g_variant_get (tuple, "(&s@a{sv}@a{ss}@a{su}@as)", &account_name,
-      NULL, NULL, NULL, NULL);
-  DEBUG ("%s", account_name);
-
-  g_queue_push_tail (&self->events, event_new (EVENT_PARAMS, tuple));
-  test_dbus_account_plugin_process_events (self);
-}
-
 static GList *
 test_dbus_account_plugin_list (McpAccountStorage *storage,
     McpAccountManager *am)
@@ -855,21 +739,6 @@ test_dbus_account_plugin_list (McpAccountStorage *storage,
   g_variant_unref (accounts);
   g_variant_unref (tuple);
   return ret;
-}
-
-static void
-test_dbus_account_plugin_ready (McpAccountStorage *storage,
-    McpAccountManager *am)
-{
-  TestDBusAccountPlugin *self = TEST_DBUS_ACCOUNT_PLUGIN (storage);
-
-  DEBUG ("called");
-  g_dbus_connection_emit_signal (self->bus, NULL,
-      TEST_DBUS_ACCOUNT_PLUGIN_PATH, TEST_DBUS_ACCOUNT_PLUGIN_IFACE,
-      "Ready", NULL, NULL);
-  self->feedback = MCP_ACCOUNT_MANAGER (am);
-
-  test_dbus_account_plugin_process_events (self);
 }
 
 static gchar *
@@ -1568,7 +1437,6 @@ account_storage_iface_init (McpAccountStorageIface *iface)
   iface->set_attribute = test_dbus_account_plugin_set_attribute;
   iface->set_parameter = test_dbus_account_plugin_set_parameter;
   iface->list = test_dbus_account_plugin_list;
-  iface->ready = test_dbus_account_plugin_ready;
   iface->delete_async = test_dbus_account_plugin_delete_async;
   iface->delete_finish = test_dbus_account_plugin_delete_finish;
   iface->commit = test_dbus_account_plugin_commit;

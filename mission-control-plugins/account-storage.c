@@ -61,7 +61,6 @@
  *   iface->delete_finish = foo_plugin_delete_finish;
  *   iface->commit = foo_plugin_commit;
  *   iface->list = foo_plugin_list;
- *   iface->ready = foo_plugin_ready;
  *   iface->get_identifier = foo_plugin_get_identifier;
  *   iface->get_additional_info = foo_plugin_get_additional_info;
  *   iface->get_restrictions = foo_plugin_get_restrictions;
@@ -166,13 +165,6 @@ default_create (McpAccountStorage *storage,
 }
 
 static void
-default_ready (McpAccountStorage *storage,
-    McpAccountManager *am)
-{
-  /* do nothing */
-}
-
-static void
 default_get_identifier (McpAccountStorage *storage,
     const gchar *account,
     GValue *identifier)
@@ -244,7 +236,6 @@ class_init (gpointer klass,
   iface->delete_async = default_delete_async;
   iface->delete_finish = default_delete_finish;
   iface->commit = default_commit;
-  iface->ready = default_ready;
   iface->get_identifier = default_get_identifier;
   iface->get_additional_info = default_get_additional_info;
   iface->get_restrictions = default_get_restrictions;
@@ -265,8 +256,10 @@ class_init (gpointer klass,
    * Emitted if an external entity creates an account
    * in the backend the emitting plugin handles.
    *
-   * Should not be fired until mcp_account_storage_ready() has been called
-   *
+   * This signal does not need to be emitted before mcp_account_storage_list()
+   * returns (if it is, it will be ignored). All accounts that exist
+   * at the time that mcp_account_storage_list() returns must be included
+   * in its result, even if they were also signalled via this signal.
    */
   signals[CREATED] = g_signal_new ("created",
       type, G_SIGNAL_RUN_LAST, 0, NULL, NULL,
@@ -291,8 +284,6 @@ class_init (gpointer klass,
    * mcp_account_storage_list_typed_parameters() and
    * mcp_account_storage_set_parameter() do not use the
    * "param-" prefix, but this signal does.
-   *
-   * Should not be fired until mcp_account_storage_ready() has been called
    */
   signals[ALTERED_ONE] = g_signal_new ("altered-one",
       type, G_SIGNAL_RUN_LAST, 0, NULL, NULL,
@@ -306,9 +297,6 @@ class_init (gpointer klass,
    *
    * Emitted if an external entity deletes an account
    * in the backend the emitting plugin handles.
-   *
-   * Should not be fired until mcp_account_storage_ready() has been called
-   *
    */
   signals[DELETED] = g_signal_new ("deleted",
       type, G_SIGNAL_RUN_LAST, 0, NULL, NULL,
@@ -328,9 +316,6 @@ class_init (gpointer klass,
    * Before emitting this signal, the plugin must update its
    * internal cache (if any) so that mcp_account_storage_get_attribute()
    * will return the new value for Enabled when queried.
-   *
-   * Should not be fired until mcp_account_storage_ready() has been called
-   *
    */
   signals[TOGGLED] = g_signal_new ("toggled",
       type, G_SIGNAL_RUN_LAST, 0, NULL, NULL,
@@ -343,8 +328,6 @@ class_init (gpointer klass,
    *
    * emitted if an external entity modified important parameters of the
    * account and a reconnection is required in order to apply them.
-   *
-   * Should not be fired until mcp_account_storage_ready() has been called
    **/
   signals[RECONNECT] = g_signal_new ("reconnect",
       type, G_SIGNAL_RUN_LAST, 0, NULL, NULL,
@@ -397,17 +380,24 @@ mcp_account_storage_get_type (void)
  * @name: returned by mcp_account_storage_name()
  * @desc: returned by mcp_account_storage_description()
  * @provider: returned by mcp_account_storage_provider()
- * @set: implementation of mcp_account_storage_set()
- * @get: implementation of mcp_account_storage_get()
- * @delete: implementation of mcp_account_storage_delete()
+ * @delete_async: implementation of mcp_account_storage_delete_async()
+ * @delete_finish: implementation of mcp_account_storage_delete_finish()
  * @commit: implementation of mcp_account_storage_commit()
  * @list: implementation of mcp_account_storage_list()
- * @ready: implementation of mcp_account_storage_ready()
  * @get_identifier: implementation of mcp_account_storage_get_identifier()
  * @get_additional_info: implementation of
  *  mcp_account_storage_get_additional_info()
  * @get_restrictions: implementation of mcp_account_storage_get_restrictions()
  * @create: implementation of mcp_account_storage_create()
+ * @get_attribute: implementation of mcp_account_storage_get_attribute()
+ * @get_parameter: implementation of mcp_account_storage_get_parameter()
+ * @set_attribute: implementation of mcp_account_storage_set_attribute()
+ * @set_parameter: implementation of mcp_account_storage_set_parameter()
+ * @list_typed_parameters: implementation
+ *  of mcp_account_storage_list_typed_parameters()
+ * @list_untyped_parameters: implementation
+ *  of mcp_account_storage_list_untyped_parameters()
+ * @get_flags: implementation of mcp_account_storage_get_flags()
  *
  * The interface vtable for an account storage plugin.
  */
@@ -936,40 +926,6 @@ mcp_account_storage_list (McpAccountStorage *storage,
   g_return_val_if_fail (iface->list != NULL, NULL);
 
   return iface->list (storage, am);
-}
-
-/**
- * McpAccountStorageReadyFunc:
- * @storage: an #McpAccountStorage instance
- * @am: an #McpAccountManager instance
- *
- * An implementation of mcp_account_storage_ready().
- */
-
-/**
- * mcp_account_storage_ready:
- * @storage: an #McpAccountStorage instance
- * @am: an #McpAccountManager instance
- *
- * Informs the plugin that it is now permitted to create new accounts,
- * ie it can now fire its "created", "altered-one", "toggled" and "deleted"
- * signals.
- *
- * The default implementation does nothing. It should be overridden by
- * any plugin that will emit "created", "altered-one", "toggled" and/or
- * "deleted".
- */
-void
-mcp_account_storage_ready (McpAccountStorage *storage,
-    McpAccountManager *am)
-{
-  McpAccountStorageIface *iface = MCP_ACCOUNT_STORAGE_GET_IFACE (storage);
-
-  SDEBUG (storage, "");
-  g_return_if_fail (iface != NULL);
-  g_return_if_fail (iface->ready != NULL);
-
-  iface->ready (storage, am);
 }
 
 /**

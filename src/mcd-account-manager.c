@@ -100,6 +100,7 @@ typedef struct
     McpAccountStorage *storage_plugin;
     McdAccount *account;
     gint account_lock;
+    gboolean holds_setup_lock;
 } McdLoadAccountsData;
 
 typedef struct
@@ -173,7 +174,8 @@ async_altered_one_manager_cb (McdManager *cm,
 
 
 static void
-altered_one_cb (McpAccountStorage *storage,
+altered_one_cb (McdStorage *storage,
+                McpAccountStorage *plugin,
                 const gchar *account_name,
                 const gchar *key,
                 gpointer data)
@@ -183,25 +185,12 @@ altered_one_cb (McpAccountStorage *storage,
     McdAccount *account = NULL;
     McdManager *cm = NULL;
     const gchar *cm_name = NULL;
-    McpAccountStorage *its_plugin;
 
     account = mcd_account_manager_lookup_account (am, account_name);
 
     if (G_UNLIKELY (!account))
     {
         g_warning ("%s: account %s does not exist", G_STRFUNC, account_name);
-        return;
-    }
-
-    its_plugin = mcd_account_get_storage_plugin (account);
-
-    if (storage != its_plugin)
-    {
-        DEBUG ("Ignoring altered-one from plugin %s because account %s "
-            "belongs to %s",
-            mcp_account_storage_name (storage),
-            account_name,
-            mcp_account_storage_name (its_plugin));
         return;
     }
 
@@ -270,7 +259,8 @@ async_created_manager_cb (McdManager *cm, const GError *error, gpointer data)
  * to fetch the named account explicitly at this point (ie it's a read, not *
  * not a write, from the plugin's POV:                                      */
 static void
-created_cb (GObject *storage_plugin_obj,
+created_cb (McdStorage *storage,
+    GObject *storage_plugin_obj,
     const gchar *name,
     gpointer data)
 {
@@ -279,35 +269,25 @@ created_cb (GObject *storage_plugin_obj,
     McdAccountManagerPrivate *priv = MCD_ACCOUNT_MANAGER_PRIV (am);
     McdLoadAccountsData *lad = NULL;
     McdAccount *account = NULL;
-    McdStorage *storage = priv->storage;
     McdMaster *master = mcd_master_get_default ();
     McdManager *cm = NULL;
     const gchar *cm_name = NULL;
-    GError *error = NULL;
 
-    /* actually fetch the data into our cache from the plugin: */
-    if (mcd_storage_add_account_from_plugin (storage, plugin, name, &error))
-    {
-        account = mcd_account_new (am, name, priv->minotaur, plugin);
-        g_assert (MCD_IS_ACCOUNT (account));
+    g_return_if_fail (storage == priv->storage);
 
-        lad = g_slice_new (McdLoadAccountsData);
-        lad->account_manager = am;
-        lad->storage_plugin = plugin;
-        lad->account_lock = 1; /* released at the end of this function */
-        lad->account = account;
-    }
-    else
-    {
-        WARNING ("%s", error->message);
-        g_clear_error (&error);
-        goto finish;
-    }
+    account = mcd_account_new (am, name, priv->minotaur, plugin);
+    g_assert (MCD_IS_ACCOUNT (account));
 
-    if (G_UNLIKELY (!account))
+    lad = g_slice_new (McdLoadAccountsData);
+    lad->account_manager = g_object_ref (am);
+    lad->storage_plugin = g_object_ref (plugin);
+    lad->account_lock = 1; /* released at the end of this function */
+    lad->account = g_object_ref (account);
+
+    if (am->priv->setup_lock > 0)
     {
-        g_warning ("%s: account %s failed to instantiate", G_STRFUNC, name);
-        goto finish;
+        lad->holds_setup_lock = TRUE;
+        am->priv->setup_lock++;
     }
 
     cm_name = mcd_account_get_manager_name (account);
@@ -329,19 +309,20 @@ created_cb (GObject *storage_plugin_obj,
         g_object_unref (account);
     }
 
-finish:
-    if (lad != NULL)
-        release_load_accounts_lock (lad);
+    release_load_accounts_lock (lad);
 }
 
 static void
-toggled_cb (GObject *plugin, const gchar *name, gboolean on, gpointer data)
+toggled_cb (McdStorage *storage,
+    GObject *plugin,
+    const gchar *name,
+    gboolean on,
+    gpointer data)
 {
   McpAccountStorage *storage_plugin = MCP_ACCOUNT_STORAGE (plugin);
   McdAccountManager *manager = MCD_ACCOUNT_MANAGER (data);
   McdAccount *account = NULL;
   GError *error = NULL;
-  McpAccountStorage *its_plugin;
 
   account = mcd_account_manager_lookup_account (manager, name);
 
@@ -352,18 +333,6 @@ toggled_cb (GObject *plugin, const gchar *name, gboolean on, gpointer data)
     {
       g_warning ("%s: Unknown account %s from %s plugin",
           G_STRFUNC, name, mcp_account_storage_name (storage_plugin));
-      return;
-    }
-
-  its_plugin = mcd_account_get_storage_plugin (account);
-
-  if (storage_plugin != its_plugin)
-    {
-      DEBUG ("Ignoring toggled signal from plugin %s because account %s "
-          "belongs to %s",
-          mcp_account_storage_name (storage_plugin),
-          name,
-          mcp_account_storage_name (its_plugin));
       return;
     }
 
@@ -378,7 +347,10 @@ toggled_cb (GObject *plugin, const gchar *name, gboolean on, gpointer data)
 }
 
 static void
-reconnect_cb (GObject *plugin, const gchar *name, gpointer data)
+reconnect_cb (McdStorage *storage,
+    GObject *plugin,
+    const gchar *name,
+    gpointer data)
 {
   McpAccountStorage *storage_plugin = MCP_ACCOUNT_STORAGE (plugin);
   McdAccountManager *manager = MCD_ACCOUNT_MANAGER (data);
@@ -427,7 +399,10 @@ mcd_account_delete_debug_cb (GObject *source,
 
 /* a backend plugin notified us that an account was vaporised: remove it */
 static void
-deleted_cb (GObject *plugin, const gchar *name, gpointer data)
+deleted_cb (McdStorage *storage,
+    GObject *plugin,
+    const gchar *name,
+    gpointer data)
 {
     McpAccountStorage *storage_plugin = MCP_ACCOUNT_STORAGE (plugin);
     McdAccountManager *manager = MCD_ACCOUNT_MANAGER (data);
@@ -441,18 +416,6 @@ deleted_cb (GObject *plugin, const gchar *name, gpointer data)
     if (account != NULL)
     {
         const gchar * object_path = mcd_account_get_object_path (account);
-        McpAccountStorage *its_plugin = mcd_account_get_storage_plugin (
-            account);
-
-        if (storage_plugin != its_plugin)
-        {
-            DEBUG ("Ignoring deleted signal from plugin %s because account %s "
-                "belongs to %s",
-                mcp_account_storage_name (storage_plugin),
-                name,
-                mcp_account_storage_name (its_plugin));
-            return;
-        }
 
         g_object_ref (account);
         /* this unhooks the account's signal handlers */
@@ -1135,6 +1098,13 @@ release_load_accounts_lock (McdLoadAccountsData *lad)
 
     if (lad->account_lock == 0)
     {
+        if (lad->holds_setup_lock)
+            release_setup_lock (lad->account_manager);
+
+        g_object_unref (lad->account_manager);
+        g_object_unref (lad->storage_plugin);
+        g_object_unref (lad->account);
+
         g_slice_free (McdLoadAccountsData, lad);
     }
 }
@@ -1432,6 +1402,20 @@ _mcd_account_manager_setup (McdAccountManager *account_manager)
                               (GObject *)account_manager);
 
     accounts = mcd_storage_get_accounts (storage);
+
+    /* as soon as we've listed the initial set, connect to signals
+     * for any subsequently-added accounts */
+    g_signal_connect_object (priv->storage, "altered-one",
+        G_CALLBACK (altered_one_cb), account_manager, 0);
+    g_signal_connect_object (priv->storage, "created",
+        G_CALLBACK (created_cb), account_manager, 0);
+    g_signal_connect_object (priv->storage, "toggled",
+        G_CALLBACK (toggled_cb), account_manager, 0);
+    g_signal_connect_object (priv->storage, "deleted",
+        G_CALLBACK (deleted_cb), account_manager, 0);
+    g_signal_connect_object (priv->storage, "reconnect",
+        G_CALLBACK (reconnect_cb), account_manager, 0);
+
     g_hash_table_iter_init (&iter, accounts);
 
     while (g_hash_table_iter_next (&iter, &k, &v))
@@ -1494,9 +1478,6 @@ _mcd_account_manager_setup (McdAccountManager *account_manager)
     {
         mcd_storage_commit (storage, k);
     }
-
-    /* uncork signals from storage plugins */
-    mcd_storage_ready (priv->storage);
 
     migrate_accounts (account_manager);
 
@@ -1664,14 +1645,6 @@ _mcd_account_manager_constructed (GObject *obj)
 {
     McdAccountManager *account_manager = MCD_ACCOUNT_MANAGER (obj);
     McdAccountManagerPrivate *priv = account_manager->priv;
-    guint i = 0;
-    static struct { const gchar *name; GCallback handler; } sig[] =
-      { { "created", G_CALLBACK (created_cb) },
-        { "toggled", G_CALLBACK (toggled_cb) },
-        { "deleted", G_CALLBACK (deleted_cb) },
-        { "altered-one", G_CALLBACK (altered_one_cb) },
-        { "reconnect", G_CALLBACK (reconnect_cb) },
-        { NULL, NULL } };
 
     DEBUG ("");
 
@@ -1688,13 +1661,6 @@ _mcd_account_manager_constructed (GObject *obj)
 
     DEBUG ("loading plugins");
     mcd_storage_load (priv->storage);
-
-    /* hook up all the storage plugin signals to their handlers: */
-    for (i = 0; sig[i].name != NULL; i++)
-    {
-        mcd_storage_connect_signal (sig[i].name, sig[i].handler,
-                                    account_manager);
-    }
 
     /* initializes the interfaces */
     mcd_dbus_init_interfaces_instances (account_manager);
