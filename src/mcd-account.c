@@ -571,9 +571,6 @@ mcd_account_delete_async (McdAccount *account,
     gpointer user_data)
 {
     McdAccountPrivate *priv = account->priv;
-#if 0
-    gchar *data_dir_str;
-#endif
     GError *error = NULL;
     const gchar *name = mcd_account_get_unique_name (account);
     GTask *task;
@@ -609,33 +606,6 @@ mcd_account_delete_async (McdAccount *account,
 
     if ((flags & MCD_DBUS_PROP_SET_FLAG_ALREADY_IN_STORAGE) == 0)
         mcd_storage_delete_account (priv->storage, name);
-
-#if 0
-    data_dir_str = get_old_account_data_path (priv);
-
-    if (data_dir_str != NULL)
-    {
-        GDir *data_dir = g_dir_open (data_dir_str, 0, NULL);
-
-        if (data_dir)
-        {
-            const gchar *filename;
-
-            while ((filename = g_dir_read_name (data_dir)) != NULL)
-            {
-                gchar *path = g_build_filename (data_dir_str, filename, NULL);
-
-                g_remove (path);
-                g_free (path);
-            }
-
-            g_dir_close (data_dir);
-            g_rmdir (data_dir_str);
-        }
-
-        g_free (data_dir_str);
-    }
-#endif
 
     if (!priv->removed)
     {
