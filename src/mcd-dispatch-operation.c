@@ -521,10 +521,7 @@ _mcd_dispatch_operation_check_client_locks (McdDispatchOperation *self)
     /* if we've been claimed, respond, then do not call HandleChannels */
     if (approval != NULL && approval->type == APPROVAL_TYPE_CLAIM)
     {
-        /* this needs to be copied because we don't use it til after we've
-         * freed approval->context */
-        gchar *caller = g_strdup (dbus_g_method_get_sender (
-            approval->context));
+        gchar *caller = dbus_g_method_get_sender (approval->context);
 
         /* remove this approval from the list, so it won't be treated as a
          * failure */
@@ -827,13 +824,16 @@ _mcd_dispatch_operation_finish (McdDispatchOperation *operation,
          approval != NULL;
          approval = g_queue_pop_head (priv->approvals))
     {
+        gchar *caller;
+
         switch (approval->type)
         {
             case APPROVAL_TYPE_CLAIM:
                 /* someone else got it - either another Claim() or a handler */
                 g_assert (approval->context != NULL);
-                DEBUG ("denying Claim call from %s",
-                       dbus_g_method_get_sender (approval->context));
+                caller = dbus_g_method_get_sender (approval->context);
+                DEBUG ("denying Claim call from %s", caller);
+                g_free (caller);
                 dbus_g_method_return_error (approval->context, priv->result);
                 approval->context = NULL;
                 break;
