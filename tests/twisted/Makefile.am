@@ -76,6 +76,8 @@ TWISTED_SPECIAL_BUILD_TESTS = \
 	account-storage/diverted-storage.py \
 	account-storage/5-12.py \
 	account-storage/5-14.py \
+	account-storage/5-17.py \
+	account-storage/5-99-5.py \
 	account-storage/create-new.py \
 	account-storage/load-keyfiles.py \
 	account-manager/server-drops-us.py \

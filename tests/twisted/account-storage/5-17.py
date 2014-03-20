@@ -1,5 +1,5 @@
 # Test for a former default account storage backend:
-# XDG_DATA_HOME/telepathy/mission-control/accounts.cfg, as used in MC 5.14
+# XDG_DATA_HOME/telepathy/mission-control/, as used in MC 5.17
 #
 # Copyright (C) 2009-2010 Nokia Corporation
 # Copyright (C) 2009-2014 Collabora Ltd.
@@ -19,11 +19,11 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
 # 02110-1301 USA
 
-from storage_helper import test_keyfile
+from storage_helper import test_variant_file
 from mctest import exec_test
 
-def test_5_14(q, bus, mc):
-    test_keyfile(q, bus, mc, '5.14')
+def test(q, bus, mc):
+    test_variant_file(q, bus, mc, '5.17')
 
 if __name__ == '__main__':
-    exec_test(test_5_14, {}, preload_mc=False, use_fake_accounts_service=False)
+    exec_test(test, {}, preload_mc=False, use_fake_accounts_service=False)

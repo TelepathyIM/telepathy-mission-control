@@ -19,9 +19,6 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
 # 02110-1301 USA
 
-print "SKIP: MC 6 does not currently import MC 5 accounts"
-raise SystemExit(77)
-
 from storage_helper import test_keyfile
 from mctest import exec_test
 

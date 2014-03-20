@@ -87,6 +87,18 @@ def test_keyfile(q, bus, mc, how_old='5.12'):
             'w')
         avatar_bin.write('hello, world')
         avatar_bin.close()
+    elif how_old == '5.99.5':
+        old_key_file_name = os.path.join(os.environ['XDG_DATA_HOME'],
+                'telepathy-1', 'mission-control', 'accounts.cfg')
+
+        avatar_dir = (os.environ['XDG_DATA_DIRS'].split(':')[0] +
+            '/telepathy-1/mission-control')
+        os.makedirs(avatar_dir)
+        avatar_bin = open(avatar_dir +
+            '/fakecm-fakeprotocol-dontdivert1_40example_2ecom0.avatar',
+            'w')
+        avatar_bin.write('hello, world')
+        avatar_bin.close()
     else:
         raise AssertionError('Unsupported value for how_old')
 
@@ -130,11 +142,162 @@ AutomaticPresence=2;available;;
     mc = MC(q, bus)
     account_manager, properties, interfaces = connect_to_mc(q, bus, mc)
 
-    # During MC startup, it moved the old keyfile's contents into
-    # variant-based files, and deleted the old keyfile.
-    assert not os.path.exists(old_key_file_name)
+    if how_old < '5.99':
+        # MC did not delete the old files...
+        assert os.path.exists(old_key_file_name)
+
+        # ... but it did import them
+        assert os.path.exists(os.path.join(os.environ['XDG_DATA_HOME'],
+            'telepathy', 'mission-control', 'MIGRATED-TO-TELEPATHY-1.txt'))
+    else:
+        # if upgrading Tp 1 to Tp 1, the old file *is* deleted
+        assert not os.path.exists(old_key_file_name)
+
     assert os.path.exists(a1_new_variant_file_name)
     assert os.path.exists(a2_new_variant_file_name)
+    assertEquals("'First among equals'",
+            account_store('get', 'variant-file', 'DisplayName',
+                account=a1_tail))
+    assertEquals("'Second to none'",
+            account_store('get', 'variant-file', 'DisplayName',
+                account=a2_tail))
+    # Because the CM is installed, we can work out the right types
+    # for the parameters, too.
+    assertEquals("'dontdivert1@example.com'",
+            account_store('get', 'variant-file', 'param-account',
+                account=a1_tail))
+    assertEquals("'dontdivert2@example.com'",
+            account_store('get', 'variant-file', 'param-account',
+                account=a2_tail))
+
+    # Also, MC has both accounts in memory...
+    assertContains(cs.ACCOUNT_PATH_PREFIX + a1_tail,
+            properties['UsableAccounts'])
+    account = get_fakecm_account(bus, mc, cs.ACCOUNT_PATH_PREFIX + a1_tail)
+    assertEquals('dontdivert1@example.com',
+            account.Properties.Get(cs.ACCOUNT, 'Parameters')['account'])
+    assertEquals('First among equals',
+            account.Properties.Get(cs.ACCOUNT, 'DisplayName'))
+    assertEquals((dbus.ByteArray('hello, world'), 'text/plain'),
+            account.Properties.Get(cs.ACCOUNT_IFACE_AVATAR, 'Avatar',
+                byte_arrays=True))
+
+    assertContains(cs.ACCOUNT_PATH_PREFIX + a2_tail,
+            properties['UsableAccounts'])
+    account = get_fakecm_account(bus, mc, cs.ACCOUNT_PATH_PREFIX + a2_tail)
+    assertEquals('dontdivert2@example.com',
+            account.Properties.Get(cs.ACCOUNT, 'Parameters')['account'])
+    assertEquals('Second to none',
+            account.Properties.Get(cs.ACCOUNT, 'DisplayName'))
+
+    # ... and no other accounts.
+    assertLength(2, properties['UsableAccounts'])
+
+def test_variant_file(q, bus, mc, how_old='5.17'):
+    simulated_cm = SimulatedConnectionManager(q, bus)
+
+    if how_old == '5.17':
+        tp_dir = 'telepathy'
+        top_priority = os.path.join(os.environ['XDG_DATA_HOME'],
+                tp_dir, 'mission-control')
+        low_priority = os.path.join(os.environ['XDG_DATA_DIRS'].split(':')[0],
+                tp_dir, 'mission-control')
+
+        os.makedirs(top_priority)
+        avatar_bin = open(top_priority +
+            '/fakecm-fakeprotocol-dontdivert1_40example_2ecom0.avatar',
+            'w')
+        avatar_bin.write('hello, world')
+        avatar_bin.close()
+
+        os.makedirs(low_priority)
+        avatar_bin = open(low_priority +
+            '/fakecm-fakeprotocol-dontdivert1_40example_2ecom0.avatar',
+            'w')
+        avatar_bin.write('this version is not used')
+        avatar_bin.close()
+
+        avatar_bin = open(low_priority +
+            '/fakecm-fakeprotocol-dontdivert2_40example_2ecom0.avatar',
+            'w')
+        avatar_bin.write('second chance')
+        avatar_bin.close()
+    else:
+        raise AssertionError('Unsupported value for how_old')
+
+    a1_old_variant_file_name = os.path.join(top_priority,
+            'fakecm-fakeprotocol-dontdivert1_40example_2ecom0.account')
+
+    a1_masked_variant_file_name = os.path.join(low_priority,
+            'fakecm-fakeprotocol-dontdivert1_40example_2ecom0.account')
+
+    a2_old_variant_file_name = os.path.join(low_priority,
+            'fakecm-fakeprotocol-dontdivert2_40example_2ecom0.account')
+
+    a1_new_variant_file_name = os.path.join(os.environ['XDG_DATA_HOME'],
+            'telepathy-1', 'mission-control',
+            'fakecm-fakeprotocol-dontdivert1_40example_2ecom0.account')
+    a1_tail = 'fakecm/fakeprotocol/dontdivert1_40example_2ecom0'
+
+    a2_new_variant_file_name = os.path.join(os.environ['XDG_DATA_HOME'],
+            'telepathy-1', 'mission-control',
+            'fakecm-fakeprotocol-dontdivert2_40example_2ecom0.account')
+    a2_tail = 'fakecm/fakeprotocol/dontdivert2_40example_2ecom0'
+
+    open(a1_old_variant_file_name, 'w').write(r"""{
+'manager': <'fakecm'>,
+'protocol': <'fakeprotocol'>,
+'Parameters': <{
+  'account': <'dontdivert1@example.com'>,
+  'password': <'1'>
+  }>,
+'DisplayName': <'First among equals'>,
+'AutomaticPresence': <(uint32 2, 'available', '')>,
+'AvatarMime': <'text/plain'>,
+'avatar_token': <'hello, world'>
+}""")
+
+    open(a1_masked_variant_file_name, 'w').write(r"""{
+'manager': <'fakecm'>,
+'protocol': <'fakeprotocol'>,
+'Parameters': <{
+  'account': <'dontdivert1@example.com'>,
+  'password': <'1'>
+  }>,
+'DisplayName': <'this version is not used'>,
+'AutomaticPresence': <(uint32 2, 'available', '')>,
+'AvatarMime': <'text/plain'>,
+'avatar_token': <'this version is not used'>
+}""")
+
+    open(a2_old_variant_file_name, 'w').write(r"""{
+'manager': <'fakecm'>,
+'protocol': <'fakeprotocol'>,
+'Parameters': <{
+  'account': <'dontdivert2@example.com'>,
+  'password': <'2'>
+  }>,
+'DisplayName': <'Second to none'>,
+'AutomaticPresence': <(uint32 2, 'available', '')>,
+'AvatarMime': <'text/plain'>,
+'avatar_token': <'second chance'>
+}""")
+
+    mc = MC(q, bus)
+    account_manager, properties, interfaces = connect_to_mc(q, bus, mc)
+
+    # MC did not delete the old files...
+    assert os.path.exists(a1_old_variant_file_name)
+    assert os.path.exists(a1_masked_variant_file_name)
+    assert os.path.exists(a2_old_variant_file_name)
+
+    # ... but it did import them
+    assert os.path.exists(os.path.join(os.environ['XDG_DATA_HOME'],
+        'telepathy', 'mission-control', 'MIGRATED-TO-TELEPATHY-1.txt'))
+
+    assert os.path.exists(a1_new_variant_file_name)
+    assert os.path.exists(a2_new_variant_file_name)
+
     assertEquals("'First among equals'",
             account_store('get', 'variant-file', 'DisplayName',
                 account=a1_tail))
