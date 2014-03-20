@@ -108,7 +108,6 @@ G_DEFINE_TYPE_WITH_CODE (McdAccountManagerDefault, mcd_account_manager_default,
     G_IMPLEMENT_INTERFACE (MCP_TYPE_ACCOUNT_STORAGE,
         account_storage_iface_init));
 
-#if 0
 static gchar *
 get_old_filename (void)
 {
@@ -127,19 +126,20 @@ get_old_filename (void)
   else
     return g_build_filename (base, "accounts.cfg", NULL);
 }
-#endif
 
 static gchar *
-accounts_cfg_in (const gchar *dir)
+accounts_cfg_in (const gchar *dir,
+    const gchar *tp_dir)
 {
-  return g_build_filename (dir, "telepathy-1", "mission-control",
+  return g_build_filename (dir, tp_dir, "mission-control",
       "accounts.cfg", NULL);
 }
 
 static gchar *
-account_directory_in (const gchar *dir)
+account_directory_in (const gchar *dir,
+    const gchar *tp_dir)
 {
-  return g_build_filename (dir, "telepathy-1", "mission-control", NULL);
+  return g_build_filename (dir, tp_dir, "mission-control", NULL);
 }
 
 static gchar *
@@ -160,7 +160,8 @@ static void
 mcd_account_manager_default_init (McdAccountManagerDefault *self)
 {
   DEBUG ("mcd_account_manager_default_init");
-  self->directory = account_directory_in (g_get_user_data_dir ());
+  self->directory = account_directory_in (g_get_user_data_dir (),
+      "telepathy-1");
   self->accounts = g_hash_table_new_full (g_str_hash, g_str_equal, g_free,
       stored_account_free);
   self->loaded = FALSE;
@@ -493,6 +494,8 @@ am_default_commit_one (McdAccountManagerDefault *self,
   gchar *content_text;
   gboolean ret;
   GError *error = NULL;
+
+  DEBUG ("%s", account_name);
 
   g_return_val_if_fail (sa != NULL, FALSE);
   g_return_val_if_fail (!sa->absent, FALSE);
@@ -864,6 +867,67 @@ am_default_load_directory (McdAccountManagerDefault *self,
     }
 }
 
+static void mcd_account_manager_default_load (McdAccountManagerDefault *amd,
+    gboolean telepathy0);
+
+static void
+maybe_import_from_tp0 (McdAccountManagerDefault *self)
+{
+  const gchar *user_data_dir = g_get_user_data_dir ();
+  McdAccountManagerDefault *old = NULL;
+  gchar *dir = NULL;
+  gchar *stamp = NULL;
+  gchar *old_accounts_cfg = NULL;
+  gchar *accounts_cfg = NULL;
+  GError *error = NULL;
+
+  dir = account_directory_in (user_data_dir, "telepathy");
+  stamp = g_build_filename (dir, "MIGRATED-TO-TELEPATHY-1.txt", NULL);
+  accounts_cfg = accounts_cfg_in (user_data_dir, "telepathy");
+  old_accounts_cfg = get_old_filename ();
+
+  if (g_file_test (stamp, G_FILE_TEST_EXISTS))
+    {
+      DEBUG ("already migrated: %s exists", stamp);
+      goto finally;
+    }
+
+  if (!g_file_test (dir, G_FILE_TEST_IS_DIR) &&
+      !g_file_test (accounts_cfg, G_FILE_TEST_EXISTS) &&
+      !g_file_test (old_accounts_cfg, G_FILE_TEST_EXISTS))
+    {
+      DEBUG ("nothing to import");
+      goto finally;
+    }
+
+  if (!mcd_ensure_directory (dir, &error))
+    {
+      WARNING ("Unable to create %s: %s", dir, error->message);
+      goto finally;
+    }
+
+  DEBUG ("loading old accounts");
+  self->loaded = FALSE;
+  mcd_account_manager_default_load (self, TRUE);
+
+  if (!g_file_set_contents (stamp,
+        "Accounts from this directory (if any) have been copied to "
+        "XDG_DATA_DIRS/telepathy-1/mission-control. Migration will "
+        "not be repeated while this file exists.",
+        -1, &error))
+    {
+      WARNING ("Unable to write %s: %s", dir, error->message);
+    }
+
+finally:
+  g_free (dir);
+  g_free (stamp);
+  g_free (old_accounts_cfg);
+  g_free (accounts_cfg);
+  g_clear_error (&error);
+  g_clear_object (&old);
+}
+
 static GList *
 _list (McpAccountStorage *self,
     McpAccountManager *am)
@@ -871,15 +935,60 @@ _list (McpAccountStorage *self,
   GList *rval = NULL;
   McdAccountManagerDefault *amd = MCD_ACCOUNT_MANAGER_DEFAULT (self);
   GHashTableIter hash_iter;
+  gpointer k, v;
+
+  mcd_account_manager_default_load (amd, FALSE);
+
+  if (g_hash_table_size (amd->accounts) == 0)
+    {
+      DEBUG ("no Telepathy 1 accounts, considering Telepathy 0 import");
+      maybe_import_from_tp0 (amd);
+    }
+
+  g_hash_table_iter_init (&hash_iter, amd->accounts);
+
+  while (g_hash_table_iter_next (&hash_iter, &k, &v))
+    {
+      McdDefaultStoredAccount *sa = v;
+
+      if (!sa->absent)
+        rval = g_list_prepend (rval, g_strdup (k));
+    }
+
+  return rval;
+}
+
+static void
+mcd_account_manager_default_load (McdAccountManagerDefault *amd,
+    gboolean telepathy0)
+{
+  GHashTableIter hash_iter;
   gchar *migrate_from = NULL;
   gpointer k, v;
-  gboolean save = FALSE;
+  /* If we copied accounts from Telepathy 0, we want to save the
+   * Telepathy 1 version */
+  gboolean save = telepathy0;
 
+  DEBUG ("loading Telepathy v%d accounts", telepathy0 ? 0 : 1);
+
+  /* (XDG_DATA_HOME|XDG_DATA_DIRS)/telepathy(-1)?/mission-control/(.*).account,
+   * used in MC5 >= 5.17, MC6 >= 0.99.6 */
   if (!amd->loaded)
     {
       const gchar * const *iter;
 
-      am_default_load_directory (amd, amd->directory);
+      if (telepathy0)
+        {
+          gchar *dir = account_directory_in (g_get_user_data_dir (),
+              "telepathy");
+
+          am_default_load_directory (amd, dir);
+          g_free (dir);
+        }
+      else
+        {
+          am_default_load_directory (amd, amd->directory);
+        }
 
       /* We do this even if am_default_load_directory() succeeded, and
        * do not stop when amd->loaded becomes true. If XDG_DATA_HOME
@@ -891,16 +1000,20 @@ _list (McpAccountStorage *self,
           iter != NULL && *iter != NULL;
           iter++)
         {
-          gchar *dir = account_directory_in (*iter);
+          gchar *dir = account_directory_in (*iter,
+              telepathy0 ? "telepathy" : "telepathy-1");
 
           am_default_load_directory (amd, dir);
           g_free (dir);
         }
     }
 
+  /* XDG_DATA_HOME/telepathy(-1)?/mission-control/accounts.cfg,
+   * used in 5.13.2 <= MC5 < 5.17 and MC6 < 5.99.6 */
   if (!amd->loaded)
     {
-      migrate_from = accounts_cfg_in (g_get_user_data_dir ());
+      migrate_from = accounts_cfg_in (g_get_user_data_dir (),
+          telepathy0 ? "telepathy" : "telepathy-1");
 
       if (g_file_test (migrate_from, G_FILE_TEST_EXISTS))
         {
@@ -915,6 +1028,8 @@ _list (McpAccountStorage *self,
         }
     }
 
+  /* XDG_DATA_DIRS/telepathy(-1)?/mission-control/accounts.cfg,
+   * used in 5.13.2 <= MC5 < 5.17 and MC6 < 5.99.6 */
   if (!amd->loaded)
     {
       const gchar * const *iter;
@@ -925,7 +1040,8 @@ _list (McpAccountStorage *self,
         {
           /* not setting migrate_from here - XDG_DATA_DIRS are conceptually
            * read-only, so we don't want to delete these files */
-          gchar *filename = accounts_cfg_in (*iter);
+          gchar *filename = accounts_cfg_in (*iter,
+              telepathy0 ? "telepathy" : "telepathy-1");
 
           if (g_file_test (filename, G_FILE_TEST_EXISTS))
             {
@@ -940,8 +1056,9 @@ _list (McpAccountStorage *self,
         }
     }
 
-#if 0
-  if (!amd->loaded)
+  /* ~/.mission-control or something, used in MC < 5.13.2.
+   * Telepathy 1 never used this. */
+  if (!amd->loaded && telepathy0)
     {
       migrate_from = get_old_filename ();
 
@@ -957,7 +1074,6 @@ _list (McpAccountStorage *self,
           tp_clear_pointer (&migrate_from, g_free);
         }
     }
-#endif
 
   if (!amd->loaded)
     {
@@ -966,7 +1082,20 @@ _list (McpAccountStorage *self,
       save = TRUE;
     }
 
-  if (!save)
+  if (telepathy0)
+    {
+      g_hash_table_iter_init (&hash_iter, amd->accounts);
+
+      while (g_hash_table_iter_next (&hash_iter, NULL, &v))
+        {
+          McdDefaultStoredAccount *sa = v;
+
+          /* mark it as "dirty" so we save it in the Telepathy-1
+           * location */
+          sa->dirty = TRUE;
+        }
+    }
+  else if (!save)
     {
       g_hash_table_iter_init (&hash_iter, amd->accounts);
 
@@ -1003,7 +1132,9 @@ _list (McpAccountStorage *self,
 
       if (all_succeeded)
         {
-          if (migrate_from != NULL)
+          /* Never delete old Telepathy 0 accounts - leave them available
+           * for parallel use of Telepathy 0 */
+          if (migrate_from != NULL && !telepathy0)
             {
               DEBUG ("Migrated %s to new location: deleting old copy",
                   migrate_from);
@@ -1016,18 +1147,6 @@ _list (McpAccountStorage *self,
     }
 
   tp_clear_pointer (&migrate_from, g_free);
-
-  g_hash_table_iter_init (&hash_iter, amd->accounts);
-
-  while (g_hash_table_iter_next (&hash_iter, &k, &v))
-    {
-      McdDefaultStoredAccount *sa = v;
-
-      if (!sa->absent)
-        rval = g_list_prepend (rval, g_strdup (k));
-    }
-
-  return rval;
 }
 
 static McpAccountStorageFlags
