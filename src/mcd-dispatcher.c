@@ -2126,7 +2126,7 @@ dispatcher_delegate_channels (
     gchar *sender = NULL;
     McdConnection *conn = NULL;
     DelegateChannelsCtx *ctx = NULL;
-    McdAccountManager *am;
+    McdAccountManager *am = NULL;
     guint i;
     GList *l;
 
