@@ -186,6 +186,8 @@ plugins_list = \
 	libgiofakenetworkmonitor.la \
 	$(NULL)
 
+plugin_ldflags = -module -shared -avoid-version
+
 if ENABLE_INSTALLED_TESTS
 
 noinst_LTLIBRARIES = \
@@ -200,6 +202,11 @@ else
 # A demo dispatcher plugin (new, minimal API)
 noinst_LTLIBRARIES = $(plugins_list)
 
+# this rune is necessary to make libtool build a dlopen()able shared
+# library even though it's not going to be installed - the default for noinst
+# libraries is static
+plugin_ldflags += -rpath @abs_builddir@
+
 endif
 
 mcp_plugin_la_SOURCES = \
@@ -207,18 +214,15 @@ mcp_plugin_la_SOURCES = \
 	dbus-account-plugin.h \
 	mcp-plugin.c \
 	$(NULL)
-# these runes are necessary to make libtool build a dlopen()able shared
-# library even though it's not going to be installed - the default for noinst
-# libraries is static
-mcp_plugin_la_LDFLAGS = -module -shared -avoid-version -rpath @abs_builddir@
+mcp_plugin_la_LDFLAGS = $(plugin_ldflags)
 
 libgiofakenetworkmonitor_la_SOURCES = \
 	fake-network-monitor.c \
 	$(NULL)
-libgiofakenetworkmonitor_la_LDFLAGS = $(mcp_plugin_la_LDFLAGS)
+libgiofakenetworkmonitor_la_LDFLAGS = $(plugin_ldflags)
 
 mcp_account_diversion_la_SOURCES = mcp-account-diversion.c
-mcp_account_diversion_la_LDFLAGS = $(mcp_plugin_la_LDFLAGS)
+mcp_account_diversion_la_LDFLAGS = $(plugin_ldflags)
 
 # A debug version of the normal MC executable, which exits cleanly on
 # disconnection from D-Bus (so gcov info gets written out)
