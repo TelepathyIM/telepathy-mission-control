@@ -1282,7 +1282,7 @@ def tell_mc_to_die(q, bus):
     """Instructs the running Mission Control to die via a magic method call in
     the version built for tests."""
 
-    secret_debug_api = dbus.Interface(bus.get_object(cs.AM, "/"),
+    secret_debug_api = dbus.Interface(bus.get_object(cs.AM, cs.AM_PATH),
         'im.telepathy.v1.MissionControl6.RegressionTests')
     secret_debug_api.Abort()
 
