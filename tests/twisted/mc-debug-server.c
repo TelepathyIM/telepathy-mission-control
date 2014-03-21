@@ -40,6 +40,27 @@
 TpDBusDaemon *bus_daemon = NULL;
 static McdService *mcd = NULL;
 
+static void
+bus_closed (GDBusConnection *connection,
+    gboolean remote_peer_vanished,
+    GError *error,
+    gpointer user_data)
+{
+  const gchar *which = user_data;
+
+  if (error == NULL)
+    g_message ("disconnected from the %s bus", which);
+  else if (remote_peer_vanished)
+    g_message ("%s bus vanished: %s #%d: %s", which,
+        g_quark_to_string (error->domain), error->code, error->message);
+  else
+    g_message ("error communicating with %s bus: %s #%d: %s", which,
+        g_quark_to_string (error->domain), error->code, error->message);
+
+  g_dbus_connection_set_exit_on_close (connection, FALSE);
+  mcd_mission_abort ((McdMission *) mcd);
+}
+
 static gboolean
 the_end (gpointer data)
 {
@@ -85,18 +106,7 @@ dbus_filter_function (DBusConnection *connection,
                       DBusMessage *message,
                       void *user_data)
 {
-  if (dbus_message_is_signal (message, DBUS_INTERFACE_LOCAL, "Disconnected") &&
-      !tp_strdiff (dbus_message_get_path (message), DBUS_PATH_LOCAL))
-    {
-      /* MC initialization sets exit on disconnect - turn it off again, so we
-       * get a graceful exit instead (to keep gcov happy) */
-      dbus_connection_set_exit_on_disconnect (connection, FALSE);
-
-      g_message ("Got disconnected from the session bus");
-
-      mcd_mission_abort ((McdMission *) mcd);
-    }
-  else if (dbus_message_is_method_call (message,
+  if (dbus_message_is_method_call (message,
         "im.telepathy.v1.MissionControl6.RegressionTests",
         "Abort"))
     {
@@ -178,11 +188,13 @@ main (int argc, char **argv)
     g_assert_no_error (error);
     g_assert (gdbus != NULL);
     g_dbus_connection_set_exit_on_close (gdbus, FALSE);
+    g_signal_connect (gdbus, "closed", G_CALLBACK (bus_closed), "session");
 
     gdbus_system = g_bus_get_sync (G_BUS_TYPE_SYSTEM, NULL, &error);
     g_assert_no_error (error);
     g_assert (gdbus_system != NULL);
     g_dbus_connection_set_exit_on_close (gdbus_system, FALSE);
+    g_signal_connect (system_bus, "closed", G_CALLBACK (bus_closed), "system");
 
     bus_daemon = tp_dbus_daemon_dup (&error);
     g_assert_no_error (error);
