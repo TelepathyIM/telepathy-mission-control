@@ -210,11 +210,6 @@ mcd_master_constructor (GType type, guint n_params,
 
     _mcd_account_manager_setup (priv->account_manager);
 
-    dbus_connection_set_exit_on_disconnect (
-        dbus_g_connection_get_connection (
-            tp_proxy_get_dbus_connection (TP_PROXY (priv->dbus_daemon))),
-        TRUE);
-
     return (GObject *) master;
 }
 
