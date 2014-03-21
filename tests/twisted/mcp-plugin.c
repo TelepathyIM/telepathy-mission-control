@@ -236,7 +236,7 @@ handler_is_suitable_async (McpDispatchOperationPolicy *self,
       TpDBusDaemon *dbus_daemon = tp_dbus_daemon_dup (&error);
       PermissionContext *ctx;
 
-      g_assert_no_error (&error);
+      g_assert_no_error (error);
 
       ctx = g_slice_new0 (PermissionContext);
       ctx->dispatch_operation = g_object_ref (dispatch_operation);

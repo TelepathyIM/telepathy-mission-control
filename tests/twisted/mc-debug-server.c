@@ -88,57 +88,68 @@ delayed_abort (gpointer data G_GNUC_UNUSED)
 static gboolean
 billy_idle (gpointer user_data)
 {
-  DBusMessage *reply = user_data;
-  DBusConnection *connection = dbus_g_connection_get_connection (
-      tp_proxy_get_dbus_connection (bus_daemon));
+  GDBusMethodInvocation *invocation = user_data;
 
-  if (!dbus_connection_send (connection, reply, NULL))
-    g_error ("Out of memory");
-
+  g_dbus_method_invocation_return_value (invocation, NULL);
   return FALSE;
 }
 
-#define MCD_SYSTEM_MEMORY_CONSERVED (1 << 1)
-#define MCD_SYSTEM_IDLE (1 << 5)
+static GDBusMethodInfo test_interface_abort = {
+    -1, /* no refcount */
+    "Abort",
+    NULL, /* no in args */
+    NULL, /* no out args */
+    NULL /* no annotations */
+};
 
-static DBusHandlerResult
-dbus_filter_function (DBusConnection *connection,
-                      DBusMessage *message,
-                      void *user_data)
+static GDBusMethodInfo test_interface_billy_idle = {
+    -1, /* no refcount */
+    "BillyIdle",
+    NULL, /* no in args */
+    NULL, /* no out args */
+    NULL /* no annotations */
+};
+
+static GDBusMethodInfo *test_interface_method_pointers[] = {
+    &test_interface_abort,
+    &test_interface_billy_idle,
+    NULL
+};
+
+static GDBusInterfaceInfo test_interface = {
+    -1, /* no refcount */
+    "im.telepathy.v1.MissionControl6.RegressionTests",
+    test_interface_method_pointers,
+    NULL, /* signals */
+    NULL, /* properties */
+    NULL /* annotations */
+};
+
+static void
+test_interface_method_call (GDBusConnection *connection G_GNUC_UNUSED,
+    const gchar *sender G_GNUC_UNUSED,
+    const gchar *object_path G_GNUC_UNUSED,
+    const gchar *interface_name G_GNUC_UNUSED,
+    const gchar *method_name,
+    GVariant *parameters G_GNUC_UNUSED,
+    GDBusMethodInvocation *invocation,
+    gpointer user_data G_GNUC_UNUSED)
 {
-  if (dbus_message_is_method_call (message,
-        "im.telepathy.v1.MissionControl6.RegressionTests",
-        "Abort"))
+  if (!tp_strdiff (method_name, test_interface_abort.name))
     {
-      DBusMessage *reply;
-
       g_idle_add (delayed_abort, NULL);
-
-      reply = dbus_message_new_method_return (message);
-
-      if (reply == NULL || !dbus_connection_send (connection, reply, NULL))
-        g_error ("Out of memory");
-
-      dbus_message_unref (reply);
-
-      return DBUS_HANDLER_RESULT_HANDLED;
+      g_dbus_method_invocation_return_value (invocation, NULL);
     }
-  else if (dbus_message_is_method_call (message,
-        "im.telepathy.v1.MissionControl6.RegressionTests",
-        "BillyIdle"))
+  else if (!tp_strdiff (method_name, test_interface_billy_idle.name))
     {
       /* Used to drive a souped-up version of sync_dbus(), where we need to
        * ensure that all idles have fired, on top of the D-Bus queue being
        * drained.
        */
-      DBusMessage *reply = dbus_message_new_method_return (message);
-      GVariant *variant;
       GDBusConnection *system_bus;
+      GVariant *variant;
 
-      if (reply == NULL)
-        g_error ("Out of memory");
-
-      /* Sync GDBus, too, to make sure we have received any pending
+      /* Sync the system bus, too, to make sure we have received any pending
        * FakeNetworkMonitor messages. */
       system_bus = g_bus_get_sync (G_BUS_TYPE_SYSTEM, NULL, NULL);
       g_assert (system_bus != NULL);
@@ -150,14 +161,19 @@ dbus_filter_function (DBusConnection *connection,
       g_variant_unref (variant);
       g_object_unref (system_bus);
 
-      g_idle_add_full (G_PRIORITY_LOW, billy_idle, reply,
-          (GDestroyNotify) dbus_message_unref);
-
-      return DBUS_HANDLER_RESULT_HANDLED;
+      g_idle_add_full (G_PRIORITY_LOW, billy_idle, invocation, NULL);
     }
-
-  return DBUS_HANDLER_RESULT_NOT_YET_HANDLED;
+  else
+    {
+      g_assert_not_reached ();
+    }
 }
+
+static const GDBusInterfaceVTable test_interface_vtable = {
+    test_interface_method_call,
+    NULL, /* get property */
+    NULL /* set property */
+};
 
 int
 main (int argc, char **argv)
@@ -165,10 +181,10 @@ main (int argc, char **argv)
     GError *error = NULL;
     GDBusConnection *gdbus = NULL;
     GDBusConnection *gdbus_system = NULL;
-    DBusConnection *connection = NULL;
     int ret = 1;
     GMainLoop *teardown_loop;
     guint linger_time = 5;
+    guint test_interface_id = 0;
 
     g_type_init ();
 
@@ -194,18 +210,17 @@ main (int argc, char **argv)
     g_assert_no_error (error);
     g_assert (gdbus_system != NULL);
     g_dbus_connection_set_exit_on_close (gdbus_system, FALSE);
-    g_signal_connect (system_bus, "closed", G_CALLBACK (bus_closed), "system");
+    g_signal_connect (gdbus_system, "closed", G_CALLBACK (bus_closed),
+        "system");
 
     bus_daemon = tp_dbus_daemon_dup (&error);
     g_assert_no_error (error);
     g_assert (bus_daemon != NULL);
 
-    /* It appears that dbus-glib registers a filter that wrongly returns
-     * DBUS_HANDLER_RESULT_HANDLED for signals, so for *our* filter to have any
-     * effect, we need to install it as soon as possible */
-    connection = dbus_g_connection_get_connection (
-	tp_proxy_get_dbus_connection (bus_daemon));
-    dbus_connection_add_filter (connection, dbus_filter_function, NULL, NULL);
+    test_interface_id = g_dbus_connection_register_object (gdbus,
+        TP_ACCOUNT_MANAGER_OBJECT_PATH, &test_interface,
+        &test_interface_vtable, NULL, NULL, &error);
+    g_assert_no_error (error);
 
     mcd = mcd_service_new ();
 
@@ -214,8 +229,6 @@ main (int argc, char **argv)
 
     /* connect */
     mcd_mission_connect (MCD_MISSION (mcd));
-
-    dbus_connection_set_exit_on_disconnect (connection, FALSE);
 
     mcd_service_run (MCD_OBJECT (mcd));
 
@@ -235,16 +248,15 @@ main (int argc, char **argv)
 
     g_main_loop_run (teardown_loop);
 
-    if (connection != NULL)
-    {
-        dbus_connection_flush (connection);
-    }
+    if (gdbus != NULL)
+        g_dbus_connection_flush_sync (gdbus, NULL, NULL);
+
+    if (test_interface_id != 0)
+        g_dbus_connection_unregister_object (gdbus, test_interface_id);
 
     tp_clear_object (&gdbus);
     tp_clear_object (&gdbus_system);
     tp_clear_object (&bus_daemon);
-
-    dbus_shutdown ();
 
     g_message ("Exiting with %d", ret);
 
