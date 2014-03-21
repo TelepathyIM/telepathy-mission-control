@@ -417,6 +417,15 @@ _mcd_dispatch_operation_check_client_locks (McdDispatchOperation *self)
         self->priv->did_post_observer_actions = TRUE;
     }
 
+    /* if a handler has claimed or accepted the channel, we have nothing to
+     * do */
+    if (self->priv->result != NULL)
+    {
+        DEBUG ("already finished (or finishing): %s",
+               self->priv->result->message);
+        return;
+    }
+
     /* If nobody is bypassing approval, then we want to run approvers as soon
      * as possible, without waiting for observers, to improve responsiveness.
      * (The regression test dispatcher/exploding-bundles.py asserts that we
@@ -458,15 +467,6 @@ _mcd_dispatch_operation_check_client_locks (McdDispatchOperation *self)
     if (self->priv->trying_handler != NULL)
     {
         DEBUG ("waiting for handler_is_suitable or HandleChannel to return");
-        return;
-    }
-
-    /* if a handler has claimed or accepted the channel, we have nothing to
-     * do */
-    if (self->priv->result != NULL)
-    {
-        DEBUG ("already finished (or finishing): %s",
-               self->priv->result->message);
         return;
     }
 
@@ -2124,7 +2124,8 @@ mcd_dispatch_operation_idle_run_approvers (gpointer p)
 
     if (_mcd_dispatch_operation_needs_approval (self))
     {
-        if (!_mcd_dispatch_operation_is_approved (self))
+        if (self->priv->result == NULL &&
+            !_mcd_dispatch_operation_is_approved (self))
             _mcd_dispatch_operation_run_approvers (self);
     }
 
