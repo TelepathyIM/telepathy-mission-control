@@ -1336,14 +1336,10 @@ request_connection_cb (TpConnectionManager *proxy, const gchar *bus_name,
         {
             /* no point in making a TpConnection for something we're just
              * going to throw away */
-            DBusGProxy *tmp_proxy = dbus_g_proxy_new_for_name
-                (tp_proxy_get_dbus_connection (proxy),
-                 bus_name, obj_path, TP_IFACE_CONNECTION);
-
             DEBUG ("Disconnecting it: %s", obj_path);
-            dbus_g_proxy_call_no_reply (tmp_proxy, "Disconnect",
-                                        G_TYPE_INVALID);
-            g_object_unref (tmp_proxy);
+            g_dbus_connection_call (tp_proxy_get_dbus_connection (proxy),
+                bus_name, obj_path, TP_IFACE_CONNECTION, "Disconnect",
+                NULL, NULL, G_DBUS_CALL_FLAGS_NONE, -1, NULL, NULL, NULL);
         }
 
         if (connection != NULL)
