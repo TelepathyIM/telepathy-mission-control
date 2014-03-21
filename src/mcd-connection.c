@@ -1783,8 +1783,6 @@ mcd_connection_class_init (McdConnectionClass * klass)
     object_class->set_property = _mcd_connection_set_property;
     object_class->get_property = _mcd_connection_get_property;
 
-    tp_connection_init_known_interfaces ();
-
     /* Properties */
     g_object_class_install_property
         (object_class, PROP_DISPATCHER,
