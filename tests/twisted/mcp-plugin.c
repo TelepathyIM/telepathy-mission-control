@@ -24,9 +24,6 @@
 
 #include <mission-control-plugins/mission-control-plugins.h>
 
-#include <dbus/dbus.h>
-#include <dbus/dbus-glib-lowlevel.h>
-
 #include <telepathy-glib/telepathy-glib.h>
 #include <telepathy-glib/telepathy-glib-dbus.h>
 
@@ -96,7 +93,9 @@ test_permission_plugin_class_init (TestPermissionPluginClass *cls)
 
 typedef struct {
     McpDispatchOperation *dispatch_operation;
-    McpDispatchOperationDelay *delay;
+    McpDispatchOperationDelay *dispatch_operation_delay;
+    McpRequest *request;
+    McpRequestDelay *request_delay;
     GSimpleAsyncResult *result;
 } PermissionContext;
 
@@ -105,8 +104,12 @@ permission_context_free (gpointer p)
 {
   PermissionContext *ctx = p;
 
-  if (ctx->delay != NULL)
-    mcp_dispatch_operation_end_delay (ctx->dispatch_operation, ctx->delay);
+  if (ctx->dispatch_operation_delay != NULL)
+    mcp_dispatch_operation_end_delay (ctx->dispatch_operation,
+        ctx->dispatch_operation_delay);
+
+  if (ctx->request_delay != NULL)
+    mcp_request_end_delay (ctx->request, ctx->request_delay);
 
   if (ctx->result != NULL)
     {
@@ -114,18 +117,27 @@ permission_context_free (gpointer p)
       g_object_unref (ctx->result);
     }
 
-  g_object_unref (ctx->dispatch_operation);
+  g_clear_object (&ctx->dispatch_operation);
+  g_clear_object (&ctx->request);
   g_slice_free (PermissionContext, ctx);
 }
 
 static void
-permission_cb (DBusPendingCall *pc,
+permission_cb (GObject *source_object,
+    GAsyncResult *result,
     gpointer data)
 {
+  GDBusConnection *conn = G_DBUS_CONNECTION (source_object);
   PermissionContext *ctx = data;
-  DBusMessage *message = dbus_pending_call_steal_reply (pc);
+  GVariant *tuple;
 
-  if (dbus_message_get_type (message) == DBUS_MESSAGE_TYPE_ERROR)
+  /* In a real implementation you'd probably take the error from the
+   * error reply, or even from a "successful" reply's parameters,
+   * but this is a simple regression test so we don't bother. */
+
+  tuple = g_dbus_connection_call_finish (conn, result, NULL);
+
+  if (tuple == NULL)
     {
       DEBUG ("Permission denied");
 
@@ -143,10 +155,10 @@ permission_cb (DBusPendingCall *pc,
   else
     {
       DEBUG ("Permission granted");
+      g_variant_unref (tuple);
     }
 
-  dbus_message_unref (message);
-  dbus_pending_call_unref (pc);
+  permission_context_free (ctx);
 }
 
 static void
@@ -155,7 +167,6 @@ test_permission_plugin_check_cdo (McpDispatchOperationPolicy *policy,
 {
   GHashTable *properties = mcp_dispatch_operation_ref_nth_channel_properties (
       dispatch_operation, 0);
-  PermissionContext *ctx = NULL;
 
   DEBUG ("enter");
 
@@ -172,58 +183,24 @@ test_permission_plugin_check_cdo (McpDispatchOperationPolicy *policy,
         "policy@example.net"))
     {
       TpDBusDaemon *dbus_daemon = tp_dbus_daemon_dup (NULL);
-      DBusGConnection *gconn = tp_proxy_get_dbus_connection (dbus_daemon);
-      DBusConnection *libdbus = dbus_g_connection_get_connection (gconn);
-      DBusPendingCall *pc = NULL;
-      DBusMessage *message;
+      PermissionContext *ctx;
 
       ctx = g_slice_new0 (PermissionContext);
       ctx->dispatch_operation = g_object_ref (dispatch_operation);
-      ctx->delay = mcp_dispatch_operation_start_delay (dispatch_operation);
+      ctx->dispatch_operation_delay = mcp_dispatch_operation_start_delay (
+          dispatch_operation);
 
-      /* in a real policy-mechanism you'd give some details, like the
-       * channel's properties or object path */
-      message = dbus_message_new_method_call ("com.example.Policy",
-          "/com/example/Policy", "com.example.Policy", "RequestPermission");
-
-      if (!dbus_connection_send_with_reply (libdbus, message,
-            &pc, -1))
-        {
-          g_error ("out of memory");
-        }
-
-      dbus_message_unref (message);
-
-      if (pc == NULL)
-        {
-          DEBUG ("got disconnected from D-Bus...");
-
-          goto finally;
-        }
-
-      /* pc is unreffed by permission_cb */
+      g_dbus_connection_call (tp_proxy_get_dbus_connection (dbus_daemon),
+          "com.example.Policy", "/com/example/Policy", "com.example.Policy",
+          "RequestPermission",
+          /* in a real policy-mechanism you'd give some details, like the
+           * channel's properties or object path, but this is a simple
+           * regression test so we don't bother */
+          NULL,
+          NULL, G_DBUS_CALL_FLAGS_NONE, -1, NULL, permission_cb, ctx);
 
       DEBUG ("Waiting for permission");
-
-      if (dbus_pending_call_get_completed (pc))
-        {
-          permission_cb (pc, ctx);
-          goto finally;
-        }
-
-      if (!dbus_pending_call_set_notify (pc, permission_cb, ctx,
-            permission_context_free))
-        {
-          g_error ("Out of memory");
-        }
-
-      /* ctx will be freed later */
-      ctx = NULL;
   }
-
-finally:
-  if (ctx != NULL)
-    permission_context_free (ctx);
 
   g_hash_table_unref (properties);
 }
@@ -240,7 +217,6 @@ handler_is_suitable_async (McpDispatchOperationPolicy *self,
       callback, user_data, handler_is_suitable_async);
   GHashTable *properties = mcp_dispatch_operation_ref_nth_channel_properties (
       dispatch_operation, 0);
-  PermissionContext *ctx = NULL;
 
   DEBUG ("enter");
 
@@ -256,11 +232,11 @@ handler_is_suitable_async (McpDispatchOperationPolicy *self,
           TP_IFACE_CHANNEL ".TargetID"),
         "policy@example.net"))
     {
-      TpDBusDaemon *dbus_daemon = tp_dbus_daemon_dup (NULL);
-      DBusGConnection *gconn = tp_proxy_get_dbus_connection (dbus_daemon);
-      DBusConnection *libdbus = dbus_g_connection_get_connection (gconn);
-      DBusPendingCall *pc = NULL;
-      DBusMessage *message;
+      GError *error = NULL;
+      TpDBusDaemon *dbus_daemon = tp_dbus_daemon_dup (&error);
+      PermissionContext *ctx;
+
+      g_assert_no_error (&error);
 
       ctx = g_slice_new0 (PermissionContext);
       ctx->dispatch_operation = g_object_ref (dispatch_operation);
@@ -268,50 +244,17 @@ handler_is_suitable_async (McpDispatchOperationPolicy *self,
       /* take ownership */
       simple = NULL;
 
-      /* in a real policy-mechanism you'd give some details, like the
-       * channel's properties or object path, and the name of the handler */
-      message = dbus_message_new_method_call ("com.example.Policy",
-          "/com/example/Policy", "com.example.Policy", "CheckHandler");
-
-      if (!dbus_connection_send_with_reply (libdbus, message,
-            &pc, -1))
-        {
-          g_error ("out of memory");
-        }
-
-      dbus_message_unref (message);
-
-      if (pc == NULL)
-        {
-          DEBUG ("got disconnected from D-Bus...");
-
-          goto finally;
-        }
-
-      /* pc is unreffed by permission_cb */
-
-      DEBUG ("Waiting for permission");
-
-      if (dbus_pending_call_get_completed (pc))
-        {
-          permission_cb (pc, ctx);
-          goto finally;
-        }
-
-      if (!dbus_pending_call_set_notify (pc, permission_cb, ctx,
-            permission_context_free))
-        {
-          g_error ("Out of memory");
-        }
-
-      /* ctx will be freed later */
-      ctx = NULL;
+      g_dbus_connection_call (tp_proxy_get_dbus_connection (dbus_daemon),
+          "com.example.Policy", "/com/example/Policy", "com.example.Policy",
+          "CheckHandler",
+          /* in a real policy-mechanism you'd give some details, like the
+           * channel's properties or object path, and the name of the
+           * handler */
+          NULL,
+          NULL, G_DBUS_CALL_FLAGS_NONE, -1, NULL, permission_cb, ctx);
   }
 
 finally:
-  if (ctx != NULL)
-    permission_context_free (ctx);
-
   g_hash_table_unref (properties);
 
   if (simple != NULL)
@@ -331,50 +274,11 @@ cdo_policy_iface_init (McpDispatchOperationPolicyIface *iface,
   /* the default finish function accepts our GSimpleAsyncResult */
 }
 
-typedef struct {
-    McpRequest *request;
-    McpRequestDelay *delay;
-} RequestPermissionContext;
-
-static void
-request_permission_context_free (gpointer p)
-{
-  RequestPermissionContext *ctx = p;
-
-  mcp_request_end_delay (ctx->request, ctx->delay);
-  g_object_unref (ctx->request);
-  g_slice_free (RequestPermissionContext, ctx);
-}
-
-static void
-request_permission_cb (DBusPendingCall *pc,
-    gpointer data)
-{
-  RequestPermissionContext *ctx = data;
-  DBusMessage *message = dbus_pending_call_steal_reply (pc);
-
-  if (dbus_message_get_type (message) == DBUS_MESSAGE_TYPE_ERROR)
-    {
-      DEBUG ("Permission denied");
-      mcp_request_deny (ctx->request,
-          TP_ERROR, TP_CHANNEL_GROUP_CHANGE_REASON_PERMISSION_DENIED,
-          "Computer says no");
-    }
-  else
-    {
-      DEBUG ("Permission granted");
-    }
-
-  dbus_message_unref (message);
-  dbus_pending_call_unref (pc);
-}
-
 static void
 test_permission_plugin_check_request (McpRequestPolicy *policy,
     McpRequest *request)
 {
   GHashTable *properties = mcp_request_ref_nth_request (request, 0);
-  RequestPermissionContext *ctx = NULL;
 
   DEBUG ("%s", G_STRFUNC);
 
@@ -383,60 +287,23 @@ test_permission_plugin_check_request (McpRequestPolicy *policy,
         NULL, NULL))
     {
       TpDBusDaemon *dbus_daemon = tp_dbus_daemon_dup (NULL);
-      DBusGConnection *gconn = tp_proxy_get_dbus_connection (dbus_daemon);
-      DBusConnection *libdbus = dbus_g_connection_get_connection (gconn);
-      DBusPendingCall *pc = NULL;
-      DBusMessage *message;
+      PermissionContext *ctx;
 
       DEBUG ("Questionable channel detected, asking for permission");
 
-      ctx = g_slice_new0 (RequestPermissionContext);
+      ctx = g_slice_new0 (PermissionContext);
       ctx->request = g_object_ref (request);
-      ctx->delay = mcp_request_start_delay (request);
+      ctx->request_delay = mcp_request_start_delay (request);
 
-      /* in a real policy-mechanism you'd give some details, like the
-       * channel's properties or object path */
-      message = dbus_message_new_method_call ("com.example.Policy",
-          "/com/example/Policy", "com.example.Policy", "RequestRequest");
-
-      if (!dbus_connection_send_with_reply (libdbus, message,
-            &pc, -1))
-        {
-          g_error ("out of memory");
-        }
-
-      dbus_message_unref (message);
-
-      if (pc == NULL)
-        {
-          DEBUG ("got disconnected from D-Bus...");
-
-          goto finally;
-        }
-
-      /* pc is unreffed by permission_cb */
-
-      DEBUG ("Waiting for permission");
-
-      if (dbus_pending_call_get_completed (pc))
-        {
-          request_permission_cb (pc, ctx);
-          goto finally;
-        }
-
-      if (!dbus_pending_call_set_notify (pc, request_permission_cb, ctx,
-            request_permission_context_free))
-        {
-          g_error ("Out of memory");
-        }
-
-      /* ctx will be freed later */
-      ctx = NULL;
+      g_dbus_connection_call (tp_proxy_get_dbus_connection (dbus_daemon),
+          "com.example.Policy", "/com/example/Policy", "com.example.Policy",
+          "RequestRequest",
+          /* in a real policy-mechanism you'd give some details, like the
+           * channel's properties or object path, but this is a simple
+           * regression test so we don't bother */
+          NULL,
+          NULL, G_DBUS_CALL_FLAGS_NONE, -1, NULL, permission_cb, ctx);
     }
-
-finally:
-  if (ctx != NULL)
-    request_permission_context_free (ctx);
 
   g_hash_table_unref (properties);
 }
