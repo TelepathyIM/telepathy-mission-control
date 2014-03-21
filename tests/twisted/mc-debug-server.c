@@ -185,10 +185,13 @@ main (int argc, char **argv)
     GMainLoop *teardown_loop;
     guint linger_time = 5;
     guint test_interface_id = 0;
+    TpDebugSender *debug_sender = NULL;
 
     g_type_init ();
 
     g_set_application_name ("Mission Control regression tests");
+
+    debug_sender = tp_debug_sender_dup ();
 
     mcd_debug_init ();
     tp_debug_set_flags (g_getenv ("MC_TP_DEBUG"));
@@ -259,6 +262,7 @@ main (int argc, char **argv)
     tp_clear_object (&bus_daemon);
 
     g_message ("Exiting with %d", ret);
+    tp_clear_object (&debug_sender);
 
     return ret;
 }
