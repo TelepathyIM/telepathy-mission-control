@@ -1270,36 +1270,12 @@ mcd_connection_early_get_interfaces_cb (TpProxy *proxy,
 }
 
 static gchar *
-translate_g_error (GQuark domain,
-    gint code,
-    const gchar *message)
+translate_g_error (const GError *error)
 {
-  if (domain == TP_ERROR)
+  if (error->domain == TP_DBUS_ERRORS)
     {
-      return g_strdup (tp_error_get_dbus_name (code));
-    }
-  else if (domain == TP_DBUS_ERRORS)
-    {
-      switch (code)
+      switch (error->code)
         {
-        case TP_DBUS_ERROR_UNKNOWN_REMOTE_ERROR:
-            {
-              const gchar *p = strchr (message, ':');
-
-              if (p != NULL)
-                {
-                  gchar *tmp = g_strndup (message, message - p);
-
-                  /* The syntactic restrictions for error names are the same
-                   * as for interface names. */
-                  if (g_dbus_is_interface_name (tmp))
-                    return tmp;
-
-                  g_free (tmp);
-                }
-            }
-          break;
-
         case TP_DBUS_ERROR_NO_INTERFACE:
           return g_strdup (DBUS_ERROR_UNKNOWN_INTERFACE);
 
@@ -1308,8 +1284,7 @@ translate_g_error (GQuark domain,
         }
     }
 
-  /* catch-all */
-  return g_strdup (DBUS_ERROR_FAILED);
+  return g_dbus_error_encode_gerror (error);
 }
 
 static void
@@ -1357,8 +1332,7 @@ request_connection_cb (TpConnectionManager *proxy, const gchar *bus_name,
 
     if (tperror)
     {
-        gchar *dbus_error = translate_g_error (tperror->domain,
-            tperror->code, tperror->message);
+        gchar *dbus_error = translate_g_error (tperror);
         GHashTable *details = tp_asv_new (
             "debug-message", G_TYPE_STRING, tperror->message,
             NULL);
