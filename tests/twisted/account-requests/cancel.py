@@ -82,13 +82,13 @@ def test(q, bus, mc):
     assert request_props['UserActionTime'] == user_action_time
 
     # chat UI connects to signals and calls ChannelRequest.Proceed()
-    cr.Proceed()
+    cr.Proceed(dbus_interface=cs.CR)
     cm_request_call = q.expect('dbus-method-call',
                 interface=cs.CONN_IFACE_REQUESTS, method='CreateChannel',
                 path=conn.object_path, args=[request], handled=False)
 
     # Actually, never mind.
-    cr.Cancel()
+    cr.Cancel(dbus_interface=cs.CR)
 
     # Time passes. A channel is returned.
     channel_immutable = dbus.Dictionary(request)

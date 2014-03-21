@@ -75,7 +75,7 @@ def test(q, bus, mc):
 
     # chat UI connects to signals and calls ChannelRequest.Proceed()
     cr = bus.get_object(cs.CD, request_path)
-    cr.Proceed()
+    cr.Proceed(dbus_interface=cs.CR)
     cm_request_call = q.expect('dbus-method-call',
                 interface=cs.CONN_IFACE_REQUESTS, method='CreateChannel',
                 path=conn.object_path, args=[request], handled=False)

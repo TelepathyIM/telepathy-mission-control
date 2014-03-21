@@ -104,7 +104,7 @@ def test_channel_creation(q, bus, account, client, conn, ensure):
     q.dbus_return(add_request.message, signature='')
 
     # chat UI connects to signals and calls ChannelRequest.Proceed()
-    cr.Proceed()
+    cr.Proceed(dbus_interface=cs.CR)
     cm_request_call = q.expect('dbus-method-call',
                 interface=cs.CONN_IFACE_REQUESTS,
                 method=(ensure and 'EnsureChannel' or 'CreateChannel'),
