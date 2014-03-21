@@ -328,9 +328,6 @@ unique_name (const McpAccountManager *ma,
   McdStorage *self = MCD_STORAGE (ma);
   gchar *esc_manager, *esc_protocol, *esc_base;
   guint i;
-  gsize base_len = strlen (TP_ACCOUNT_OBJECT_PATH_BASE);
-  TpDBusDaemon *dbus = tp_client_factory_get_dbus_daemon (self->factory);
-  DBusGConnection *connection = tp_proxy_get_dbus_connection (dbus);
 
   esc_manager = tp_escape_as_identifier (manager);
   esc_protocol = g_strdelimit (g_strdup (protocol), "-", '_');
@@ -338,20 +335,15 @@ unique_name (const McpAccountManager *ma,
 
   for (i = 0; i < G_MAXUINT; i++)
     {
-      gchar *path = g_strdup_printf (
-          TP_ACCOUNT_OBJECT_PATH_BASE "%s/%s/%s%u",
+      gchar *tail = g_strdup_printf ("%s/%s/%s%u",
           esc_manager, esc_protocol, esc_base, i);
 
-      if (!g_hash_table_contains (self->accounts, path + base_len) &&
-          dbus_g_connection_lookup_g_object (connection, path) == NULL)
+      if (!g_hash_table_contains (self->accounts, tail))
         {
-          gchar *ret = g_strdup (path + base_len);
-
-          g_free (path);
-          return ret;
+          return tail;
         }
 
-      g_free (path);
+      g_free (tail);
     }
 
   return NULL;
