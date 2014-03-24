@@ -595,6 +595,12 @@ def sync_dbus(bus, q, proxy):
         call_async(q, dbus.Interface(proxy, cs.PROPERTIES_IFACE),
                 'Get', cs.CONN, 'Status')
         q.expect('dbus-return', method='Get')
+    elif proxy.object_path.startswith('/' + cs.CM.replace('.', '/') + '/'):
+        # It could be a ConnectionManager or a Protocol. Assume it's a
+        # ConnectionManager for now
+        call_async(q, dbus.Interface(proxy, cs.PROPERTIES_IFACE),
+                'Get', cs.CM, 'Protocols')
+        q.expect('dbus-return', method='Get')
     else:
         raise AssertionError("don't know how to sync %s" % proxy.object_path)
 
