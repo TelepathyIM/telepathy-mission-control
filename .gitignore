@@ -86,7 +86,7 @@ tests/twisted/with-session-bus-*.dbus-monitor-logs
 /tests/twisted/accounts/.mc6_connections
 /tests/twisted/accounts/accounts.cfg
 /tests/twisted/mc-debug-server
-tests/twisted/mc-twisted-tests.list
+tests/twisted/twisted-tests.list
 tests/twisted/run-test.sh
 tests/twisted/tools/exec-with-log.sh
 tests/twisted/tools/missioncontrol-*.log

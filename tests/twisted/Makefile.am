@@ -116,7 +116,7 @@ TWISTED_OTHER_FILES = \
 
 # This deliberately doesn't include the TWISTED_SPECIAL_BUILD_TESTS
 # since it's testing the real binary, not the "debug" binary.
-mc-twisted-tests.list:
+twisted-tests.list:
 	$(AM_V_GEN)echo $(TWISTED_BASIC_TESTS) $(TWISTED_SEPARATE_TESTS) > $@
 
 %.test: Makefile
@@ -154,7 +154,7 @@ nobase_dist_twistedtests_DATA = \
 	$(NULL)
 nobase_nodist_twistedtests_DATA = \
 	config.py \
-	mc-twisted-tests.list \
+	twisted-tests.list \
 	$(NULL)
 endif
 
@@ -171,7 +171,7 @@ config.py: Makefile
 
 BUILT_SOURCES = \
 	config.py \
-	mc-twisted-tests.list \
+	twisted-tests.list \
 	run-test.sh \
 	$(NULL)
 

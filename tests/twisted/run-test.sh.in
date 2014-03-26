@@ -76,7 +76,7 @@ export MC_MANAGER_DIR
 if [ -n "$1" ] ; then
   list="$1"
 else
-  list=$(cat "${G_TEST_BUILDDIR}"/mc-twisted-tests.list)
+  list=$(cat "${G_TEST_BUILDDIR}"/twisted-tests.list)
 fi
 
 n=0
