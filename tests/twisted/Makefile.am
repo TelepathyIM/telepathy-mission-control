@@ -78,11 +78,8 @@ TWISTED_SPECIAL_BUILD_TESTS = \
 	account-storage/5-14.py \
 	account-storage/create-new.py \
 	account-storage/load-keyfiles.py \
+	account-manager/server-drops-us.py \
 	$(NULL)
-
-# Tests that are usually too slow to run.
-TWISTED_SLOW_TESTS = \
-	account-manager/server-drops-us.py
 
 # Tests that need their own MC instance.
 TWISTED_SEPARATE_TESTS = \
@@ -273,12 +270,8 @@ check-twisted: $(BUILT_SOURCES)
 	$(MAKE) -C tools
 	rm -f core
 	failed=0; \
-	if test x$(CHECK_TWISTED_SLOW) = x; then \
-		extra_tests= ; \
-	else \
-		extra_tests=' $$(TWISTED_SLOW_TESTS)'; \
-	fi; \
 	MC_TEST_UNINSTALLED=1 \
+	  CHECK_TWISTED_SLOW=$(CHECK_TWISTED_SLOW) \
 	  MC_ABS_TOP_SRCDIR=@abs_top_srcdir@ \
 	  MC_ABS_TOP_BUILDDIR=@abs_top_builddir@ \
 	  sh run-test.sh "${TWISTED_TESTS}${extra_tests}"
@@ -290,7 +283,6 @@ check-twisted: $(BUILT_SOURCES)
 EXTRA_DIST = \
 	$(TWISTED_BASIC_TESTS) \
 	$(TWISTED_SEPARATE_TESTS) \
-	$(TWISTED_SLOW_TESTS) \
 	$(TWISTED_SPECIAL_BUILD_TESTS) \
 	$(TWISTED_OTHER_FILES) \
 	accounts/README \

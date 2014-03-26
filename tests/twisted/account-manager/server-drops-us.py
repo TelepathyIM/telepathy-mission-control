@@ -16,6 +16,12 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
 # 02110-1301 USA
 
+import os
+
+if not os.environ.get('CHECK_TWISTED_SLOW'):
+    print("SKIP: this test is slow, export CHECK_TWISTED_SLOW=1 to run it")
+    raise SystemExit(77)
+
 import dbus
 import dbus
 import dbus.service
