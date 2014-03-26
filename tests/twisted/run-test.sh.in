@@ -31,8 +31,8 @@ if test "x$CHECK_TWISTED_UNINSTALLED" = x; then
   PYTHONPATH="@mctestsdir@/twisted"
   export PYTHONPATH
 
-  MC_TWISTED_PATH="@mctestsdir@/twisted"
-  export MC_TWISTED_PATH
+  CHECK_TWISTED_PATH="@mctestsdir@/twisted"
+  export CHECK_TWISTED_PATH
 else
   if test -z "$MC_ABS_TOP_SRCDIR"; then
     echo "Bail out! MC_ABS_TOP_SRCDIR must be set"
@@ -51,8 +51,8 @@ else
   PYTHONPATH="${test_src}/twisted:${test_build}/twisted"
   export PYTHONPATH
 
-  MC_TWISTED_PATH="${test_src}/twisted"
-  export MC_TWISTED_PATH
+  CHECK_TWISTED_PATH="${test_src}/twisted"
+  export CHECK_TWISTED_PATH
 fi
 
 MC_DEBUG=all
