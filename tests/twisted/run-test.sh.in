@@ -125,7 +125,7 @@ for t in $list ; do
   case "$e" in
     (0)
       echo "ok $i - $t"
-      if test -z "$MC_TEST_KEEP_TEMP"; then
+      if test -z "$CHECK_TWISTED_KEEP_TEMP"; then
         rm -fr "$tmp"
       fi
       ;;
@@ -138,7 +138,7 @@ for t in $list ; do
         done
         echo "# ===== end of log files for $t ====="
       )
-      if test -z "$MC_TEST_KEEP_TEMP"; then
+      if test -z "$CHECK_TWISTED_KEEP_TEMP"; then
         rm -fr "$tmp"
       fi
       ;;

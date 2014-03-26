@@ -15,13 +15,13 @@ If the test fails, its output will be sent to stdout.
 
 These directories are normally deleted after a test passes or is skipped,
 and kept for analysis if it fails. Set the environment variable
-MC_TEST_KEEP_TEMP to avoid deleting them.
+CHECK_TWISTED_KEEP_TEMP to avoid deleting them.
 
 To debug an individual test you can set one of the following env variable:
 
   * MISSIONCONTROL_TEST_VALGRIND : to run Mission Control inside valgrind. The
     report is added to missioncontrol.log. You'll probably also want
-    MC_TEST_KEEP_TEMP to keep the logs in tests/twisted/tmp-*, even when
+    CHECK_TWISTED_KEEP_TEMP to keep the logs in tests/twisted/tmp-*, even when
     tests passed.
 
   * MISSIONCONTROL_TEST_REFDBG : to run Mission Control inside refdbg. The
