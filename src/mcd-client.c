@@ -64,6 +64,7 @@ struct _McdClientProxyPrivate
     GStrv capability_tokens;
 
     gchar *unique_name;
+    guint name_owner_watch;
     guint ready_lock;
     gboolean introspect_started;
     gboolean ready;
@@ -945,12 +946,9 @@ mcd_client_proxy_introspect (gpointer data)
 }
 
 static void
-mcd_client_proxy_unique_name_cb (TpDBusDaemon *dbus_daemon,
-                                 const gchar *well_known_name G_GNUC_UNUSED,
-                                 const gchar *unique_name,
-                                 gpointer user_data)
+mcd_client_proxy_unique_name_cb (McdClientProxy *self,
+                                 const gchar *unique_name)
 {
-    McdClientProxy *self = MCD_CLIENT_PROXY (user_data);
     gboolean should_recover = FALSE;
 
     g_object_ref (self);
@@ -977,6 +975,24 @@ mcd_client_proxy_unique_name_cb (TpDBusDaemon *dbus_daemon,
 }
 
 static void
+mcd_client_proxy_unique_name_found_cb (GDBusConnection *conn G_GNUC_UNUSED,
+    const gchar *well_known_name G_GNUC_UNUSED,
+    const gchar *unique_name,
+    gpointer user_data)
+{
+    mcd_client_proxy_unique_name_cb (MCD_CLIENT_PROXY (user_data),
+        unique_name);
+}
+
+static void
+mcd_client_proxy_unique_name_lost_cb (GDBusConnection *conn G_GNUC_UNUSED,
+    const gchar *well_known_name G_GNUC_UNUSED,
+    gpointer user_data)
+{
+    mcd_client_proxy_unique_name_cb (MCD_CLIENT_PROXY (user_data), "");
+}
+
+static void
 mcd_client_proxy_dispose (GObject *object)
 {
     McdClientProxy *self = MCD_CLIENT_PROXY (object);
@@ -988,10 +1004,8 @@ mcd_client_proxy_dispose (GObject *object)
 
     self->priv->disposed = TRUE;
 
-    tp_dbus_daemon_cancel_name_owner_watch (tp_proxy_get_dbus_daemon (self),
-                                            tp_proxy_get_bus_name (self),
-                                            mcd_client_proxy_unique_name_cb,
-                                            self);
+    g_bus_unwatch_name (self->priv->name_owner_watch);
+    self->priv->name_owner_watch = 0;
 
     tp_clear_pointer (&self->priv->capability_tokens, g_strfreev);
 
@@ -1039,10 +1053,12 @@ mcd_client_proxy_constructed (GObject *object)
 
     DEBUG ("%s", bus_name);
 
-    tp_dbus_daemon_watch_name_owner (tp_proxy_get_dbus_daemon (self),
-                                     bus_name,
-                                     mcd_client_proxy_unique_name_cb,
-                                     self, NULL);
+    self->priv->name_owner_watch = g_bus_watch_name_on_connection (
+        tp_proxy_get_dbus_connection (self),
+        bus_name, G_BUS_NAME_WATCHER_FLAGS_NONE,
+        mcd_client_proxy_unique_name_found_cb,
+        mcd_client_proxy_unique_name_lost_cb,
+        self, NULL);
 
     if (self->priv->unique_name != NULL)
     {
