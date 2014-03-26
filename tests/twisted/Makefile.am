@@ -273,8 +273,8 @@ check-twisted: $(BUILT_SOURCES)
 	failed=0; \
 	CHECK_TWISTED_UNINSTALLED=1 \
 	  CHECK_TWISTED_SLOW=$(CHECK_TWISTED_SLOW) \
-	  MC_ABS_TOP_SRCDIR=@abs_top_srcdir@ \
-	  MC_ABS_TOP_BUILDDIR=@abs_top_builddir@ \
+	  CHECK_TWISTED_ABS_TOP_SRCDIR=@abs_top_srcdir@ \
+	  CHECK_TWISTED_ABS_TOP_BUILDDIR=@abs_top_builddir@ \
 	  sh run-test.sh "${TWISTED_TESTS}${extra_tests}"
 	if test -e core; then\
 		echo "Core dump exists: core";\

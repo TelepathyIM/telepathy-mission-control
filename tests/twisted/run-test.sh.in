@@ -34,17 +34,17 @@ if test "x$CHECK_TWISTED_UNINSTALLED" = x; then
   CHECK_TWISTED_PATH="@mctestsdir@/twisted"
   export CHECK_TWISTED_PATH
 else
-  if test -z "$MC_ABS_TOP_SRCDIR"; then
-    echo "Bail out! MC_ABS_TOP_SRCDIR must be set"
+  if test -z "$CHECK_TWISTED_ABS_TOP_SRCDIR"; then
+    echo "Bail out! CHECK_TWISTED_ABS_TOP_SRCDIR must be set"
     exit 1
   fi
-  if test -z "$MC_ABS_TOP_BUILDDIR"; then
-    echo "Bail out! MC_ABS_TOP_BUILDDIR must be set"
+  if test -z "$CHECK_TWISTED_ABS_TOP_BUILDDIR"; then
+    echo "Bail out! CHECK_TWISTED_ABS_TOP_BUILDDIR must be set"
     exit 1
   fi
 
-  test_src="${MC_ABS_TOP_SRCDIR}/tests"
-  test_build="${MC_ABS_TOP_BUILDDIR}/tests"
+  test_src="${CHECK_TWISTED_ABS_TOP_SRCDIR}/tests"
+  test_build="${CHECK_TWISTED_ABS_TOP_BUILDDIR}/tests"
   config_file="${test_build}/twisted/tools/servicedir-uninstalled/tmp-session-bus.conf"
   plugins="${test_build}/twisted/.libs"
 
