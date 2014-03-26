@@ -186,7 +186,7 @@ plugins_list = \
 	libgiofakenetworkmonitor.la \
 	$(NULL)
 
-plugin_ldflags = -module -shared -avoid-version
+plugin_ldflags = -module -shared -avoid-version -no-undefined
 
 if ENABLE_INSTALLED_TESTS
 
@@ -214,14 +214,29 @@ mcp_plugin_la_SOURCES = \
 	dbus-account-plugin.h \
 	mcp-plugin.c \
 	$(NULL)
+mcp_plugin_la_LIBADD = \
+	$(top_builddir)/mission-control-plugins/libmission-control-plugins-6.la \
+	$(TELEPATHY_LIBS) \
+	$(DBUS_LIBS) \
+	$(GLIB_LIBS) \
+	$(NULL)
 mcp_plugin_la_LDFLAGS = $(plugin_ldflags)
 
 libgiofakenetworkmonitor_la_SOURCES = \
 	fake-network-monitor.c \
 	$(NULL)
+libgiofakenetworkmonitor_la_LIBADD = \
+	$(GLIB_LIBS) \
+	$(NULL)
 libgiofakenetworkmonitor_la_LDFLAGS = $(plugin_ldflags)
 
 mcp_account_diversion_la_SOURCES = mcp-account-diversion.c
+mcp_account_diversion_la_LIBADD = \
+	$(top_builddir)/mission-control-plugins/libmission-control-plugins-6.la \
+	$(TELEPATHY_LIBS) \
+	$(DBUS_LIBS) \
+	$(GLIB_LIBS) \
+	$(NULL)
 mcp_account_diversion_la_LDFLAGS = $(plugin_ldflags)
 
 # A debug version of the normal MC executable, which exits cleanly on
