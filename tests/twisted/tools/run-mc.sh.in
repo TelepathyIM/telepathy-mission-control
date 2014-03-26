@@ -5,8 +5,8 @@ export G_MESSAGES_DEBUG
 
 ulimit -c unlimited
 
-if test -z "$MC_TEST_LOG_DIR"; then
-        echo "MC_TEST_LOG_DIR must be set"
+if test -z "$CHECK_TWISTED_LOG_DIR"; then
+        echo "CHECK_TWISTED_LOG_DIR must be set"
         exit 1
 fi
 
@@ -16,8 +16,8 @@ if test -z "$CHECK_TWISTED_CURDIR"; then
 fi
 cd "${CHECK_TWISTED_CURDIR}" || exit 1
 
-exec > ${MC_TEST_LOG_DIR}/missioncontrol-$$.log 2>&1
-ln -f ${MC_TEST_LOG_DIR}/missioncontrol-$$.log missioncontrol.log
+exec > ${CHECK_TWISTED_LOG_DIR}/missioncontrol-$$.log 2>&1
+ln -f ${CHECK_TWISTED_LOG_DIR}/missioncontrol-$$.log missioncontrol.log
 
 # Our fake session bus is also a fake system bus, but it doesn't know that
 # when it service-activates us

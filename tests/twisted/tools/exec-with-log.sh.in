@@ -29,13 +29,13 @@ fi
 
 cd "${CHECK_TWISTED_CURDIR}" || exit 1
 
-if test -z "$MC_TEST_LOG_DIR"; then
-        echo "MC_TEST_LOG_DIR must be set"
+if test -z "$CHECK_TWISTED_LOG_DIR"; then
+        echo "CHECK_TWISTED_LOG_DIR must be set"
         exit 1
 fi
 
-exec > ${MC_TEST_LOG_DIR}/missioncontrol-$$.log 2>&1
-ln -f ${MC_TEST_LOG_DIR}/missioncontrol-$$.log missioncontrol.log
+exec > ${CHECK_TWISTED_LOG_DIR}/missioncontrol-$$.log 2>&1
+ln -f ${CHECK_TWISTED_LOG_DIR}/missioncontrol-$$.log missioncontrol.log
 
 if test -n "$MISSIONCONTROL_TEST_VALGRIND"; then
         G_DEBUG="$G_DEBUG,gc-friendly"
