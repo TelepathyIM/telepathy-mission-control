@@ -16,9 +16,6 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
 # 02110-1301 USA
 
-print "FIXME: disabled while we don't have TP 1.0 accounts storage proper support"
-raise SystemExit(77)
-
 import dbus
 """Feature test for automatically signing in and setting presence etc.
 """
