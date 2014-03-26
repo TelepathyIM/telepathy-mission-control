@@ -223,6 +223,7 @@ libgiofakenetworkmonitor_la_SOURCES = \
 	fake-network-monitor.c \
 	$(NULL)
 libgiofakenetworkmonitor_la_LIBADD = \
+	$(TELEPATHY_LIBS) \
 	$(GLIB_LIBS) \
 	$(NULL)
 libgiofakenetworkmonitor_la_LDFLAGS = $(plugin_ldflags)
