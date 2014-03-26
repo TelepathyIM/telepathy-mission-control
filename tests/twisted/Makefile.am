@@ -271,7 +271,7 @@ check-twisted: $(BUILT_SOURCES)
 	$(MAKE) -C tools
 	rm -f core
 	failed=0; \
-	MC_TEST_UNINSTALLED=1 \
+	CHECK_TWISTED_UNINSTALLED=1 \
 	  CHECK_TWISTED_SLOW=$(CHECK_TWISTED_SLOW) \
 	  MC_ABS_TOP_SRCDIR=@abs_top_srcdir@ \
 	  MC_ABS_TOP_BUILDDIR=@abs_top_builddir@ \

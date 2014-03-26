@@ -16,7 +16,7 @@ set -e
 CHECK_TWISTED_CURDIR="`pwd`"
 export CHECK_TWISTED_CURDIR
 
-if test "x$MC_TEST_UNINSTALLED" = x; then
+if test "x$CHECK_TWISTED_UNINSTALLED" = x; then
   script_fullname=`readlink -e "@mctestsdir@/twisted/run-test.sh"`
   if [ `readlink -e "$0"` != "$script_fullname" ] ; then
     echo "Bail out! This script is meant to be installed at $script_fullname"
