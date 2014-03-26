@@ -5,8 +5,8 @@ libexecdir=@libexecdir@
 includedir=@includedir@
 MCP_API_VERSION=@MCP_API_VERSION@
 MCP_ABI_VERSION=@MCP_ABI_VERSION@
-plugindir=${libdir}/mission-control-plugins.@MCP_ABI_VERSION@
-missioncontrolpath=${libexecdir}/mission-control-5
+plugindir=${libdir}/mission-control-plugins-6-@MCP_ABI_VERSION@
+missioncontrolpath=${libexecdir}/mission-control-6
 
 Name: mission-control-plugins
 Description: Mission Control plugin API
