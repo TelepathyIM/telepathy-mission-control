@@ -50,9 +50,9 @@
 #endif
 
 #include <glib.h>
+#include <gio/gio.h>
 
 #include <telepathy-glib/telepathy-glib.h>
-#include <telepathy-glib/telepathy-glib-dbus.h>
 
 static int exit_status = EX_SOFTWARE;
 static guint timeout_id = 0;
@@ -79,41 +79,49 @@ quit_because_timeout (gpointer data)
 }
 
 static void
-noc_cb (TpDBusDaemon *bus_daemon,
-        const gchar *name,
-        const gchar *new_owner,
-        gpointer data)
+name_appeared_cb (GDBusConnection *connection,
+    const gchar *name,
+    const gchar *name_owner,
+    gpointer user_data)
 {
-  if (new_owner[0] == '\0')
-    {
-      g_debug ("Waiting for %s", name);
-    }
-  else
-    {
-      g_debug ("%s now owned by %s", name, new_owner);
+  g_debug ("%s now owned by %s", name, name_owner);
 
-      if (idle_id == 0)
-        idle_id = g_idle_add (quit_because_found, g_main_loop_ref (data));
-    }
+  if (idle_id == 0)
+    idle_id = g_idle_add (quit_because_found, g_main_loop_ref (user_data));
 }
 
 static void
-start_service_cb (TpDBusDaemon *bus_daemon,
-    guint ret,
-    const GError *error,
-    gpointer user_data,
-    GObject *weak_object)
+name_vanished_cb (GDBusConnection *connection,
+    const gchar *name,
+    gpointer user_data)
+{
+  g_debug ("Waiting for %s", name);
+}
+
+static void
+start_service_cb (GObject *source_object,
+    GAsyncResult *result,
+    gpointer user_data)
 {
   GMainLoop *loop = user_data;
+  GVariant *tuple;
+  guint32 ret;
+  GError *error = NULL;
 
-  if (error != NULL)
+  tuple = g_dbus_connection_call_finish (G_DBUS_CONNECTION (source_object),
+      result, &error);
+
+  if (tuple == NULL)
     {
       g_message ("%s", error->message);
+      g_error_free (error);
       g_main_loop_quit (loop);
       exit_status = EX_TEMPFAIL;
     }
   else
     {
+      g_variant_get (tuple, "(u)", &ret);
+
       switch (ret)
         {
           case 1: /* DBUS_START_REPLY_SUCCESS */
@@ -128,7 +136,11 @@ start_service_cb (TpDBusDaemon *bus_daemon,
             g_message ("ignoring unknown result from StartServiceByName: %u", ret);
             break;
         }
+
+      g_variant_unref (tuple);
     }
+
+  g_main_loop_unref (loop);
 }
 
 #define WFN_TIMEOUT (5 * 60) /* 5 minutes */
@@ -143,10 +155,11 @@ int
 main (int argc,
       char **argv)
 {
-  TpDBusDaemon *bus_daemon;
+  GDBusConnection *bus;
   GMainLoop *loop;
   GError *error = NULL;
   GOptionContext *context;
+  guint watch;
 
   g_set_prgname ("mc6-wait-for-name");
 
@@ -176,10 +189,9 @@ main (int argc,
       return EX_USAGE;
     }
 
-  g_type_init ();
-  bus_daemon = tp_dbus_daemon_dup (&error);
+  bus = g_bus_get_sync (G_BUS_TYPE_SESSION, NULL, &error);
 
-  if (bus_daemon == NULL)
+  if (bus == NULL)
     {
       g_message ("%s", error->message);
       g_error_free (error);
@@ -190,18 +202,32 @@ main (int argc,
 
   if (activate != NULL)
     {
-      tp_cli_dbus_daemon_call_start_service_by_name (bus_daemon, -1,
-          activate, 0 /* no flags */, start_service_cb, g_main_loop_ref (loop),
-          (GDestroyNotify) g_main_loop_unref, NULL);
+      g_dbus_connection_call (bus,
+          "org.freedesktop.DBus",
+          "/org/freedesktop/DBus",
+          "org.freedesktop.DBus",
+          "StartServiceByName",
+          g_variant_new ("(su)", activate, 0 /* no flags */),
+          G_VARIANT_TYPE ("(u)"),
+          G_DBUS_CALL_FLAGS_NONE, -1, NULL,
+          start_service_cb,
+          g_main_loop_ref (loop));
     }
 
-  tp_dbus_daemon_watch_name_owner (bus_daemon, argv[1],
-      noc_cb, g_main_loop_ref (loop), (GDestroyNotify) g_main_loop_unref);
+  watch = g_bus_watch_name_on_connection (bus,
+    argv[1],
+    G_BUS_NAME_WATCHER_FLAGS_NONE,
+    name_appeared_cb,
+    name_vanished_cb,
+    g_main_loop_ref (loop),
+    (GDestroyNotify) g_main_loop_unref);
 
   g_timeout_add_seconds (WFN_TIMEOUT, quit_because_timeout,
       g_main_loop_ref (loop));
 
   g_main_loop_run (loop);
+
+  g_bus_unwatch_name (watch);
 
   if (timeout_id != 0)
     {
@@ -216,7 +242,7 @@ main (int argc,
     }
 
   g_main_loop_unref (loop);
-  g_object_unref (bus_daemon);
+  g_object_unref (bus);
 
   return exit_status;
 }
