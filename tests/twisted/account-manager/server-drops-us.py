@@ -77,8 +77,9 @@ def test(q, bus, mc):
     # Connect succeeds
     conn.StatusChanged(cs.CONN_STATUS_CONNECTED, cs.CSR_NONE_SPECIFIED)
 
+    # With current MC constants this happens after 3 seconds
     conn = drop_and_expect_reconnect(q, bus, conn)
-    conn = drop_and_expect_reconnect(q, bus, conn)
+    # With current MC constants this happens after a further 9 seconds
     conn = drop_and_expect_reconnect(q, bus, conn)
 
     forbidden = [EventPattern('dbus-method-call', method='RequestConnection')]
@@ -91,8 +92,10 @@ def test(q, bus, mc):
 
     # This test can be considered to have succeeded if we don't
     # RequestConnection again before the test fails due to timeout.
+    # With current MC constants the next attempt is after 27 seconds,
+    # which is more than the 15 second timeout hard-coded below.
     try:
-        q.expect('the end of the world')
+        q.expect('the-end-of-the-world')
     except TimeoutError:
         return
     else:
@@ -128,4 +131,6 @@ def drop_and_expect_reconnect(q, bus, conn):
     return conn
 
 if __name__ == '__main__':
-    exec_test(test, {})
+    # A 15 second timeout is enough to retry after 3 seconds, then 9 seconds,
+    # but not 27 seconds.
+    exec_test(test, {}, timeout=15)
