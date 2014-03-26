@@ -32,9 +32,6 @@ if test "x$CHECK_TWISTED_UNINSTALLED" = x; then
 
   PYTHONPATH="@twistedtestsdir@"
   export PYTHONPATH
-
-  CHECK_TWISTED_PATH="@twistedtestsdir@"
-  export CHECK_TWISTED_PATH
 else
   if ! test -d "$G_TEST_SRCDIR"; then
     echo "Bail out! G_TEST_SRCDIR must be set and absolute"
@@ -50,9 +47,6 @@ else
 
   PYTHONPATH="${G_TEST_SRCDIR}:${G_TEST_BUILDDIR}"
   export PYTHONPATH
-
-  CHECK_TWISTED_PATH="${G_TEST_SRCDIR}"
-  export CHECK_TWISTED_PATH
 fi
 
 MC_DEBUG=all
