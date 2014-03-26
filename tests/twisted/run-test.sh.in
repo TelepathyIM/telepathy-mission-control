@@ -131,6 +131,13 @@ for t in $list ; do
       ;;
     (77)
       echo "ok $i # SKIP $t"
+      (
+        cd $tmp && for x in *.log; do
+          echo "# ===== log file: $x ====="
+          sed 's/^/# /' "$x"
+        done
+        echo "# ===== end of log files for $t ====="
+      )
       if test -z "$MC_TEST_KEEP_TEMP"; then
         rm -fr "$tmp"
       fi
