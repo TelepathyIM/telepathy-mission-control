@@ -10,11 +10,11 @@ if test -z "$MC_TEST_LOG_DIR"; then
         exit 1
 fi
 
-if test -z "$MC_TEST_CURDIR"; then
-        echo "MC_TEST_CURDIR must be set"
+if test -z "$CHECK_TWISTED_CURDIR"; then
+        echo "CHECK_TWISTED_CURDIR must be set"
         exit 1
 fi
-cd "${MC_TEST_CURDIR}" || exit 1
+cd "${CHECK_TWISTED_CURDIR}" || exit 1
 
 exec > ${MC_TEST_LOG_DIR}/missioncontrol-$$.log 2>&1
 ln -f ${MC_TEST_LOG_DIR}/missioncontrol-$$.log missioncontrol.log

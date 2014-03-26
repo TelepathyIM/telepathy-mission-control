@@ -13,8 +13,8 @@
 
 set -e
 
-MC_TEST_CURDIR="`pwd`"
-export MC_TEST_CURDIR
+CHECK_TWISTED_CURDIR="`pwd`"
+export CHECK_TWISTED_CURDIR
 
 if test "x$MC_TEST_UNINSTALLED" = x; then
   script_fullname=`readlink -e "@mctestsdir@/twisted/run-test.sh"`
@@ -92,7 +92,7 @@ for t in $list ; do
   i=$(( $i + 1 ))
   echo "# Testing $i/$n: $t ..."
 
-  tmp="${MC_TEST_CURDIR}/tmp-`echo $t | tr ./ __`"
+  tmp="${CHECK_TWISTED_CURDIR}/tmp-`echo $t | tr ./ __`"
   rm -fr "$tmp"
   mkdir "$tmp"
 
