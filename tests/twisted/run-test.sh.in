@@ -17,41 +17,41 @@ CHECK_TWISTED_CURDIR="`pwd`"
 export CHECK_TWISTED_CURDIR
 
 if test "x$CHECK_TWISTED_UNINSTALLED" = x; then
-  script_fullname=`readlink -e "@mctestsdir@/twisted/run-test.sh"`
+  script_fullname=`readlink -e "@twistedtestsdir@/run-test.sh"`
   if [ `readlink -e "$0"` != "$script_fullname" ] ; then
     echo "Bail out! This script is meant to be installed at $script_fullname"
     exit 1
   fi
 
-  test_src="@mctestsdir@"
-  test_build="@mctestsdir@"
-  config_file="@mctestsdir@/twisted/tools/servicedir-installed/tmp-session-bus.conf"
-  plugins="@mctestsdir@/twisted/plugins"
+  G_TEST_SRCDIR="@twistedtestsdir@"
+  export G_TEST_SRCDIR
+  G_TEST_BUILDDIR="@twistedtestsdir@"
+  export G_TEST_BUILDDIR
+  config_file="@twistedtestsdir@/tools/servicedir-installed/tmp-session-bus.conf"
+  plugins="@twistedtestsdir@/plugins"
 
-  PYTHONPATH="@mctestsdir@/twisted"
+  PYTHONPATH="@twistedtestsdir@"
   export PYTHONPATH
 
-  CHECK_TWISTED_PATH="@mctestsdir@/twisted"
+  CHECK_TWISTED_PATH="@twistedtestsdir@"
   export CHECK_TWISTED_PATH
 else
-  if test -z "$CHECK_TWISTED_ABS_TOP_SRCDIR"; then
-    echo "Bail out! CHECK_TWISTED_ABS_TOP_SRCDIR must be set"
+  if ! test -d "$G_TEST_SRCDIR"; then
+    echo "Bail out! G_TEST_SRCDIR must be set and absolute"
     exit 1
   fi
-  if test -z "$CHECK_TWISTED_ABS_TOP_BUILDDIR"; then
-    echo "Bail out! CHECK_TWISTED_ABS_TOP_BUILDDIR must be set"
+  if ! test -d "$G_TEST_BUILDDIR"; then
+    echo "Bail out! G_TEST_BUILDDIR must be set and absolute"
     exit 1
   fi
 
-  test_src="${CHECK_TWISTED_ABS_TOP_SRCDIR}/tests"
-  test_build="${CHECK_TWISTED_ABS_TOP_BUILDDIR}/tests"
-  config_file="${test_build}/twisted/tools/servicedir-uninstalled/tmp-session-bus.conf"
-  plugins="${test_build}/twisted/.libs"
+  config_file="${G_TEST_BUILDDIR}/tools/servicedir-uninstalled/tmp-session-bus.conf"
+  plugins="${G_TEST_BUILDDIR}/.libs"
 
-  PYTHONPATH="${test_src}/twisted:${test_build}/twisted"
+  PYTHONPATH="${G_TEST_SRCDIR}:${G_TEST_BUILDDIR}"
   export PYTHONPATH
 
-  CHECK_TWISTED_PATH="${test_src}/twisted"
+  CHECK_TWISTED_PATH="${G_TEST_SRCDIR}"
   export CHECK_TWISTED_PATH
 fi
 
@@ -65,18 +65,18 @@ export GIO_EXTRA_MODULES
 MC_FILTER_PLUGIN_DIR="${plugins}"
 export MC_FILTER_PLUGIN_DIR
 
-XDG_CONFIG_DIRS="${test_src}/twisted"
+XDG_CONFIG_DIRS="${G_TEST_SRCDIR}"
 export XDG_CONFIG_DIRS
 
-MC_CLIENTS_DIR="${test_src}/twisted/telepathy-1/clients"
+MC_CLIENTS_DIR="${G_TEST_SRCDIR}/telepathy-1/clients"
 export MC_CLIENTS_DIR
-MC_MANAGER_DIR="${test_src}/twisted/telepathy-1/managers"
+MC_MANAGER_DIR="${G_TEST_SRCDIR}/telepathy-1/managers"
 export MC_MANAGER_DIR
 
 if [ -n "$1" ] ; then
   list="$1"
 else
-  list=$(cat "${test_build}"/twisted/mc-twisted-tests.list)
+  list=$(cat "${G_TEST_BUILDDIR}"/mc-twisted-tests.list)
 fi
 
 n=0
@@ -104,7 +104,7 @@ for t in $list ; do
   export XDG_CONFIG_HOME
   XDG_DATA_HOME="${tmp}/localshare"
   export XDG_DATA_HOME
-  XDG_DATA_DIRS="${tmp}/share:${test_src}/twisted:${XDG_DATA_DIRS:-/usr/local/share:/usr/share}"
+  XDG_DATA_DIRS="${tmp}/share:${G_TEST_SRCDIR}:${XDG_DATA_DIRS:-/usr/local/share:/usr/share}"
   export XDG_DATA_DIRS
   XDG_CACHE_HOME="${tmp}/cache"
   export XDG_CACHE_HOME
@@ -115,12 +115,12 @@ for t in $list ; do
   export CHECK_TWISTED_VERBOSE
 
   e=0
-  sh "${test_src}/twisted/tools/with-session-bus.sh" \
+  sh "${G_TEST_SRCDIR}/tools/with-session-bus.sh" \
     ${CHECK_TWISTED_SLEEP} \
     --also-for-system \
     --config-file="${config_file}" \
     -- \
-    @TEST_PYTHON@ -u "${test_src}/twisted/$t" \
+    @TEST_PYTHON@ -u "${G_TEST_SRCDIR}/$t" \
     > "$tmp"/test.log 2>&1 || e=$?
   case "$e" in
     (0)

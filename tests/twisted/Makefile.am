@@ -129,7 +129,7 @@ mc-twisted-tests.list:
 
 run-test.sh: run-test.sh.in Makefile
 	$(AM_V_GEN)sed \
-		-e "s|[@]mctestsdir[@]|@mctestsdir@|g" \
+		-e "s|[@]twistedtestsdir[@]|@mctestsdir@/twisted|g" \
 		-e "s|[@]TEST_PYTHON[@]|$(PYTHON)|g" \
 		$< > $@
 	@chmod +x $@
@@ -273,8 +273,8 @@ check-twisted: $(BUILT_SOURCES)
 	failed=0; \
 	CHECK_TWISTED_UNINSTALLED=1 \
 	  CHECK_TWISTED_SLOW=$(CHECK_TWISTED_SLOW) \
-	  CHECK_TWISTED_ABS_TOP_SRCDIR=@abs_top_srcdir@ \
-	  CHECK_TWISTED_ABS_TOP_BUILDDIR=@abs_top_builddir@ \
+	  G_TEST_SRCDIR=@abs_srcdir@ \
+	  G_TEST_BUILDDIR=@abs_builddir@ \
 	  sh run-test.sh "${TWISTED_TESTS}${extra_tests}"
 	if test -e core; then\
 		echo "Core dump exists: core";\
