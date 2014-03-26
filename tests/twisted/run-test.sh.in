@@ -116,7 +116,7 @@ for t in $list ; do
 
   e=0
   sh "${test_src}/twisted/tools/with-session-bus.sh" \
-    ${MC_TEST_SLEEP} \
+    ${CHECK_TWISTED_SLEEP} \
     --also-for-system \
     --config-file="${config_file}" \
     -- \
