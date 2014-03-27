@@ -10,9 +10,9 @@ missioncontrolpath=${libexecdir}/mission-control-6
 abs_top_srcdir=@abs_top_srcdir@
 abs_top_builddir=@abs_top_builddir@
 
-Name: mission-control-plugins (uninstalled)
+Name: mission-control-plugins-6 (uninstalled)
 Description: Mission Control plugin API, Not Installed
 Requires: telepathy-glib-1
 Version: @VERSION@
-Libs: ${pc_top_builddir}/${pcfiledir}/libmission-control-plugins.la
+Libs: ${pc_top_builddir}/${pcfiledir}/libmission-control-plugins-6.la
 Cflags: -I${abs_top_srcdir}

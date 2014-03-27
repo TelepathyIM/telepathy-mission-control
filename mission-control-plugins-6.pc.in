@@ -8,9 +8,9 @@ MCP_ABI_VERSION=@MCP_ABI_VERSION@
 plugindir=${libdir}/mission-control-plugins-6-@MCP_ABI_VERSION@
 missioncontrolpath=${libexecdir}/mission-control-6
 
-Name: mission-control-plugins
+Name: mission-control-plugins-6
 Description: Mission Control plugin API
 Requires: telepathy-glib-1
 Version: @VERSION@
-Libs: -L${libdir} -lmission-control-plugins
+Libs: -L${libdir} -lmission-control-plugins-6
 Cflags: -I${includedir}/mission-control-${MCP_API_VERSION}
