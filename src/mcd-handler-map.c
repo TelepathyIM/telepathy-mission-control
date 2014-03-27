@@ -33,6 +33,11 @@
 
 G_DEFINE_TYPE (McdHandlerMap, _mcd_handler_map, G_TYPE_OBJECT);
 
+typedef struct {
+    guint watch;
+    gsize channels_handled;
+} HandlerProcess;
+
 struct _McdHandlerMapPrivate
 {
     TpDBusDaemon *dbus_daemon;
@@ -42,7 +47,7 @@ struct _McdHandlerMapPrivate
     /* The well-known bus name we invoked in channel_processes[path]
      * owned gchar *object_path => owned gchar *well_known_name */
     GHashTable *channel_clients;
-    /* owned gchar *unique_name => malloc'd gsize, number of channels */
+    /* owned gchar *unique_name => HandlerProcess */
     GHashTable *handler_processes;
     /* owned gchar *object_path => ref'd TpChannel */
     GHashTable *handled_channels;
@@ -56,9 +61,12 @@ enum {
 };
 
 static void
-slice_free_gsize (gpointer p)
+handler_process_free (gpointer p)
 {
-    g_slice_free (gsize, p);
+    HandlerProcess *hp = p;
+
+    g_bus_unwatch_name (hp->watch);
+    g_slice_free (HandlerProcess, hp);
 }
 
 static void
@@ -78,7 +86,7 @@ _mcd_handler_map_init (McdHandlerMap *self)
     self->priv->handler_processes = g_hash_table_new_full (g_str_hash,
                                                            g_str_equal,
                                                            g_free,
-                                                           slice_free_gsize);
+                                                           handler_process_free);
 
     self->priv->handled_channels = g_hash_table_new_full (g_str_hash,
                                                           g_str_equal,
@@ -131,10 +139,9 @@ _mcd_handler_map_set_property (GObject *object,
     }
 }
 
-static void mcd_handler_map_name_owner_cb (TpDBusDaemon *dbus_daemon,
-                                           const gchar *name,
-                                           const gchar *new_owner,
-                                           gpointer user_data);
+static void mcd_handler_map_name_vanished_cb (GDBusConnection *conn,
+                                              const gchar *name,
+                                              gpointer user_data);
 
 static void
 _mcd_handler_map_dispose (GObject *object)
@@ -142,23 +149,6 @@ _mcd_handler_map_dispose (GObject *object)
     McdHandlerMap *self = MCD_HANDLER_MAP (object);
 
     tp_clear_pointer (&self->priv->handled_channels, g_hash_table_unref);
-
-    if (self->priv->handler_processes != NULL)
-    {
-        GHashTableIter iter;
-        gpointer k;
-
-        g_assert (self->priv->dbus_daemon != NULL);
-
-        g_hash_table_iter_init (&iter, self->priv->handler_processes);
-
-        while (g_hash_table_iter_next (&iter, &k, NULL))
-        {
-            tp_dbus_daemon_cancel_name_owner_watch (self->priv->dbus_daemon,
-                k, mcd_handler_map_name_owner_cb, object);
-        }
-
-    }
 
     tp_clear_pointer (&self->priv->handler_processes, g_hash_table_unref);
     tp_clear_object (&self->priv->dbus_daemon);
@@ -240,7 +230,7 @@ _mcd_handler_map_set_path_handled (McdHandlerMap *self,
                                    const gchar *well_known_name)
 {
     const gchar *old;
-    gsize *counter;
+    HandlerProcess *hp;
 
     /* In case we want to re-invoke the same client later, remember its
      * well-known name, if we know it. (In edge cases where we're recovering
@@ -262,13 +252,12 @@ _mcd_handler_map_set_path_handled (McdHandlerMap *self,
 
     if (old != NULL)
     {
-        counter = g_hash_table_lookup (self->priv->handler_processes,
-                                       old);
+        hp = g_hash_table_lookup (self->priv->handler_processes, old);
 
-        if (--*counter == 0)
+        g_assert (hp != NULL);
+
+        if (--hp->channels_handled == 0)
         {
-            tp_dbus_daemon_cancel_name_owner_watch (self->priv->dbus_daemon,
-                old, mcd_handler_map_name_owner_cb, self);
             g_hash_table_remove (self->priv->handler_processes, old);
         }
     }
@@ -276,22 +265,22 @@ _mcd_handler_map_set_path_handled (McdHandlerMap *self,
     g_hash_table_insert (self->priv->channel_processes,
                          g_strdup (channel_path), g_strdup (unique_name));
 
-    counter = g_hash_table_lookup (self->priv->handler_processes,
-                                   unique_name);
+    hp = g_hash_table_lookup (self->priv->handler_processes, unique_name);
 
-    if (counter == NULL)
+    if (hp == NULL)
     {
-        counter = g_slice_new (gsize);
-        *counter = 1;
+        hp = g_slice_new0 (HandlerProcess);
+        hp->channels_handled = 1;
         g_hash_table_insert (self->priv->handler_processes,
-                             g_strdup (unique_name), counter);
-        tp_dbus_daemon_watch_name_owner (self->priv->dbus_daemon, unique_name,
-                                         mcd_handler_map_name_owner_cb, self,
-                                         NULL);
+                             g_strdup (unique_name), hp);
+        hp->watch = g_bus_watch_name_on_connection (
+            tp_proxy_get_dbus_connection (self->priv->dbus_daemon),
+            unique_name, G_BUS_NAME_WATCHER_FLAGS_NONE,
+            NULL, mcd_handler_map_name_vanished_cb, self, NULL);
     }
     else
     {
-        ++*counter;
+        ++hp->channels_handled;
     }
 }
 
@@ -314,12 +303,13 @@ handled_channel_invalidated_cb (TpChannel *channel,
 
     if (handler != NULL)
     {
-        gsize *counter = g_hash_table_lookup (self->priv->handler_processes,
-                                              handler);
+        HandlerProcess *hp;
 
-        g_assert (counter != NULL);
+        hp = g_hash_table_lookup (self->priv->handler_processes, handler);
 
-        if (--*counter == 0)
+        g_assert (hp != NULL);
+
+        if (--hp->channels_handled == 0)
         {
             g_hash_table_remove (self->priv->handler_processes, handler);
         }
@@ -375,20 +365,16 @@ static void
 _mcd_handler_map_set_handler_crashed (McdHandlerMap *self,
                                       const gchar *unique_name)
 {
-    gsize *counter = g_hash_table_lookup (self->priv->handler_processes,
-                                          unique_name);
+    HandlerProcess *hp;
 
-    if (counter != NULL)
+    hp = g_hash_table_lookup (self->priv->handler_processes, unique_name);
+
+    if (hp != NULL)
     {
         GHashTableIter iter;
         gpointer path_p, name_p;
         GList *paths = NULL;
 
-        tp_dbus_daemon_cancel_name_owner_watch (self->priv->dbus_daemon,
-                                                unique_name,
-                                                mcd_handler_map_name_owner_cb,
-                                                self);
-        g_hash_table_remove (self->priv->handler_processes, unique_name);
 
         /* This is O(number of channels being handled) but then again
          * it only happens if a handler crashes */
@@ -424,19 +410,18 @@ _mcd_handler_map_set_handler_crashed (McdHandlerMap *self,
             paths = g_list_delete_link (paths, paths);
             g_free (path);
         }
+
+        /* frees @hp, which may free @unique_name, so do this last */
+        g_hash_table_remove (self->priv->handler_processes, unique_name);
     }
 }
 
 static void
-mcd_handler_map_name_owner_cb (TpDBusDaemon *dbus_daemon,
-                               const gchar *name,
-                               const gchar *new_owner,
-                               gpointer user_data)
+mcd_handler_map_name_vanished_cb (GDBusConnection *conn,
+                                  const gchar *name,
+                                  gpointer user_data)
 {
-    if (new_owner == NULL || new_owner[0] == '\0')
-    {
-        _mcd_handler_map_set_handler_crashed (user_data, name);
-    }
+    _mcd_handler_map_set_handler_crashed (user_data, name);
 }
 
 /*
