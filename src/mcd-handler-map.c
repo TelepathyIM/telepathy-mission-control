@@ -205,6 +205,9 @@ _mcd_handler_map_get_handler (McdHandlerMap *self,
                               const gchar *channel_path,
                               const gchar **well_known_name)
 {
+    g_return_val_if_fail (MCD_IS_HANDLER_MAP (self), NULL);
+    g_return_val_if_fail (channel_path != NULL, NULL);
+
     if (well_known_name != NULL)
         *well_known_name = g_hash_table_lookup (self->priv->channel_clients,
                                                 channel_path);
@@ -231,6 +234,10 @@ _mcd_handler_map_set_path_handled (McdHandlerMap *self,
 {
     const gchar *old;
     HandlerProcess *hp;
+
+    g_return_if_fail (MCD_IS_HANDLER_MAP (self));
+    g_return_if_fail (channel_path != NULL);
+    g_return_if_fail (unique_name != NULL);
 
     /* In case we want to re-invoke the same client later, remember its
      * well-known name, if we know it. (In edge cases where we're recovering
@@ -295,6 +302,9 @@ handled_channel_invalidated_cb (TpChannel *channel,
     const gchar *path = tp_proxy_get_object_path (channel);
     gchar *handler;
 
+    g_return_if_fail (MCD_IS_HANDLER_MAP (self));
+    g_return_if_fail (TP_IS_CHANNEL (channel));
+
     g_signal_handlers_disconnect_by_func (channel,
                                           handled_channel_invalidated_cb,
                                           user_data);
@@ -345,6 +355,10 @@ _mcd_handler_map_set_channel_handled (McdHandlerMap *self,
 {
     const gchar *path = tp_proxy_get_object_path (channel);
 
+    g_return_if_fail (MCD_IS_HANDLER_MAP (self));
+    g_return_if_fail (TP_IS_CHANNEL (channel));
+    g_return_if_fail (unique_name != NULL);
+
     g_hash_table_insert (self->priv->handled_channels,
                          g_strdup (path),
                          g_object_ref (channel));
@@ -366,6 +380,9 @@ _mcd_handler_map_set_handler_crashed (McdHandlerMap *self,
                                       const gchar *unique_name)
 {
     HandlerProcess *hp;
+
+    g_return_if_fail (MCD_IS_HANDLER_MAP (self));
+    g_return_if_fail (unique_name != NULL);
 
     hp = g_hash_table_lookup (self->priv->handler_processes, unique_name);
 
