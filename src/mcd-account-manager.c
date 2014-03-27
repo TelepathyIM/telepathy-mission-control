@@ -526,18 +526,17 @@ err_match:
 }
 
 static void
-list_connection_names_cb (const gchar * const *names, gsize n,
-                          const gchar * const *cms,
-                          const gchar * const *protocols,
-                          const GError *error, gpointer user_data,
-                          GObject *weak_object)
+list_connection_names_cb (GObject *source_object,
+    GAsyncResult *result,
+    gpointer user_data)
 {
-    McdAccountManager *account_manager = MCD_ACCOUNT_MANAGER (weak_object);
+    McdAccountManager *account_manager = MCD_ACCOUNT_MANAGER (user_data);
     McdAccountManagerPrivate *priv = account_manager->priv;
+    GError *error = NULL;
+    GVariant *tuple = NULL;
     gchar *contents = NULL;
-    guint i;
-
-    DEBUG ("%" G_GSIZE_FORMAT " connections", n);
+    const gchar **names = NULL;
+    gsize i;
 
     /* if the file has no contents, we don't really care why */
     if (!g_file_get_contents (priv->account_connections_file, &contents,
@@ -546,34 +545,54 @@ list_connection_names_cb (const gchar * const *names, gsize n,
         contents = NULL;
     }
 
-    for (i = 0; i < n; i++)
+    tuple = g_dbus_connection_call_finish (G_DBUS_CONNECTION (source_object),
+        result, &error);
+
+    if (tuple == NULL)
     {
-        g_return_if_fail (names[i] != NULL);
+        DEBUG ("Unable to list connection names: %s", error->message);
+        g_error_free (error);
+        goto finally;
+    }
+
+    g_variant_get (tuple, "(^a&s)", &names);
+
+    for (i = 0; names != NULL && names[i] != NULL; i++)
+    {
+        if (!g_str_has_prefix (names[i], TP_CONN_BUS_NAME_BASE))
+            continue;
+
+        if (G_UNLIKELY (!g_dbus_is_name (names[i])))
+            continue;
+
         DEBUG ("Connection %s", names[i]);
+
         if (!recover_connection (account_manager, contents, names[i]))
         {
             /* Close the connection */
-            TpConnection *proxy;
             gchar *path;
 
             path = g_strdup_printf ("/%s", names[i]);
             g_strdelimit (path, ".", '/');
 
             DEBUG ("Killing connection");
-            proxy = tp_client_factory_ensure_connection (
-                priv->client_factory, path, NULL, NULL);
-
-            if (proxy)
-            {
-                tp_cli_connection_call_disconnect (proxy, -1, NULL, NULL,
-                                                   NULL, NULL);
-                g_object_unref (proxy);
-            }
+            g_dbus_connection_call (G_DBUS_CONNECTION (source_object),
+                  names[i], path, TP_IFACE_CONNECTION, "Disconnect",
+                  NULL, NULL, G_DBUS_CALL_FLAGS_NONE,  -1, NULL, NULL, NULL);
 
             g_free (path);
         }
     }
+
+finally:
+    if (tuple != NULL)
+        g_variant_unref (tuple);
+
+    if (names != NULL)
+        g_free (names);
+
     g_free (contents);
+    g_object_unref (account_manager);
 }
 
 static void
@@ -1397,9 +1416,12 @@ _mcd_account_manager_setup (McdAccountManager *account_manager)
 
     priv->setup_lock = 1; /* will be released at the end of this function */
 
-    tp_list_connection_names (priv->dbus_daemon,
-                              list_connection_names_cb, NULL, NULL,
-                              (GObject *)account_manager);
+    g_dbus_connection_call (tp_proxy_get_dbus_connection (priv->dbus_daemon),
+        "org.freedesktop.DBus", "/org/freedesktop/DBus",
+        "org.freedesktop.DBus", "ListNames",
+        NULL,
+        G_VARIANT_TYPE ("(as)"), G_DBUS_CALL_FLAGS_NONE, -1, NULL,
+        list_connection_names_cb, g_object_ref (account_manager));
 
     accounts = mcd_storage_get_accounts (storage);
 
