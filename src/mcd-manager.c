@@ -166,9 +166,8 @@ mcd_manager_setup (McdManager *manager)
 
     priv->slacker = mcd_slacker_new ();
 
-    priv->tp_conn_mgr =
-        tp_connection_manager_new (priv->dbus_daemon, priv->name,
-                                   NULL, &error);
+    priv->tp_conn_mgr = tp_client_factory_ensure_connection_manager (
+        priv->client_factory, priv->name, NULL, &error);
     if (error)
     {
         g_warning ("%s, cannot create manager %s: %s", G_STRFUNC,
