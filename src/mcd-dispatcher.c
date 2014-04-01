@@ -794,7 +794,7 @@ mcd_dispatcher_constructed (GObject *object)
     McdDispatcherPrivate *priv = MCD_DISPATCHER_PRIV (object);
     GError *error = NULL;
 
-    priv->handler_map = _mcd_handler_map_new (priv->dbus_daemon);
+    priv->handler_map = _mcd_handler_map_new (priv->factory);
 
     priv->clients = _mcd_client_registry_new (priv->factory);
     g_signal_connect (priv->clients, "client-added",

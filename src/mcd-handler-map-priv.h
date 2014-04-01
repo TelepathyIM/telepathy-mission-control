@@ -63,7 +63,7 @@ struct _McdHandlerMapClass
     GObjectClass parent_class;
 };
 
-McdHandlerMap *_mcd_handler_map_new (TpDBusDaemon *dbus_daemon);
+McdHandlerMap *_mcd_handler_map_new (TpClientFactory *factory);
 
 const gchar *_mcd_handler_map_get_handler (McdHandlerMap *self,
                                            const gchar *channel_path,

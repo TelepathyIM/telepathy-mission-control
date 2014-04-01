@@ -40,7 +40,7 @@ typedef struct {
 
 struct _McdHandlerMapPrivate
 {
-    TpDBusDaemon *dbus_daemon;
+    TpClientFactory *factory;
     /* The handler for each channel currently being handled
      * owned gchar *object_path => owned gchar *unique_name */
     GHashTable *channel_processes;
@@ -57,7 +57,7 @@ struct _McdHandlerMapPrivate
 
 enum {
     PROP_0,
-    PROP_DBUS_DAEMON
+    PROP_FACTORY
 };
 
 static void
@@ -109,8 +109,8 @@ _mcd_handler_map_get_property (GObject *object,
 
     switch (prop_id)
     {
-        case PROP_DBUS_DAEMON:
-            g_value_set_object (value, self->priv->dbus_daemon);
+        case PROP_FACTORY:
+            g_value_set_object (value, self->priv->factory);
             break;
 
         default:
@@ -128,10 +128,10 @@ _mcd_handler_map_set_property (GObject *object,
 
     switch (prop_id)
     {
-        case PROP_DBUS_DAEMON:
-            g_assert (self->priv->dbus_daemon == NULL); /* construct-only */
-            self->priv->dbus_daemon =
-                TP_DBUS_DAEMON (g_value_dup_object (value));
+        case PROP_FACTORY:
+            g_assert (self->priv->factory == NULL); /* construct-only */
+            self->priv->factory =
+                TP_CLIENT_FACTORY (g_value_dup_object (value));
             break;
 
         default:
@@ -151,7 +151,7 @@ _mcd_handler_map_dispose (GObject *object)
     tp_clear_pointer (&self->priv->handled_channels, g_hash_table_unref);
 
     tp_clear_pointer (&self->priv->handler_processes, g_hash_table_unref);
-    tp_clear_object (&self->priv->dbus_daemon);
+    tp_clear_object (&self->priv->factory);
 
     G_OBJECT_CLASS (_mcd_handler_map_parent_class)->dispose (object);
 }
@@ -179,18 +179,18 @@ _mcd_handler_map_class_init (McdHandlerMapClass *klass)
     object_class->set_property = _mcd_handler_map_set_property;
     object_class->finalize = _mcd_handler_map_finalize;
 
-    g_object_class_install_property (object_class, PROP_DBUS_DAEMON,
-        g_param_spec_object ("dbus-daemon", "D-Bus daemon", "D-Bus daemon",
-            TP_TYPE_DBUS_DAEMON,
+    g_object_class_install_property (object_class, PROP_FACTORY,
+        g_param_spec_object ("factory", "Factory", "Client factory",
+            TP_TYPE_CLIENT_FACTORY,
             G_PARAM_READWRITE | G_PARAM_CONSTRUCT_ONLY |
             G_PARAM_STATIC_STRINGS));
 }
 
 McdHandlerMap *
-_mcd_handler_map_new (TpDBusDaemon *dbus_daemon)
+_mcd_handler_map_new (TpClientFactory *factory)
 {
     return g_object_new (MCD_TYPE_HANDLER_MAP,
-                         "dbus-daemon", dbus_daemon,
+                         "factory", factory,
                          NULL);
 }
 
@@ -281,7 +281,7 @@ _mcd_handler_map_set_path_handled (McdHandlerMap *self,
         g_hash_table_insert (self->priv->handler_processes,
                              g_strdup (unique_name), hp);
         hp->watch = g_bus_watch_name_on_connection (
-            tp_proxy_get_dbus_connection (self->priv->dbus_daemon),
+            tp_client_factory_get_dbus_connection (self->priv->factory),
             unique_name, G_BUS_NAME_WATCHER_FLAGS_NONE,
             NULL, mcd_handler_map_name_vanished_cb, self, NULL);
     }
@@ -471,6 +471,7 @@ _mcd_handler_map_set_channel_handled_internally (McdHandlerMap *self,
                                                  const gchar *account_path)
 {
     _mcd_handler_map_set_channel_handled (self, channel,
-        tp_dbus_daemon_get_unique_name (self->priv->dbus_daemon),
+        g_dbus_connection_get_unique_name (
+            tp_client_factory_get_dbus_connection (self->priv->factory)),
         NULL, account_path);
 }
