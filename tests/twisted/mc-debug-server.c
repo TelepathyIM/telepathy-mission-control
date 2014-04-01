@@ -37,7 +37,6 @@
 
 #include "mcd-service.h"
 
-TpDBusDaemon *bus_daemon = NULL;
 static McdService *mcd = NULL;
 
 static void
@@ -216,10 +215,6 @@ main (int argc, char **argv)
     g_signal_connect (gdbus_system, "closed", G_CALLBACK (bus_closed),
         "system");
 
-    bus_daemon = tp_dbus_daemon_dup (&error);
-    g_assert_no_error (error);
-    g_assert (bus_daemon != NULL);
-
     test_interface_id = g_dbus_connection_register_object (gdbus,
         TP_ACCOUNT_MANAGER_OBJECT_PATH, &test_interface,
         &test_interface_vtable, NULL, NULL, &error);
@@ -259,7 +254,6 @@ main (int argc, char **argv)
 
     tp_clear_object (&gdbus);
     tp_clear_object (&gdbus_system);
-    tp_clear_object (&bus_daemon);
 
     g_message ("Exiting with %d", ret);
     tp_clear_object (&debug_sender);

@@ -1240,8 +1240,6 @@ _mcd_client_proxy_new (TpClientFactory *factory,
 
     self = g_object_new (MCD_TYPE_CLIENT_PROXY,
                          "factory", factory,
-                         "dbus-daemon",
-                            tp_client_factory_get_dbus_daemon (factory),
                          "object-path", object_path,
                          "bus-name", well_known_name,
                          "unique-name", unique_name_if_known,

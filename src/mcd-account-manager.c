@@ -79,7 +79,6 @@ G_DEFINE_TYPE_WITH_CODE (McdAccountManager, mcd_account_manager, G_TYPE_OBJECT,
 
 struct _McdAccountManagerPrivate
 {
-    TpDBusDaemon *dbus_daemon;
     TpClientFactory *client_factory;
     McdConnectivityMonitor *minotaur;
 
@@ -129,7 +128,6 @@ typedef struct
 enum
 {
     PROP_0,
-    PROP_DBUS_DAEMON,
     PROP_CLIENT_FACTORY
 };
 
@@ -1416,7 +1414,8 @@ _mcd_account_manager_setup (McdAccountManager *account_manager)
 
     priv->setup_lock = 1; /* will be released at the end of this function */
 
-    g_dbus_connection_call (tp_proxy_get_dbus_connection (priv->dbus_daemon),
+    g_dbus_connection_call (
+        tp_client_factory_get_dbus_connection (priv->client_factory),
         "org.freedesktop.DBus", "/org/freedesktop/DBus",
         "org.freedesktop.DBus", "ListNames",
         NULL,
@@ -1520,13 +1519,13 @@ register_dbus_service (McdAccountManager *account_manager)
     if (priv->dbus_registered)
         return;
 
-    tp_dbus_daemon_register_object (priv->dbus_daemon,
-                                    TP_ACCOUNT_MANAGER_OBJECT_PATH,
-                                    account_manager);
+    tp_dbus_connection_register_object (
+        tp_client_factory_get_dbus_connection (priv->client_factory),
+        TP_ACCOUNT_MANAGER_OBJECT_PATH, account_manager);
 
-    if (!tp_dbus_daemon_request_name (priv->dbus_daemon,
-                                      TP_ACCOUNT_MANAGER_BUS_NAME,
-                                      TRUE /* idempotent */, &error))
+    if (!tp_dbus_connection_request_name (
+        tp_client_factory_get_dbus_connection (priv->client_factory),
+        TP_ACCOUNT_MANAGER_BUS_NAME, TRUE /* idempotent */, &error))
     {
         /* FIXME: put in proper error handling when MC gains the ability to
          * be the AM or the CD but not both */
@@ -1551,28 +1550,8 @@ set_property (GObject *obj, guint prop_id,
     case PROP_CLIENT_FACTORY:
         g_assert (priv->client_factory == NULL);  /* construct-only */
         priv->client_factory = TP_CLIENT_FACTORY (g_value_dup_object (val));
-        priv->dbus_daemon =
-            tp_client_factory_get_dbus_daemon (priv->client_factory);
-        g_object_ref (priv->dbus_daemon);
         break;
 
-    default:
-	G_OBJECT_WARN_INVALID_PROPERTY_ID (obj, prop_id, pspec);
-	break;
-    }
-}
-
-static void
-get_property (GObject *obj, guint prop_id,
-	      GValue *val, GParamSpec *pspec)
-{
-    McdAccountManagerPrivate *priv = MCD_ACCOUNT_MANAGER_PRIV (obj);
-
-    switch (prop_id)
-    {
-    case PROP_DBUS_DAEMON:
-	g_value_set_object (val, priv->dbus_daemon);
-	break;
     default:
 	G_OBJECT_WARN_INVALID_PROPERTY_ID (obj, prop_id, pspec);
 	break;
@@ -1599,7 +1578,6 @@ _mcd_account_manager_dispose (GObject *object)
 {
     McdAccountManagerPrivate *priv = MCD_ACCOUNT_MANAGER_PRIV (object);
 
-    tp_clear_object (&priv->dbus_daemon);
     tp_clear_object (&priv->client_factory);
     tp_clear_object (&priv->minotaur);
 
@@ -1615,14 +1593,7 @@ mcd_account_manager_class_init (McdAccountManagerClass *klass)
     object_class->dispose = _mcd_account_manager_dispose;
     object_class->finalize = _mcd_account_manager_finalize;
     object_class->set_property = set_property;
-    object_class->get_property = get_property;
     object_class->constructed = _mcd_account_manager_constructed;
-
-    g_object_class_install_property
-        (object_class, PROP_DBUS_DAEMON,
-         g_param_spec_object ("dbus-daemon", "DBus daemon", "DBus daemon",
-                              TP_TYPE_DBUS_DAEMON,
-                              G_PARAM_READABLE));
 
     g_object_class_install_property
         (object_class, PROP_CLIENT_FACTORY,

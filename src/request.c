@@ -57,7 +57,7 @@ struct _McdRequest {
 
     gboolean use_existing;
     McdClientRegistry *clients;
-    TpDBusDaemon *dbus_daemon;
+    TpClientFactory *factory;
     McdAccount *account;
     GHashTable *properties;
     gint64 user_action_time;
@@ -132,9 +132,10 @@ _mcd_request_constructed (GObject *object)
   g_return_if_fail (self->account != NULL);
   g_return_if_fail (self->clients != NULL);
 
-  self->dbus_daemon = tp_client_factory_get_dbus_daemon (
-      _mcd_client_registry_get_factory (self->clients));
-  tp_dbus_daemon_register_object (self->dbus_daemon, self->object_path, self);
+  self->factory = _mcd_client_registry_get_factory (self->clients);
+  tp_dbus_connection_register_object (
+      tp_client_factory_get_dbus_connection (self->factory),
+      self->object_path, self);
 }
 
 static void
@@ -799,7 +800,8 @@ static void
 _mcd_request_clean_up (McdRequest *self)
 {
   tp_clear_object (&self->predicted_handler);
-  tp_dbus_daemon_unregister_object (self->dbus_daemon, self);
+  tp_dbus_connection_unregister_object (
+      tp_client_factory_get_dbus_connection (self->factory), self);
 }
 
 void

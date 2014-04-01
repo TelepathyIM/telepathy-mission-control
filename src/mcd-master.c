@@ -88,7 +88,6 @@ struct _McdMasterPrivate
     McdDispatcher *dispatcher;
 
     /* We create these for our member objects */
-    TpDBusDaemon *dbus_daemon;
     TpClientFactory *client_factory;
 
     /* Current pending sleep timer */
@@ -104,7 +103,6 @@ enum
     PROP_0,
     PROP_PRESENCE_FRAME,
     PROP_DBUS_CONNECTION,
-    PROP_DBUS_DAEMON,
     PROP_DISPATCHER,
     PROP_ACCOUNT_MANAGER,
     PROP_FACTORY,
@@ -128,14 +126,11 @@ _mcd_master_get_property (GObject * obj, guint prop_id,
 	g_value_set_object (val, priv->dispatcher);
 	break;
     case PROP_FACTORY:
-        g_value_set_object (val, priv->client_factory);
-        break;
-    case PROP_DBUS_DAEMON:
-	g_value_set_object (val, priv->dbus_daemon);
+	g_value_set_object (val, priv->client_factory);
 	break;
     case PROP_DBUS_CONNECTION:
-        g_value_set_pointer (val, tp_proxy_get_dbus_connection (
-                             TP_PROXY (priv->dbus_daemon)));
+        g_value_set_pointer (val, tp_client_factory_get_dbus_connection (
+                priv->client_factory));
 	break;
     case PROP_ACCOUNT_MANAGER:
 	g_value_set_object (val, priv->account_manager);
@@ -157,8 +152,6 @@ _mcd_master_set_property (GObject *obj, guint prop_id,
     case PROP_FACTORY:
         g_assert (priv->client_factory == NULL);
         priv->client_factory = g_value_dup_object (val);
-        priv->dbus_daemon = tp_client_factory_get_dbus_daemon (
-            priv->client_factory);
         break;
     default:
 	G_OBJECT_WARN_INVALID_PROPERTY_ID (obj, prop_id, pspec);
@@ -178,7 +171,6 @@ _mcd_master_dispose (GObject * object)
     priv->is_disposed = TRUE;
 
     tp_clear_object (&priv->account_manager);
-    tp_clear_object (&priv->dbus_daemon);
     tp_clear_object (&priv->dispatcher);
     tp_clear_object (&priv->client_factory);
 
@@ -243,12 +235,6 @@ mcd_master_class_init (McdMasterClass * klass)
          g_param_spec_object ("factory", "Factory", "Client factory",
                               TP_TYPE_CLIENT_FACTORY,
                               G_PARAM_READWRITE | G_PARAM_CONSTRUCT_ONLY));
-
-    g_object_class_install_property
-        (object_class, PROP_DBUS_DAEMON,
-         g_param_spec_object ("dbus-daemon", "DBus daemon", "DBus daemon",
-                              TP_TYPE_DBUS_DAEMON,
-                              G_PARAM_READABLE));
 
     g_object_class_install_property
         (object_class, PROP_DBUS_CONNECTION,
@@ -331,16 +317,16 @@ _mcd_master_lookup_manager (McdMaster *master,
 }
 
 /**
- * mcd_master_get_dbus_daemon:
+ * mcd_master_get_factory:
  * @master: the #McdMaster.
  *
- * Returns: the #TpDBusDaemon.
+ * Returns: the #TpClientFactory.
  */
-TpDBusDaemon *
-mcd_master_get_dbus_daemon (McdMaster *master)
+TpClientFactory *
+mcd_master_get_factory (McdMaster *master)
 {
     g_return_val_if_fail (MCD_IS_MASTER (master), NULL);
-    return master->priv->dbus_daemon;
+    return master->priv->client_factory;
 }
 
 /* Milliseconds to wait for Connectivity coming back up before exiting MC */

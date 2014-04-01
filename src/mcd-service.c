@@ -82,9 +82,10 @@ mcd_service_obtain_bus_name (McdService * obj)
 
     DEBUG ("Requesting MC dbus service");
 
-    if (!tp_dbus_daemon_request_name (mcd_master_get_dbus_daemon (master),
-                                      MISSION_CONTROL_DBUS_SERVICE,
-                                      TRUE /* idempotent */, &error))
+    if (!tp_dbus_connection_request_name (
+            tp_client_factory_get_dbus_connection (
+                mcd_master_get_factory (master)),
+            MISSION_CONTROL_DBUS_SERVICE, TRUE /* idempotent */, &error))
     {
         g_warning ("Failed registering '%s' service: %s",
                    MISSION_CONTROL_DBUS_SERVICE, error->message);
@@ -170,25 +171,24 @@ McdService *
 mcd_service_new (void)
 {
     McdService *obj;
-    TpDBusDaemon *dbus_daemon;
     TpClientFactory *factory;
     GError *error = NULL;
+    GDBusConnection *conn;
 
     /* Initialize DBus connection */
-    dbus_daemon = tp_dbus_daemon_dup (&error);
+    conn = g_bus_get_sync (G_BUS_TYPE_SESSION, NULL, &error);
 
-    if (dbus_daemon == NULL)
+    if (conn == NULL)
     {
 	g_printerr ("Failed to open connection to bus: %s", error->message);
 	g_error_free (error);
 	return NULL;
     }
-    factory = tp_client_factory_new (dbus_daemon);
+    factory = tp_client_factory_new (conn);
     obj = g_object_new (MCD_TYPE_SERVICE,
 			"factory", factory,
 			NULL);
     g_object_unref (factory);
-    g_object_unref (dbus_daemon);
     return obj;
 }
 

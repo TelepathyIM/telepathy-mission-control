@@ -57,7 +57,6 @@ G_DEFINE_TYPE (McdManager, mcd_manager, MCD_TYPE_OPERATION);
 struct _McdManagerPrivate
 {
     gchar *name;
-    TpDBusDaemon *dbus_daemon;
     TpClientFactory *client_factory;
     McdDispatcher *dispatcher;
 
@@ -124,7 +123,6 @@ _mcd_manager_dispose (GObject * object)
     tp_clear_object (&priv->dispatcher);
     tp_clear_object (&priv->tp_conn_mgr);
     tp_clear_object (&priv->client_factory);
-    tp_clear_object (&priv->dbus_daemon);
     tp_clear_object (&priv->slacker);
 
     G_OBJECT_CLASS (mcd_manager_parent_class)->dispose (object);
@@ -168,6 +166,7 @@ mcd_manager_setup (McdManager *manager)
 
     priv->tp_conn_mgr = tp_client_factory_ensure_connection_manager (
         priv->client_factory, priv->name, NULL, &error);
+
     if (error)
     {
         g_warning ("%s, cannot create manager %s: %s", G_STRFUNC,
@@ -234,8 +233,6 @@ _mcd_manager_set_property (GObject * obj, guint prop_id,
     case PROP_CLIENT_FACTORY:
         g_assert (priv->client_factory == NULL); /* construct-only */
         priv->client_factory = g_value_dup_object (val);
-        priv->dbus_daemon = g_object_ref (
-            tp_client_factory_get_dbus_daemon (priv->client_factory));
         break;
 
     default:

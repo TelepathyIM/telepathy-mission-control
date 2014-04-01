@@ -1113,8 +1113,8 @@ mcd_dispatch_operation_constructor (GType type, guint n_params,
                       "factory", &factory,
                       NULL);
 
-        tp_dbus_daemon_register_object (
-            tp_client_factory_get_dbus_daemon (factory), priv->object_path,
+        tp_dbus_connection_register_object (
+            tp_client_factory_get_dbus_connection (factory), priv->object_path,
             object);
         g_object_unref (factory);
     }

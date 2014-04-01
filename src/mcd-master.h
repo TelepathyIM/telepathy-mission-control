@@ -58,7 +58,7 @@ struct _McdMasterClass
 GType mcd_master_get_type (void);
 McdMaster *mcd_master_get_default (void);
 
-TpDBusDaemon *mcd_master_get_dbus_daemon (McdMaster *master);
+TpClientFactory *mcd_master_get_factory (McdMaster *master);
 void mcd_master_shutdown (McdMaster *self, const gchar *reason);
 
 G_END_DECLS

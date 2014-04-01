@@ -113,7 +113,6 @@ struct _McdDispatcherPrivate
     GList *operations;
 
     TpClientFactory *factory;
-    TpDBusDaemon *dbus_daemon;
 
     /* hash table containing clients
      * char *bus_name -> McdClientProxy */
@@ -145,7 +144,6 @@ struct cancel_call_data
 enum
 {
     PROP_0,
-    PROP_DBUS_DAEMON,
     PROP_FACTORY,
     PROP_MCD_MASTER,
     PROP_INTERFACES,
@@ -335,10 +333,7 @@ _mcd_dispatcher_set_property (GObject * obj, guint prop_id,
     {
     case PROP_FACTORY:
         g_assert (priv->factory == NULL); /* construct-only */
-        g_assert (priv->dbus_daemon == NULL);
         priv->factory = TP_CLIENT_FACTORY (g_value_dup_object (val));
-        priv->dbus_daemon = tp_client_factory_get_dbus_daemon (priv->factory);
-        g_object_ref (priv->dbus_daemon);
         break;
 
     case PROP_MCD_MASTER:
@@ -372,10 +367,6 @@ _mcd_dispatcher_get_property (GObject * obj, guint prop_id,
 
     switch (prop_id)
     {
-    case PROP_DBUS_DAEMON:
-	g_value_set_object (val, priv->dbus_daemon);
-	break;
-
     case PROP_FACTORY:
         g_value_set_object (val, priv->factory);
         break;
@@ -749,7 +740,6 @@ _mcd_dispatcher_dispose (GObject * object)
 
     tp_clear_pointer (&priv->connections, g_hash_table_unref);
     tp_clear_object (&priv->master);
-    tp_clear_object (&priv->dbus_daemon);
     tp_clear_object (&priv->factory);
 
     G_OBJECT_CLASS (mcd_dispatcher_parent_class)->dispose (object);
@@ -803,12 +793,13 @@ mcd_dispatcher_constructed (GObject *object)
                       G_CALLBACK (mcd_dispatcher_client_registry_ready_cb),
                       object);
 
-    tp_dbus_daemon_register_object (priv->dbus_daemon,
+    tp_dbus_connection_register_object (
+        tp_client_factory_get_dbus_connection (priv->factory),
         TP_CHANNEL_DISPATCHER_OBJECT_PATH, object);
 
-    if (!tp_dbus_daemon_request_name (priv->dbus_daemon,
-                                      TP_CHANNEL_DISPATCHER_BUS_NAME,
-                                      TRUE /* idempotent */, &error))
+    if (!tp_dbus_connection_request_name (
+        tp_client_factory_get_dbus_connection (priv->factory),
+        TP_CHANNEL_DISPATCHER_BUS_NAME, TRUE /* idempotent */, &error))
     {
         /* FIXME: put in proper error handling when MC gains the ability to
          * be the AM or the CD but not both */
@@ -858,12 +849,6 @@ mcd_dispatcher_class_init (McdDispatcherClass * klass)
          g_param_spec_object ("factory", "Factory", "Client factory",
                               TP_TYPE_CLIENT_FACTORY,
                               G_PARAM_READWRITE | G_PARAM_CONSTRUCT_ONLY));
-
-    g_object_class_install_property
-        (object_class, PROP_DBUS_DAEMON,
-         g_param_spec_object ("dbus-daemon", "DBus daemon", "DBus daemon",
-                              TP_TYPE_DBUS_DAEMON,
-                              G_PARAM_READABLE));
 
     g_object_class_install_property
         (object_class, PROP_MCD_MASTER,
