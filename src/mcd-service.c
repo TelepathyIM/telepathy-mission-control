@@ -171,19 +171,23 @@ mcd_service_new (void)
 {
     McdService *obj;
     TpDBusDaemon *dbus_daemon;
+    TpClientFactory *factory;
     GError *error = NULL;
 
     /* Initialize DBus connection */
     dbus_daemon = tp_dbus_daemon_dup (&error);
+
     if (dbus_daemon == NULL)
     {
 	g_printerr ("Failed to open connection to bus: %s", error->message);
 	g_error_free (error);
 	return NULL;
     }
+    factory = tp_client_factory_new (dbus_daemon);
     obj = g_object_new (MCD_TYPE_SERVICE,
-			"dbus-daemon", dbus_daemon,
+			"factory", factory,
 			NULL);
+    g_object_unref (factory);
     g_object_unref (dbus_daemon);
     return obj;
 }

@@ -107,6 +107,7 @@ enum
     PROP_DBUS_DAEMON,
     PROP_DISPATCHER,
     PROP_ACCOUNT_MANAGER,
+    PROP_FACTORY,
 };
 
 /* Used to poison 'default_master' when the object it points to is disposed.
@@ -126,6 +127,9 @@ _mcd_master_get_property (GObject * obj, guint prop_id,
     case PROP_DISPATCHER:
 	g_value_set_object (val, priv->dispatcher);
 	break;
+    case PROP_FACTORY:
+        g_value_set_object (val, priv->client_factory);
+        break;
     case PROP_DBUS_DAEMON:
 	g_value_set_object (val, priv->dbus_daemon);
 	break;
@@ -150,10 +154,12 @@ _mcd_master_set_property (GObject *obj, guint prop_id,
 
     switch (prop_id)
     {
-    case PROP_DBUS_DAEMON:
-	g_assert (priv->dbus_daemon == NULL);
-	priv->dbus_daemon = g_value_dup_object (val);
-	break;
+    case PROP_FACTORY:
+        g_assert (priv->client_factory == NULL);
+        priv->client_factory = g_value_dup_object (val);
+        priv->dbus_daemon = tp_client_factory_get_dbus_daemon (
+            priv->client_factory);
+        break;
     default:
 	G_OBJECT_WARN_INVALID_PROPERTY_ID (obj, prop_id, pspec);
 	break;
@@ -202,7 +208,6 @@ mcd_master_constructor (GType type, guint n_params,
     umask (0077);
 #endif
 
-    priv->client_factory = tp_client_factory_new (priv->dbus_daemon);
     priv->account_manager = mcd_account_manager_new (priv->client_factory);
 
     priv->dispatcher = mcd_dispatcher_new (priv->dbus_daemon, master);
@@ -234,10 +239,16 @@ mcd_master_class_init (McdMasterClass * klass)
                               G_PARAM_READABLE));
 
     g_object_class_install_property
+        (object_class, PROP_FACTORY,
+         g_param_spec_object ("factory", "Factory", "Client factory",
+                              TP_TYPE_CLIENT_FACTORY,
+                              G_PARAM_READWRITE | G_PARAM_CONSTRUCT_ONLY));
+
+    g_object_class_install_property
         (object_class, PROP_DBUS_DAEMON,
          g_param_spec_object ("dbus-daemon", "DBus daemon", "DBus daemon",
                               TP_TYPE_DBUS_DAEMON,
-                              G_PARAM_READWRITE | G_PARAM_CONSTRUCT_ONLY));
+                              G_PARAM_READABLE));
 
     g_object_class_install_property
         (object_class, PROP_DBUS_CONNECTION,
