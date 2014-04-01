@@ -796,7 +796,7 @@ mcd_dispatcher_constructed (GObject *object)
 
     priv->handler_map = _mcd_handler_map_new (priv->dbus_daemon);
 
-    priv->clients = _mcd_client_registry_new (priv->dbus_daemon);
+    priv->clients = _mcd_client_registry_new (priv->factory);
     g_signal_connect (priv->clients, "client-added",
                       G_CALLBACK (mcd_dispatcher_client_added_cb), object);
     g_signal_connect (priv->clients, "ready",
