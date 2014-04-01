@@ -1471,7 +1471,6 @@ main (int argc, char **argv)
 {
   TpAccountManager *am = NULL;
   TpAccount *a = NULL;
-  TpDBusDaemon *dbus = NULL;
   TpClientFactory *client_factory = NULL;
   GError *error = NULL;
   const GQuark features[] = { TP_ACCOUNT_FEATURE_CORE,
@@ -1485,7 +1484,8 @@ main (int argc, char **argv)
 
   command.common.ret = 1;
 
-  dbus = tp_dbus_daemon_dup (&error);
+  client_factory = tp_client_factory_dup (&error);
+
   if (error != NULL)
     {
       fprintf (stderr, "%s %s: Failed to connect to D-Bus: %s\n",
@@ -1493,17 +1493,10 @@ main (int argc, char **argv)
       goto out;
     }
 
-  client_factory = tp_client_factory_new (dbus);
-
   if (command.common.account == NULL)
     {
-      TpClientFactory *factory;
-
-      am = tp_account_manager_new (dbus);
-      factory = tp_proxy_get_factory (am);
-
-      tp_client_factory_add_account_features (factory, features);
-
+      tp_client_factory_add_account_features (client_factory, features);
+      am = tp_client_factory_ensure_account_manager (client_factory);
       tp_proxy_prepare_async (am, NULL, manager_ready, NULL);
     }
   else
@@ -1528,7 +1521,6 @@ main (int argc, char **argv)
 out:
   g_clear_error (&error);
   tp_clear_object (&client_factory);
-  tp_clear_object (&dbus);
   tp_clear_object (&am);
   tp_clear_object (&a);
   tp_clear_pointer (&main_loop, g_main_loop_unref);
