@@ -239,70 +239,95 @@ _mcd_client_registry_init (McdClientRegistry *self)
 }
 
 static void
-mcd_client_registry_list_activatable_names_cb (TpDBusDaemon *proxy,
-    const gchar **names,
-    const GError *error,
-    gpointer user_data,
-    GObject *weak_object)
+mcd_client_registry_list_activatable_names_cb (GObject *source_object,
+    GAsyncResult *result,
+    gpointer user_data)
 {
-  McdClientRegistry *self = MCD_CLIENT_REGISTRY (weak_object);
+  McdClientRegistry *self = MCD_CLIENT_REGISTRY (user_data);
+  GDBusConnection *conn = G_DBUS_CONNECTION (source_object);
+  GVariant *tuple;
+  GError *error = NULL;
 
-  if (error != NULL)
+  tuple = g_dbus_connection_call_finish (conn, result, &error);
+
+  if (tuple == NULL)
     {
       DEBUG ("ListActivatableNames returned error, assuming none: %s %d: %s",
           g_quark_to_string (error->domain), error->code, error->message);
+      g_error_free (error);
     }
-  else if (names != NULL)
+  else
     {
-      const gchar **iter = names;
+      const gchar **names = NULL;
+      const gchar **iter;
+
+      g_variant_get (tuple, "(^a&s)", &names);
 
       DEBUG ("ListActivatableNames returned");
 
-      while (*iter != NULL)
+      for (iter = names; iter != NULL && *iter != NULL; iter++)
         {
           _mcd_client_registry_found_name (self, *iter, NULL, TRUE);
-          iter++;
         }
+
+      g_free (names);
+      g_variant_unref (tuple);
     }
 
   /* paired with the lock taken when the McdClientRegistry was constructed */
   _mcd_client_registry_dec_startup_lock (self);
+
+  g_object_unref (self);
 }
 
 static void
-mcd_client_registry_list_names_cb (TpDBusDaemon *proxy,
-    const gchar **names,
-    const GError *error,
-    gpointer user_data,
-    GObject *weak_object)
+mcd_client_registry_list_names_cb (GObject *source_object,
+    GAsyncResult *result,
+    gpointer user_data)
 {
-  McdClientRegistry *self = MCD_CLIENT_REGISTRY (weak_object);
+  McdClientRegistry *self = MCD_CLIENT_REGISTRY (user_data);
+  GDBusConnection *conn = G_DBUS_CONNECTION (source_object);
+  GVariant *tuple;
+  GError *error = NULL;
 
-  if (error != NULL)
+  tuple = g_dbus_connection_call_finish (conn, result, &error);
+
+  if (tuple == NULL)
     {
       DEBUG ("ListNames returned error, assuming none: %s %d: %s",
           g_quark_to_string (error->domain), error->code, error->message);
+      g_error_free (error);
     }
-  else if (names != NULL)
+  else
     {
-      const gchar **iter = names;
+      const gchar **names = NULL;
+      const gchar **iter;
+
+      g_variant_get (tuple, "(^a&s)", &names);
 
       DEBUG ("ListNames returned");
 
-      while (*iter != NULL)
+      for (iter = names; iter != NULL && *iter != NULL; iter++)
         {
           _mcd_client_registry_found_name (self, *iter, NULL, FALSE);
-          iter++;
         }
+
+      g_free (names);
+      g_variant_unref (tuple);
     }
 
-  tp_cli_dbus_daemon_call_list_activatable_names (proxy, -1,
-      mcd_client_registry_list_activatable_names_cb,
-      NULL, NULL, weak_object);
+  g_dbus_connection_call (conn,
+      "org.freedesktop.DBus", "/org/freedesktop/DBus",
+      "org.freedesktop.DBus", "ListActivatableNames",
+      NULL,
+      G_VARIANT_TYPE ("(as)"), G_DBUS_CALL_FLAGS_NONE, -1, NULL,
+      mcd_client_registry_list_activatable_names_cb, g_object_ref (self));
   /* deliberately not calling _mcd_client_registry_dec_startup_lock here -
    * this function is "lock-neutral", similarly to list_names_cb (we would
    * take a lock for ListActivatableNames then release the one used for
    * ReloadConfig), so simplify by doing nothing */
+
+  g_object_unref (self);
 }
 
 static void
@@ -363,8 +388,13 @@ mcd_client_registry_constructed (GObject *object)
 
   watch_clients (self);
 
-  tp_cli_dbus_daemon_call_list_names (self->priv->dbus_daemon, -1,
-      mcd_client_registry_list_names_cb, NULL, NULL, object);
+  g_dbus_connection_call (
+      tp_client_factory_get_dbus_connection (self->priv->factory),
+      "org.freedesktop.DBus", "/org/freedesktop/DBus",
+      "org.freedesktop.DBus", "ListNames",
+      NULL,
+      G_VARIANT_TYPE ("(as)"), G_DBUS_CALL_FLAGS_NONE, -1, NULL,
+      mcd_client_registry_list_names_cb, g_object_ref (object));
 }
 
 static void
