@@ -3455,12 +3455,14 @@ mcd_account_new (McdAccountManager *account_manager,
 {
     gpointer *obj;
     McdStorage *storage = mcd_account_manager_get_storage (account_manager);
-    TpDBusDaemon *dbus = mcd_account_manager_get_dbus_daemon (account_manager);
+    TpClientFactory *factory =
+        mcd_account_manager_get_factory (account_manager);
 
     obj = g_object_new (MCD_TYPE_ACCOUNT,
                         "storage", storage,
                         "storage-plugin", storage_plugin,
-                        "dbus-daemon", dbus,
+                        "dbus-daemon",
+                            tp_client_factory_get_dbus_daemon (factory),
                         "connectivity-monitor", connectivity,
 			"name", name,
 			NULL);

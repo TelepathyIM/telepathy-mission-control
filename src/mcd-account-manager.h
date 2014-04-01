@@ -63,7 +63,7 @@ GType mcd_account_manager_get_type (void);
 McdAccountManager *mcd_account_manager_new (
     TpClientFactory *client_factory);
 
-TpDBusDaemon *mcd_account_manager_get_dbus_daemon
+TpClientFactory *mcd_account_manager_get_factory
     (McdAccountManager *account_manager);
 
 McdAccount *mcd_account_manager_lookup_account (McdAccountManager *account_manager,

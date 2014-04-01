@@ -1699,18 +1699,12 @@ mcd_account_manager_new (TpClientFactory *client_factory)
     return MCD_ACCOUNT_MANAGER (obj);
 }
 
-/**
- * mcd_account_manager_get_dbus_daemon:
- * @account_manager: the #McdAccountManager.
- *
- * Returns: the #TpDBusDaemon.
- */
-TpDBusDaemon *
-mcd_account_manager_get_dbus_daemon (McdAccountManager *account_manager)
+TpClientFactory *
+mcd_account_manager_get_factory (McdAccountManager *account_manager)
 {
     g_return_val_if_fail (MCD_IS_ACCOUNT_MANAGER (account_manager), NULL);
 
-    return account_manager->priv->dbus_daemon;
+    return account_manager->priv->client_factory;
 }
 
 McdConnectivityMonitor *
