@@ -70,7 +70,7 @@ G_GNUC_INTERNAL GType _mcd_client_proxy_get_type (void);
                               McdClientProxyClass))
 
 G_GNUC_INTERNAL McdClientProxy *_mcd_client_proxy_new (
-    TpDBusDaemon *dbus_daemon,
+    TpClientFactory *factory,
     const gchar *well_known_name,
     const gchar *unique_name_if_known,
     gboolean activatable);

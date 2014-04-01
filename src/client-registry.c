@@ -155,7 +155,7 @@ _mcd_client_registry_found_name (McdClientRegistry *self,
 
   DEBUG ("Registering client %s", well_known_name);
 
-  client = _mcd_client_proxy_new (self->priv->dbus_daemon,
+  client = _mcd_client_proxy_new (self->priv->factory,
       well_known_name, unique_name_if_known, activatable);
   g_hash_table_insert (self->priv->clients, g_strdup (well_known_name),
       client);

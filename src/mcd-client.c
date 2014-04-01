@@ -1215,7 +1215,7 @@ _mcd_client_check_valid_name (const gchar *name_suffix,
 }
 
 McdClientProxy *
-_mcd_client_proxy_new (TpDBusDaemon *dbus_daemon,
+_mcd_client_proxy_new (TpClientFactory *factory,
                        const gchar *well_known_name,
                        const gchar *unique_name_if_known,
                        gboolean activatable)
@@ -1239,7 +1239,9 @@ _mcd_client_proxy_new (TpDBusDaemon *dbus_daemon,
     g_assert (tp_dbus_check_valid_object_path (object_path, NULL));
 
     self = g_object_new (MCD_TYPE_CLIENT_PROXY,
-                         "dbus-daemon", dbus_daemon,
+                         "factory", factory,
+                         "dbus-daemon",
+                            tp_client_factory_get_dbus_daemon (factory),
                          "object-path", object_path,
                          "bus-name", well_known_name,
                          "unique-name", unique_name_if_known,
