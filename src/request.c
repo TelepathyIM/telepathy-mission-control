@@ -132,7 +132,8 @@ _mcd_request_constructed (GObject *object)
   g_return_if_fail (self->account != NULL);
   g_return_if_fail (self->clients != NULL);
 
-  self->dbus_daemon = _mcd_client_registry_get_dbus_daemon (self->clients);
+  self->dbus_daemon = tp_client_factory_get_dbus_daemon (
+      _mcd_client_registry_get_factory (self->clients));
   tp_dbus_daemon_register_object (self->dbus_daemon, self->object_path, self);
 }
 

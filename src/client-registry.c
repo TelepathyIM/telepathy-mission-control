@@ -36,8 +36,7 @@ G_DEFINE_TYPE (McdClientRegistry, _mcd_client_registry, G_TYPE_OBJECT)
 enum
 {
   PROP_0,
-  PROP_FACTORY,
-  PROP_DBUS_DAEMON
+  PROP_FACTORY
 };
 
 enum
@@ -56,7 +55,6 @@ struct _McdClientRegistryPrivate
   GHashTable *clients;
 
   TpClientFactory *factory;
-  TpDBusDaemon *dbus_daemon;
   /* subscription to NameOwnerChanged */
   guint noc_id;
 
@@ -358,8 +356,8 @@ mcd_client_registry_name_owner_changed_cb (GDBusConnection *conn,
 static void
 watch_clients (McdClientRegistry *self)
 {
-  TpDBusDaemon *dbus_daemon = self->priv->dbus_daemon;
-  GDBusConnection *gconn = tp_proxy_get_dbus_connection (dbus_daemon);
+  GDBusConnection *gconn = tp_client_factory_get_dbus_connection (
+      self->priv->factory);
 
   /* for simplicity we now hard-depend on D-Bus 1.6, which is in Debian 7,
    * Ubuntu LTS, etc. */
@@ -382,7 +380,6 @@ mcd_client_registry_constructed (GObject *object)
     chain_up (object);
 
   g_return_if_fail (self->priv->factory != NULL);
-  g_return_if_fail (self->priv->dbus_daemon != NULL);
 
   DEBUG ("Starting to look for clients");
 
@@ -409,10 +406,7 @@ mcd_client_registry_set_property (GObject *object,
     {
     case PROP_FACTORY:
       g_assert (self->priv->factory == NULL); /* it's construct-only */
-      g_assert (self->priv->dbus_daemon == NULL);
       self->priv->factory = TP_CLIENT_FACTORY (g_value_dup_object (value));
-      self->priv->dbus_daemon =
-        g_object_ref (tp_client_factory_get_dbus_daemon (self->priv->factory));
       break;
 
     default:
@@ -431,10 +425,6 @@ mcd_client_registry_get_property (GObject *object,
 
   switch (prop_id)
     {
-    case PROP_DBUS_DAEMON:
-      g_value_set_object (value, self->priv->dbus_daemon);
-      break;
-
     case PROP_FACTORY:
       g_value_set_object (value, self->priv->factory);
       break;
@@ -452,15 +442,14 @@ mcd_client_registry_dispose (GObject *object)
   void (*chain_up) (GObject *) =
     G_OBJECT_CLASS (_mcd_client_registry_parent_class)->dispose;
 
-  if (self->priv->dbus_daemon != NULL && self->priv->noc_id != 0)
+  if (self->priv->factory != NULL && self->priv->noc_id != 0)
     {
       GDBusConnection *gconn =
-        tp_proxy_get_dbus_connection (self->priv->dbus_daemon);
+        tp_client_factory_get_dbus_connection (self->priv->factory);
 
       g_dbus_connection_signal_unsubscribe (gconn, self->priv->noc_id);
     }
 
-  tp_clear_object (&self->priv->dbus_daemon);
   tp_clear_object (&self->priv->factory);
 
   if (self->priv->clients != NULL)
@@ -492,11 +481,6 @@ _mcd_client_registry_class_init (McdClientRegistryClass *cls)
       g_param_spec_object ("factory", "Factory", "Client factory",
         TP_TYPE_CLIENT_FACTORY,
         G_PARAM_READWRITE | G_PARAM_CONSTRUCT_ONLY | G_PARAM_STATIC_STRINGS));
-
-  g_object_class_install_property (object_class, PROP_DBUS_DAEMON,
-      g_param_spec_object ("dbus-daemon", "D-Bus daemon", "D-Bus daemon",
-        TP_TYPE_DBUS_DAEMON,
-        G_PARAM_READABLE | G_PARAM_STATIC_STRINGS));
 
   signals[S_CLIENT_ADDED] = g_signal_new ("client-added",
       G_OBJECT_CLASS_TYPE (cls),
@@ -723,15 +707,8 @@ _mcd_client_registry_list_possible_handlers (McdClientRegistry *self,
   return handlers;
 }
 
-TpDBusDaemon *
-_mcd_client_registry_get_dbus_daemon (McdClientRegistry *self)
-{
-    g_return_val_if_fail (MCD_IS_CLIENT_REGISTRY (self), NULL);
-    return self->priv->dbus_daemon;
-}
-
 TpClientFactory *
-mcd_client_registry_get_factory (McdClientRegistry *self)
+_mcd_client_registry_get_factory (McdClientRegistry *self)
 {
     g_return_val_if_fail (MCD_IS_CLIENT_REGISTRY (self), NULL);
     return self->priv->factory;

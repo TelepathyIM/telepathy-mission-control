@@ -1107,15 +1107,16 @@ mcd_dispatch_operation_constructor (GType type, guint n_params,
      * don't run) */
     if (priv->needs_approval)
     {
-        TpDBusDaemon *dbus_daemon;
+        TpClientFactory *factory;
 
         g_object_get (priv->client_registry,
-                      "dbus-daemon", &dbus_daemon,
+                      "factory", &factory,
                       NULL);
 
-        tp_dbus_daemon_register_object (dbus_daemon, priv->object_path,
+        tp_dbus_daemon_register_object (
+            tp_client_factory_get_dbus_daemon (factory), priv->object_path,
             object);
-        g_object_unref (dbus_daemon);
+        g_object_unref (factory);
     }
 
     priv->plugin_api = _mcd_plugin_dispatch_operation_new (operation);

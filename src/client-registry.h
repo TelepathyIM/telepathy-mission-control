@@ -66,8 +66,7 @@ GType _mcd_client_registry_get_type (void);
 G_GNUC_INTERNAL McdClientRegistry *_mcd_client_registry_new (
     TpClientFactory *factory);
 
-TpDBusDaemon *_mcd_client_registry_get_dbus_daemon (McdClientRegistry *self);
-TpClientFactory *mcd_client_registry_get_factory (McdClientRegistry *self);
+TpClientFactory *_mcd_client_registry_get_factory (McdClientRegistry *self);
 
 G_GNUC_INTERNAL McdClientProxy *_mcd_client_registry_lookup (
     McdClientRegistry *self, const gchar *well_known_name);
