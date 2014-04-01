@@ -182,15 +182,18 @@ test_permission_plugin_check_cdo (McpDispatchOperationPolicy *policy,
           TP_IFACE_CHANNEL ".TargetID"),
         "policy@example.net"))
     {
-      TpDBusDaemon *dbus_daemon = tp_dbus_daemon_dup (NULL);
+      GError *error = NULL;
+      GDBusConnection *bus = g_bus_get_sync (G_BUS_TYPE_SESSION, NULL, &error);
       PermissionContext *ctx;
+
+      g_assert_no_error (error);
 
       ctx = g_slice_new0 (PermissionContext);
       ctx->dispatch_operation = g_object_ref (dispatch_operation);
       ctx->dispatch_operation_delay = mcp_dispatch_operation_start_delay (
           dispatch_operation);
 
-      g_dbus_connection_call (tp_proxy_get_dbus_connection (dbus_daemon),
+      g_dbus_connection_call (bus,
           "com.example.Policy", "/com/example/Policy", "com.example.Policy",
           "RequestPermission",
           /* in a real policy-mechanism you'd give some details, like the
@@ -200,6 +203,7 @@ test_permission_plugin_check_cdo (McpDispatchOperationPolicy *policy,
           NULL, G_DBUS_CALL_FLAGS_NONE, -1, NULL, permission_cb, ctx);
 
       DEBUG ("Waiting for permission");
+      g_object_unref (bus);
   }
 
   g_hash_table_unref (properties);
@@ -233,7 +237,7 @@ handler_is_suitable_async (McpDispatchOperationPolicy *self,
         "policy@example.net"))
     {
       GError *error = NULL;
-      TpDBusDaemon *dbus_daemon = tp_dbus_daemon_dup (&error);
+      GDBusConnection *bus = g_bus_get_sync (G_BUS_TYPE_SESSION, NULL, &error);
       PermissionContext *ctx;
 
       g_assert_no_error (error);
@@ -244,7 +248,7 @@ handler_is_suitable_async (McpDispatchOperationPolicy *self,
       /* take ownership */
       simple = NULL;
 
-      g_dbus_connection_call (tp_proxy_get_dbus_connection (dbus_daemon),
+      g_dbus_connection_call (bus,
           "com.example.Policy", "/com/example/Policy", "com.example.Policy",
           "CheckHandler",
           /* in a real policy-mechanism you'd give some details, like the
@@ -252,6 +256,7 @@ handler_is_suitable_async (McpDispatchOperationPolicy *self,
            * handler */
           NULL,
           NULL, G_DBUS_CALL_FLAGS_NONE, -1, NULL, permission_cb, ctx);
+      g_object_unref (bus);
   }
 
 finally:
@@ -286,8 +291,11 @@ test_permission_plugin_check_request (McpRequestPolicy *policy,
         0, g_quark_from_static_string ("com.example.QuestionableChannel"),
         NULL, NULL))
     {
-      TpDBusDaemon *dbus_daemon = tp_dbus_daemon_dup (NULL);
+      GError *error = NULL;
+      GDBusConnection *bus = g_bus_get_sync (G_BUS_TYPE_SESSION, NULL, &error);
       PermissionContext *ctx;
+
+      g_assert_no_error (error);
 
       DEBUG ("Questionable channel detected, asking for permission");
 
@@ -295,7 +303,7 @@ test_permission_plugin_check_request (McpRequestPolicy *policy,
       ctx->request = g_object_ref (request);
       ctx->request_delay = mcp_request_start_delay (request);
 
-      g_dbus_connection_call (tp_proxy_get_dbus_connection (dbus_daemon),
+      g_dbus_connection_call (bus,
           "com.example.Policy", "/com/example/Policy", "com.example.Policy",
           "RequestRequest",
           /* in a real policy-mechanism you'd give some details, like the
@@ -303,6 +311,7 @@ test_permission_plugin_check_request (McpRequestPolicy *policy,
            * regression test so we don't bother */
           NULL,
           NULL, G_DBUS_CALL_FLAGS_NONE, -1, NULL, permission_cb, ctx);
+      g_object_unref (bus);
     }
 
   g_hash_table_unref (properties);
