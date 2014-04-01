@@ -106,6 +106,7 @@ struct _McdAccountPrivate
     McdManager *manager;
 
     McdStorage *storage;
+    TpClientFactory *factory;
     TpDBusDaemon *dbus_daemon;
     McdConnectivityMonitor *connectivity;
 
@@ -175,6 +176,7 @@ enum
     PROP_STORAGE,
     PROP_STORAGE_PLUGIN,
     PROP_NAME,
+    PROP_FACTORY,
 };
 
 enum
@@ -3114,9 +3116,11 @@ set_property (GObject *obj, guint prop_id,
         priv->storage_plugin = g_value_dup_object (val);
         break;
 
-      case PROP_DBUS_DAEMON:
-        g_assert (priv->dbus_daemon == NULL);
-        priv->dbus_daemon = g_value_dup_object (val);
+      case PROP_FACTORY:
+        g_assert (priv->factory == NULL);
+        priv->factory = g_value_dup_object (val);
+        priv->dbus_daemon = tp_client_factory_get_dbus_daemon (priv->factory);
+        g_object_ref (priv->dbus_daemon);
         break;
 
       case PROP_CONNECTIVITY_MONITOR:
@@ -3146,6 +3150,10 @@ get_property (GObject *obj, guint prop_id,
     case PROP_DBUS_DAEMON:
         g_value_set_object (val, priv->dbus_daemon);
 	break;
+
+    case PROP_FACTORY:
+        g_value_set_object (val, priv->factory);
+        break;
 
     case PROP_CONNECTIVITY_MONITOR:
         g_value_set_object (val, priv->connectivity);
@@ -3230,6 +3238,7 @@ _mcd_account_dispose (GObject *object)
     tp_clear_object (&priv->storage_plugin);
     tp_clear_object (&priv->storage);
     tp_clear_object (&priv->dbus_daemon);
+    tp_clear_object (&priv->factory);
     tp_clear_object (&priv->self_contact);
     tp_clear_object (&priv->connectivity);
 
@@ -3352,10 +3361,16 @@ mcd_account_class_init (McdAccountClass * klass)
     klass->check_request = _mcd_account_check_request_real;
 
     g_object_class_install_property
+        (object_class, PROP_FACTORY,
+         g_param_spec_object ("factory", "Factory", "Client factory",
+                              TP_TYPE_CLIENT_FACTORY,
+                              G_PARAM_READWRITE | G_PARAM_CONSTRUCT_ONLY));
+
+    g_object_class_install_property
         (object_class, PROP_DBUS_DAEMON,
          g_param_spec_object ("dbus-daemon", "DBus daemon", "DBus daemon",
                               TP_TYPE_DBUS_DAEMON,
-                              G_PARAM_READWRITE | G_PARAM_CONSTRUCT_ONLY));
+                              G_PARAM_READABLE));
 
     g_object_class_install_property
         (object_class, PROP_CONNECTIVITY_MONITOR,
@@ -3461,8 +3476,7 @@ mcd_account_new (McdAccountManager *account_manager,
     obj = g_object_new (MCD_TYPE_ACCOUNT,
                         "storage", storage,
                         "storage-plugin", storage_plugin,
-                        "dbus-daemon",
-                            tp_client_factory_get_dbus_daemon (factory),
+                        "factory", factory,
                         "connectivity-monitor", connectivity,
 			"name", name,
 			NULL);
