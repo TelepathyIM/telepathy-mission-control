@@ -112,6 +112,7 @@ struct _McdDispatcherPrivate
     /* Channel dispatch operations */
     GList *operations;
 
+    TpClientFactory *factory;
     TpDBusDaemon *dbus_daemon;
 
     /* hash table containing clients
@@ -145,6 +146,7 @@ enum
 {
     PROP_0,
     PROP_DBUS_DAEMON,
+    PROP_FACTORY,
     PROP_MCD_MASTER,
     PROP_INTERFACES,
     PROP_SUPPORTS_REQUEST_HINTS,
@@ -331,10 +333,14 @@ _mcd_dispatcher_set_property (GObject * obj, guint prop_id,
 
     switch (prop_id)
     {
-    case PROP_DBUS_DAEMON:
-	tp_clear_object (&priv->dbus_daemon);
-	priv->dbus_daemon = TP_DBUS_DAEMON (g_value_dup_object (val));
-	break;
+    case PROP_FACTORY:
+        g_assert (priv->factory == NULL); /* construct-only */
+        g_assert (priv->dbus_daemon == NULL);
+        priv->factory = TP_CLIENT_FACTORY (g_value_dup_object (val));
+        priv->dbus_daemon = tp_client_factory_get_dbus_daemon (priv->factory);
+        g_object_ref (priv->dbus_daemon);
+        break;
+
     case PROP_MCD_MASTER:
 	master = g_value_get_object (val);
 	g_object_ref (G_OBJECT (master));
@@ -369,6 +375,10 @@ _mcd_dispatcher_get_property (GObject * obj, guint prop_id,
     case PROP_DBUS_DAEMON:
 	g_value_set_object (val, priv->dbus_daemon);
 	break;
+
+    case PROP_FACTORY:
+        g_value_set_object (val, priv->factory);
+        break;
 
     case PROP_MCD_MASTER:
 	g_value_set_object (val, priv->master);
@@ -740,6 +750,7 @@ _mcd_dispatcher_dispose (GObject * object)
     tp_clear_pointer (&priv->connections, g_hash_table_unref);
     tp_clear_object (&priv->master);
     tp_clear_object (&priv->dbus_daemon);
+    tp_clear_object (&priv->factory);
 
     G_OBJECT_CLASS (mcd_dispatcher_parent_class)->dispose (object);
 }
@@ -843,10 +854,17 @@ mcd_dispatcher_class_init (McdDispatcherClass * klass)
 
     /* Properties */
     g_object_class_install_property
+        (object_class, PROP_FACTORY,
+         g_param_spec_object ("factory", "Factory", "Client factory",
+                              TP_TYPE_CLIENT_FACTORY,
+                              G_PARAM_READWRITE | G_PARAM_CONSTRUCT_ONLY));
+
+    g_object_class_install_property
         (object_class, PROP_DBUS_DAEMON,
          g_param_spec_object ("dbus-daemon", "DBus daemon", "DBus daemon",
                               TP_TYPE_DBUS_DAEMON,
-                              G_PARAM_READWRITE | G_PARAM_CONSTRUCT));
+                              G_PARAM_READABLE));
+
     g_object_class_install_property
         (object_class, PROP_MCD_MASTER,
          g_param_spec_object ("mcd-master", "McdMaster", "McdMaster",
@@ -890,11 +908,12 @@ mcd_dispatcher_init (McdDispatcher * dispatcher)
 }
 
 McdDispatcher *
-mcd_dispatcher_new (TpDBusDaemon *dbus_daemon, McdMaster *master)
+mcd_dispatcher_new (TpClientFactory *factory,
+    McdMaster *master)
 {
     McdDispatcher *obj;
     obj = MCD_DISPATCHER (g_object_new (MCD_TYPE_DISPATCHER,
-					"dbus-daemon", dbus_daemon,
+					"factory", factory,
 					"mcd-master", master, 
 					NULL));
     return obj;

@@ -210,7 +210,7 @@ mcd_master_constructor (GType type, guint n_params,
 
     priv->account_manager = mcd_account_manager_new (priv->client_factory);
 
-    priv->dispatcher = mcd_dispatcher_new (priv->dbus_daemon, master);
+    priv->dispatcher = mcd_dispatcher_new (priv->client_factory, master);
     g_assert (MCD_IS_DISPATCHER (priv->dispatcher));
 
     _mcd_account_manager_setup (priv->account_manager);

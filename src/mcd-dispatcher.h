@@ -62,7 +62,7 @@ struct _McdDispatcherClass
 
 GType mcd_dispatcher_get_type (void);
 
-McdDispatcher *mcd_dispatcher_new (TpDBusDaemon *dbus_daemon,
+McdDispatcher *mcd_dispatcher_new (TpClientFactory *factory,
 				   McdMaster * master);
 
 G_END_DECLS
