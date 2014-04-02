@@ -57,7 +57,12 @@ bus_closed (GDBusConnection *connection,
         g_quark_to_string (error->domain), error->code, error->message);
 
   g_dbus_connection_set_exit_on_close (connection, FALSE);
-  mcd_mission_abort ((McdMission *) mcd);
+
+  if (mcd != NULL)
+    {
+      g_message ("Aborting because D-Bus connection has closed");
+      mcd_mission_abort ((McdMission *) mcd);
+    }
 }
 
 static gboolean
@@ -79,9 +84,17 @@ on_abort (gpointer unused G_GNUC_UNUSED)
 static gboolean
 delayed_abort (gpointer data G_GNUC_UNUSED)
 {
-    g_message ("Aborting by popular request");
-    mcd_mission_abort ((McdMission *) mcd);
-    return FALSE;
+  if (mcd != NULL)
+    {
+      g_message ("Aborting as requested via D-Bus");
+      mcd_mission_abort ((McdMission *) mcd);
+    }
+  else
+    {
+      g_message ("mcd has already gone away");
+    }
+
+  return FALSE;
 }
 
 static gboolean
