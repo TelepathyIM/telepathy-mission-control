@@ -1,7 +1,7 @@
 dnl Set the version number to e.g. 5.x.y immediately before a release.
 dnl Set the version number to e.g. 5.x.y+ immediately after (this will
 dnl enable -Werror).
-AC_INIT([telepathy-mission-control], [5.99.8+])
+AC_INIT([telepathy-mission-control], [5.99.10])
 
 AC_CONFIG_MACRO_DIR([m4])
 AC_CONFIG_AUX_DIR([build-aux])
@@ -157,7 +157,7 @@ AC_SUBST(DBUS_CFLAGS)
 AC_SUBST(DBUS_LIBS)
 
 PKG_CHECK_MODULES([TELEPATHY],
-  [telepathy-glib-1 >= 0.99.7, telepathy-glib-1-dbus >= 0.99.7])
+  [telepathy-glib-1 >= 0.99.10, telepathy-glib-1-dbus >= 0.99.10])
 AC_DEFINE([TP_VERSION_MIN_REQUIRED], [TP_VERSION_1_0],
   [Ignore post-1.0 deprecations])
 AC_DEFINE([TP_VERSION_MAX_ALLOWED], [TP_VERSION_1_0],

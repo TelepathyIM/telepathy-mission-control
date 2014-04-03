@@ -1,21 +1,16 @@
-telepathy-mission-control 5.99.8 (2014-03-19)
-=============================================
-
-• Telepathy 1.0 branch; changes below are a summary of changes since 5.16,
-  and might not be complete.
-
-Running this version of Mission Control for the first time will automatically
-migrate some account data to a new format. If you subsequently downgrade
-to an older version, it will no longer understand all account data.
-Taking a backup copy of ~/.local/share/telepathy/mission-control
-before you upgrade is recommended.
+telepathy-mission-control 5.99.10 (2014-04-03)
+==============================================
 
 Incompatible changes:
 
+• MC 6 implements the Telepathy 1 D-Bus API, and is parallel-installable
+  with Telepathy 0 (MC 5).
+
+• Accounts are now stored in XDG_DATA_DIRS/telepathy-1/mission-control/,
+  in separate per-account files.
+
 • The mission-control-plugins library has broken API/ABI; deprecated functions
-  and the "D-Bus ACL" plugin API have been removed. For plugins not using
-  this functionality (e.g. Empathy's GNOME Online Accounts integration),
-  a simple recompile should be sufficient.
+  and the "D-Bus ACL" plugin API have been removed.
 
 • mcp_dispatch_operation_ref_connection(),
   mcp_dispatch_operation_find_channel_by_type() and
@@ -57,7 +52,7 @@ Incompatible changes:
 Dependencies:
 
 • GLib ≥ 2.36 (including GObject, GModule and GIO) is now required
-• telepathy-glib ≥ 0.23.1 is now required
+• telepathy-glib ≥ 0.99.10 is now required
 
 Enhancements:
 
@@ -69,7 +64,12 @@ Enhancements:
 • Re-save parameters with their types when edited, or when we discover
   what type the connection manager expects (fd.o #71093, Simon)
 
-• Use telepathy-glib 0.23 for CD.I.Messages (fd.o #37380, Simon)
+• Use telepathy-glib for CD.I.Messages (fd.o #37380, Simon)
+
+• Improve installable tests and provide GNOME-style metadata
+  (fd.o #74626, Simon)
+
+• Automatically import Telepathy 0 accounts on first run (fd.o #70991, Simon)
 
 Fixes:
 
