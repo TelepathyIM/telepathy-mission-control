@@ -2976,6 +2976,18 @@ mcd_account_setup (McdAccount *account)
         goto broken_account;
     }
 
+    /* Be compatible with accounts loaded from Telepathy0 -
+     * silently translate local-xmpp into local_xmpp, etc. */
+    if (strchr (priv->protocol_name, '-') != NULL)
+    {
+        g_strdelimit (priv->protocol_name, "-", '_');
+
+        if (!mcd_storage_set_string (storage, name, MC_ACCOUNTS_KEY_PROTOCOL,
+                                     priv->protocol_name))
+            WARNING ("Unable to write modified protocol name '%s' back",
+                     priv->protocol_name);
+    }
+
     priv->object_path = g_strconcat (TP_ACCOUNT_OBJECT_PATH_BASE, name, NULL);
 
     priv->enabled = mcd_storage_get_boolean (storage, name,
