@@ -2399,6 +2399,23 @@ set_parameter_changed (GHashTable *dbus_properties,
     }
 }
 
+/* A reimplementation of the old tp_connection_manager_param_get_default(),
+ * because one day we should switch McdAccount to use GVariant throughout,
+ * but this is not that day */
+static gboolean
+param_get_default (const TpConnectionManagerParam *param,
+    GValue *value)
+{
+  GVariant *variant = tp_connection_manager_param_dup_default_variant (param);
+
+  if (variant == NULL)
+    return FALSE;
+
+  dbus_g_value_parse_g_variant (variant, value);
+  g_variant_unref (variant);
+  return TRUE;
+}
+
 static gboolean
 check_one_parameter_update (McdAccount *account,
                             TpProtocol *protocol,
@@ -2446,7 +2463,7 @@ check_one_parameter_update (McdAccount *account,
          */
         if (mcd_account_get_parameter (account, param,
                 &current_value, NULL) ||
-            tp_connection_manager_param_get_default (param, &current_value))
+            param_get_default (param, &current_value))
         {
             if (!value_is_same (&current_value, new_value))
                 set_parameter_changed (dbus_properties, not_yet, param,
@@ -2495,7 +2512,7 @@ check_one_parameter_unset (McdAccount *account,
              */
             GValue default_value = G_VALUE_INIT;
 
-            if (tp_connection_manager_param_get_default (param, &default_value))
+            if (param_get_default (param, &default_value))
             {
                 if (!value_is_same (&current_value, &default_value))
                     set_parameter_changed (dbus_properties, not_yet, param,
