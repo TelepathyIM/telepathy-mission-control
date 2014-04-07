@@ -31,7 +31,7 @@ import constants as cs
 
 REQUEST = dbus.Dictionary({
         cs.CHANNEL_TYPE: cs.CHANNEL_TYPE_TEXT,
-        cs.TARGET_HANDLE_TYPE: cs.HT_CONTACT,
+        cs.TARGET_ENTITY_TYPE: cs.HT_CONTACT,
         cs.TARGET_ID: 'juliet',
         }, signature='sv')
 
@@ -190,7 +190,7 @@ def test(q, bus, mc):
     conn = enable_fakecm_account(q, bus, mc, account, params)
 
     text_fixed_properties = dbus.Dictionary({
-        cs.TARGET_HANDLE_TYPE: cs.HT_CONTACT,
+        cs.TARGET_ENTITY_TYPE: cs.HT_CONTACT,
         cs.CHANNEL_TYPE: cs.CHANNEL_TYPE_TEXT,
         }, signature='sv')
 

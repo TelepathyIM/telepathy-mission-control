@@ -336,7 +336,7 @@ mcp_dispatch_operation_destroy_channels (McpDispatchOperation *self,
  *  language bindings using gobject-introspection, this must not be %NULL.
  *  In C, this may be %NULL, but only if @ret_ref_channel is also %NULL.
  * @start_from: index at which to start searching, usually 0
- * @handle_type: the handle type to match
+ * @entity_type: the entity type to match
  * @channel_type: the channel type to match
  * @ret_index: if not %NULL, used to return the index of the first matching
  *  channel, suitable for use with
@@ -351,7 +351,7 @@ mcp_dispatch_operation_destroy_channels (McpDispatchOperation *self,
  *  guaranteed to be ready immediately, and must be released with
  *  g_object_unref()
  *
- * Attempt to find a channel matching the given handle type and channel type
+ * Attempt to find a channel matching the given entity type and channel type
  * in the bundle. This is an easy way to test whether the bundle contains any
  * channels of interest to a particular plugin.
  *
@@ -363,7 +363,7 @@ gboolean
 mcp_dispatch_operation_find_channel_by_type (McpDispatchOperation *self,
     TpClientFactory *client_factory,
     guint start_from,
-    TpEntityType handle_type,
+    TpEntityType entity_type,
     GQuark channel_type,
     guint *ret_index,
     gchar **ret_dup_path,
@@ -392,7 +392,7 @@ mcp_dispatch_operation_find_channel_by_type (McpDispatchOperation *self,
               TP_IFACE_CHANNEL ".ChannelType"),
             channel_type_str) &&
           tp_asv_get_uint32 (properties, TP_IFACE_CHANNEL ".TargetEntityType",
-            &valid) == handle_type &&
+            &valid) == entity_type &&
           valid)
         {
           if (ret_index != NULL)

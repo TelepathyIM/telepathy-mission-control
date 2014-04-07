@@ -589,12 +589,12 @@ class SimulatedChannel(object):
         self.object_path = conn.object_path + ('/_%x' % id(self))
         self.immutable = immutable.copy()
 
-        if self.immutable[cs.TARGET_HANDLE_TYPE] != cs.HT_NONE:
+        if self.immutable[cs.TARGET_ENTITY_TYPE] != cs.HT_NONE:
             if (cs.TARGET_ID in self.immutable) != (
                     cs.TARGET_HANDLE in self.immutable):
                 if cs.TARGET_ID in self.immutable:
                     self.immutable[cs.TARGET_HANDLE] = conn.ensure_handle(
-                            self.immutable[cs.TARGET_HANDLE_TYPE],
+                            self.immutable[cs.TARGET_ENTITY_TYPE],
                             self.immutable[cs.TARGET_ID])
                 else:
                     self.immutable[cs.TARGET_ID] = conn.inspect_handles(
