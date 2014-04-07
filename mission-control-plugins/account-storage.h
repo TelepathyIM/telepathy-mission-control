@@ -116,11 +116,10 @@ struct _McpAccountStorageIface
   GList * (*list) (McpAccountStorage *storage,
     McpAccountManager *am);
 
-  void (*get_identifier) (McpAccountStorage *storage,
-    const gchar *account,
-    GValue *identifier);
+  GVariant *(*dup_identifier) (McpAccountStorage *storage,
+    const gchar *account);
 
-  GHashTable * (*get_additional_info) (McpAccountStorage *storage,
+  GVariant *(*dup_additional_info) (McpAccountStorage *storage,
     const gchar *account);
 
   TpStorageRestrictionFlags (*get_restrictions) (McpAccountStorage *storage,
@@ -198,12 +197,10 @@ mcp_account_storage_commit (McpAccountStorage *storage,
 GList *mcp_account_storage_list (McpAccountStorage *storage,
     McpAccountManager *am);
 
-void mcp_account_storage_get_identifier (McpAccountStorage *storage,
-    const gchar *account,
-    GValue *identifier);
+GVariant *mcp_account_storage_dup_identifier (McpAccountStorage *storage,
+    const gchar *account);
 
-GHashTable *mcp_account_storage_get_additional_info (
-    McpAccountStorage *storage,
+GVariant *mcp_account_storage_dup_additional_info (McpAccountStorage *storage,
     const gchar *account);
 
 TpStorageRestrictionFlags mcp_account_storage_get_restrictions (

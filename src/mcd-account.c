@@ -1963,16 +1963,15 @@ get_storage_identifier (TpSvcDBusProperties *self,
 {
 
   McdAccount *account = MCD_ACCOUNT (self);
+  GVariant *variant;
   GValue identifier = G_VALUE_INIT;
 
   g_value_init (value, G_TYPE_VALUE);
-
-  mcp_account_storage_get_identifier (
-      account->priv->storage_plugin, account->priv->unique_name,
-      &identifier);
-
+  variant = mcp_account_storage_dup_identifier (
+      account->priv->storage_plugin, account->priv->unique_name);
+  dbus_g_value_parse_g_variant (variant, &identifier);
+  g_variant_unref (variant);
   g_value_set_boxed (value, &identifier);
-
   g_value_unset (&identifier);
 }
 
@@ -1980,15 +1979,14 @@ static void
 get_storage_specific_info (TpSvcDBusProperties *self,
     const gchar *name, GValue *value)
 {
-  GHashTable *storage_specific_info;
+  GVariant *storage_specific_info;
   McdAccount *account = MCD_ACCOUNT (self);
 
   g_value_init (value, TP_HASH_TYPE_STRING_VARIANT_MAP);
-
-  storage_specific_info = mcp_account_storage_get_additional_info (
+  storage_specific_info = mcp_account_storage_dup_additional_info (
       account->priv->storage_plugin, account->priv->unique_name);
-
-  g_value_take_boxed (value, storage_specific_info);
+  g_value_take_boxed (value, tp_asv_from_vardict (storage_specific_info));
+  g_variant_unref (storage_specific_info);
 }
 
 static TpStorageRestrictionFlags

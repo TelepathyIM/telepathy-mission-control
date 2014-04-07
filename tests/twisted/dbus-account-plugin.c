@@ -1357,44 +1357,37 @@ test_dbus_account_plugin_commit (McpAccountStorage *storage,
   return TRUE;
 }
 
-static void
-test_dbus_account_plugin_get_identifier (McpAccountStorage *storage,
-    const gchar *account_name,
-    GValue *identifier)
-{
-  TestDBusAccountPlugin *self = TEST_DBUS_ACCOUNT_PLUGIN (storage);
-  Account *account = lookup_account (self, account_name);
-
-  DEBUG ("%s", account_name);
-
-  g_return_if_fail (self->active);
-  g_return_if_fail (account != NULL);
-
-  /* Our "library-specific unique identifier" is just the object-path
-   * as a string. */
-  g_value_init (identifier, G_TYPE_STRING);
-  g_value_set_string (identifier, account->path);
-}
-
-static GHashTable *
-test_dbus_account_plugin_get_additional_info (McpAccountStorage *storage,
+static GVariant *
+test_dbus_account_plugin_dup_identifier (McpAccountStorage *storage,
     const gchar *account_name)
 {
   TestDBusAccountPlugin *self = TEST_DBUS_ACCOUNT_PLUGIN (storage);
   Account *account = lookup_account (self, account_name);
-  GHashTable *ret;
 
   DEBUG ("%s", account_name);
 
   g_return_val_if_fail (self->active, NULL);
   g_return_val_if_fail (account != NULL, NULL);
 
-  ret = g_hash_table_new_full (g_str_hash, g_str_equal,
-      g_free, (GDestroyNotify) tp_g_value_slice_free);
-  g_hash_table_insert (ret, g_strdup ("hello"),
-      tp_g_value_slice_new_static_string ("world"));
+  /* Our "library-specific unique identifier" is just the object-path
+   * as a string. */
+  return g_variant_ref_sink (g_variant_new_object_path (account->path));
+}
 
-  return ret;
+static GVariant *
+test_dbus_account_plugin_dup_additional_info (McpAccountStorage *storage,
+    const gchar *account_name)
+{
+  TestDBusAccountPlugin *self = TEST_DBUS_ACCOUNT_PLUGIN (storage);
+  Account *account = lookup_account (self, account_name);
+
+  DEBUG ("%s", account_name);
+
+  g_return_val_if_fail (self->active, NULL);
+  g_return_val_if_fail (account != NULL, NULL);
+
+  return g_variant_ref_sink (g_variant_new_parsed (
+        "{ 'hello': <'world'> }"));
 }
 
 static guint
@@ -1440,8 +1433,8 @@ account_storage_iface_init (McpAccountStorageIface *iface)
   iface->delete_async = test_dbus_account_plugin_delete_async;
   iface->delete_finish = test_dbus_account_plugin_delete_finish;
   iface->commit = test_dbus_account_plugin_commit;
-  iface->get_identifier = test_dbus_account_plugin_get_identifier;
-  iface->get_additional_info = test_dbus_account_plugin_get_additional_info;
+  iface->dup_identifier = test_dbus_account_plugin_dup_identifier;
+  iface->dup_additional_info = test_dbus_account_plugin_dup_additional_info;
   iface->get_restrictions = test_dbus_account_plugin_get_restrictions;
   iface->create = test_dbus_account_plugin_create;
 }

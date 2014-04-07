@@ -61,8 +61,8 @@
  *   iface->delete_finish = foo_plugin_delete_finish;
  *   iface->commit = foo_plugin_commit;
  *   iface->list = foo_plugin_list;
- *   iface->get_identifier = foo_plugin_get_identifier;
- *   iface->get_additional_info = foo_plugin_get_additional_info;
+ *   iface->dup_identifier = foo_plugin_dup_identifier;
+ *   iface->dup_additional_info = foo_plugin_dup_additional_info;
  *   iface->get_restrictions = foo_plugin_get_restrictions;
  *   iface->create = foo_plugin_create;
  *   iface->get_attribute = foo_plugin_get_attribute;
@@ -164,20 +164,18 @@ default_create (McpAccountStorage *storage,
   return NULL;
 }
 
-static void
-default_get_identifier (McpAccountStorage *storage,
-    const gchar *account,
-    GValue *identifier)
-{
-  g_value_init (identifier, G_TYPE_STRING);
-  g_value_set_string (identifier, account);
-}
-
-static GHashTable *
-default_get_additional_info (McpAccountStorage *storage,
+static GVariant *
+default_dup_identifier (McpAccountStorage *storage,
     const gchar *account)
 {
-  return g_hash_table_new (g_str_hash, g_str_equal);
+  return g_variant_new_string (account);
+}
+
+static GVariant *
+default_dup_additional_info (McpAccountStorage *storage,
+    const gchar *account)
+{
+  return g_variant_new ("a{sv}", NULL);
 }
 
 static TpStorageRestrictionFlags
@@ -236,8 +234,8 @@ class_init (gpointer klass,
   iface->delete_async = default_delete_async;
   iface->delete_finish = default_delete_finish;
   iface->commit = default_commit;
-  iface->get_identifier = default_get_identifier;
-  iface->get_additional_info = default_get_additional_info;
+  iface->dup_identifier = default_dup_identifier;
+  iface->dup_additional_info = default_dup_additional_info;
   iface->get_restrictions = default_get_restrictions;
   iface->set_attribute = default_set_attribute;
   iface->set_parameter = default_set_parameter;
@@ -384,9 +382,9 @@ mcp_account_storage_get_type (void)
  * @delete_finish: implementation of mcp_account_storage_delete_finish()
  * @commit: implementation of mcp_account_storage_commit()
  * @list: implementation of mcp_account_storage_list()
- * @get_identifier: implementation of mcp_account_storage_get_identifier()
- * @get_additional_info: implementation of
- *  mcp_account_storage_get_additional_info()
+ * @dup_identifier: implementation of mcp_account_storage_dup_identifier()
+ * @dup_additional_info: implementation of
+ *  mcp_account_storage_dup_additional_info()
  * @get_restrictions: implementation of mcp_account_storage_get_restrictions()
  * @create: implementation of mcp_account_storage_create()
  * @get_attribute: implementation of mcp_account_storage_get_attribute()
@@ -929,59 +927,38 @@ mcp_account_storage_list (McpAccountStorage *storage,
 }
 
 /**
- * McpAccountStorageGetIdentifierFunc:
+ * mcp_account_storage_dup_identifier:
  * @storage: an #McpAccountStorage instance
  * @account: the unique name of the account
- * @identifier: (out caller-allocates): a zero-filled #GValue whose type
- *  can be sent over D-Bus by dbus-glib, to hold the identifier.
  *
- * An implementation of mcp_account_storage_get_identifier().
- */
-
-/**
- * mcp_account_storage_get_identifier:
- * @storage: an #McpAccountStorage instance
- * @account: the unique name of the account
- * @identifier: (out caller-allocates): a zero-filled #GValue whose type
- *  can be sent over D-Bus by dbus-glib, to hold the identifier.
+ * Get the storage-specific identifier for this account.
  *
- * Get the storage-specific identifier for this account. The type is variant,
- * hence the GValue.
- *
- * The default implementation returns @account as a %G_TYPE_STRING.
+ * The default implementation returns @account as a string.
  *
  * This method will only be called for the storage plugin that "owns"
  * the account.
+ *
+ * If the implementation returns a floating reference, ownership will
+ * be taken by mcp_account_storage_dup_identifer(), so that it always
+ * returns a "full" reference.
+ *
+ * Returns: (transfer full): the identifier
  */
-void
-mcp_account_storage_get_identifier (McpAccountStorage *storage,
-    const gchar *account,
-    GValue *identifier)
+GVariant *
+mcp_account_storage_dup_identifier (McpAccountStorage *storage,
+    const gchar *account)
 {
   McpAccountStorageIface *iface = MCP_ACCOUNT_STORAGE_GET_IFACE (storage);
 
   SDEBUG (storage, "%s", account);
-  g_return_if_fail (iface != NULL);
-  g_return_if_fail (iface->get_identifier != NULL);
-  g_return_if_fail (identifier != NULL);
-  g_return_if_fail (!G_IS_VALUE (identifier));
+  g_return_val_if_fail (iface != NULL, NULL);
+  g_return_val_if_fail (iface->dup_identifier != NULL, NULL);
 
-  iface->get_identifier (storage, account, identifier);
+  return g_variant_take_ref (iface->dup_identifier (storage, account));
 }
 
 /**
- * McpAccountStorageGetAdditionalInfoFunc
- * @storage: an #McpAccountStorage instance
- * @account: the unique name of the account
- *
- * An implementation of mcp_account_storage_get_identifier().
- *
- * Returns: (transfer container) (element-type utf8 GObject.Value): additional
- *  storage-specific information
- */
-
-/**
- * mcp_account_storage_get_additional_info:
+ * mcp_account_storage_dup_additional_info:
  * @storage: an #McpAccountStorage instance
  * @account: the unique name of the account
  *
@@ -993,20 +970,24 @@ mcp_account_storage_get_identifier (McpAccountStorage *storage,
  *
  * The default implementation returns an empty map.
  *
- * Returns: (transfer container) (element-type utf8 GObject.Value): additional
- *  storage-specific information, which must not be %NULL
+ * If the implementation returns a floating reference, ownership will
+ * be taken by mcp_account_storage_dup_additional_info(), so that it
+ * always returns a "full" reference.
+ *
+ * Returns: a non-%NULL %G_VARIANT_TYPE_VARDICT of storage-specific
+ *  information
  */
-GHashTable *
-mcp_account_storage_get_additional_info (McpAccountStorage *storage,
+GVariant *
+mcp_account_storage_dup_additional_info (McpAccountStorage *storage,
     const gchar *account)
 {
   McpAccountStorageIface *iface = MCP_ACCOUNT_STORAGE_GET_IFACE (storage);
 
   SDEBUG (storage, "%s", account);
-  g_return_val_if_fail (iface != NULL, FALSE);
-  g_return_val_if_fail (iface->get_additional_info != NULL, FALSE);
+  g_return_val_if_fail (iface != NULL, NULL);
+  g_return_val_if_fail (iface->dup_additional_info != NULL, NULL);
 
-  return iface->get_additional_info (storage, account);
+  return g_variant_take_ref (iface->dup_additional_info (storage, account));
 }
 
 /**
