@@ -52,7 +52,7 @@ GType mcp_request_get_type (void) G_GNUC_CONST;
 
 gboolean mcp_request_find_request_by_type (McpRequest *self,
     guint start_from, GQuark channel_type,
-    guint *ret_index, GHashTable **ret_ref_requested_properties);
+    guint *ret_index, GVariant **ret_ref_requested_properties);
 
 /* virtual methods */
 
@@ -62,7 +62,7 @@ const gchar *mcp_request_get_cm_name (McpRequest *self);
 
 gint64 mcp_request_get_user_action_time (McpRequest *self);
 guint mcp_request_get_n_requests (McpRequest *self);
-GHashTable *mcp_request_ref_nth_request (McpRequest *self, guint n);
+GVariant *mcp_request_ref_nth_request (McpRequest *self, guint n);
 
 void mcp_request_deny (McpRequest *self, GQuark domain, gint code,
     const gchar *message);

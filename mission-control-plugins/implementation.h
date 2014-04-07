@@ -35,7 +35,7 @@ struct _McpRequestIface {
 
     gint64 (*get_user_action_time) (McpRequest *self);
     guint (*get_n_requests) (McpRequest *self);
-    GHashTable * (*ref_nth_request) (McpRequest *self, guint n);
+    GVariant * (*ref_nth_request) (McpRequest *self, guint n);
 
     void (*deny) (McpRequest *self, GQuark domain, gint code,
         const gchar *message);

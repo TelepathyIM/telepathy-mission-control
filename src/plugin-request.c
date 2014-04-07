@@ -190,12 +190,11 @@ plugin_req_get_n_requests (McpRequest *obj)
   return 1;
 }
 
-static GHashTable *
+static GVariant *
 plugin_req_ref_nth_request (McpRequest *obj,
     guint n)
 {
   McdPluginRequest *self = MCD_PLUGIN_REQUEST (obj);
-  GHashTable *requested_properties;
 
   g_return_val_if_fail (self != NULL, NULL);
 
@@ -205,10 +204,7 @@ plugin_req_ref_nth_request (McpRequest *obj,
       return NULL;
     }
 
-  requested_properties = _mcd_request_get_properties (
-      self->real_request);
-  g_return_val_if_fail (requested_properties != NULL, NULL);
-  return g_hash_table_ref (requested_properties);
+  return mcd_request_dup_properties (self->real_request);
 }
 
 static void

@@ -399,12 +399,12 @@ static void
 test_rejection_plugin_check_request (McpRequestPolicy *policy,
     McpRequest *request)
 {
-  GHashTable *properties = mcp_request_ref_nth_request (request, 0);
+  GVariant *properties = mcp_request_ref_nth_request (request, 0);
 
   DEBUG ("%s", G_STRFUNC);
 
   if (!tp_strdiff (
-        tp_asv_get_string (properties, TP_IFACE_CHANNEL ".ChannelType"),
+        tp_vardict_get_string (properties, TP_IFACE_CHANNEL ".ChannelType"),
         "com.example.ForbiddenChannel"))
     {
       DEBUG ("Forbidden channel detected, denying request");
@@ -421,7 +421,7 @@ test_rejection_plugin_check_request (McpRequestPolicy *policy,
           "No, you don't");
     }
 
-  g_hash_table_unref (properties);
+  g_variant_unref (properties);
 }
 
 static void

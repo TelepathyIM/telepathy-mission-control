@@ -115,7 +115,7 @@ mcp_request_get_n_requests (McpRequest *self)
   return iface->get_n_requests (self);
 }
 
-GHashTable *
+GVariant *
 mcp_request_ref_nth_request (McpRequest *self,
     guint n)
 {
@@ -147,20 +147,20 @@ mcp_request_find_request_by_type (McpRequest *self,
     guint start_from,
     GQuark channel_type,
     guint *ret_index,
-    GHashTable **ret_ref_requested_properties)
+    GVariant **ret_ref_requested_properties)
 {
   guint i = start_from;
 
   while (1)
     {
-      GHashTable *req = mcp_request_ref_nth_request (self, i);
+      GVariant *req = mcp_request_ref_nth_request (self, i);
 
       if (req == NULL)
         return FALSE;
 
       if (channel_type == 0 ||
           channel_type == g_quark_try_string (
-            tp_asv_get_string (req, TP_IFACE_CHANNEL ".ChannelType")))
+            tp_vardict_get_string (req, TP_IFACE_CHANNEL ".ChannelType")))
         {
           if (ret_index != NULL)
             *ret_index = i;
@@ -168,12 +168,12 @@ mcp_request_find_request_by_type (McpRequest *self,
           if (ret_ref_requested_properties != NULL)
             *ret_ref_requested_properties = req;
           else
-            g_hash_table_unref (req);
+            g_variant_unref (req);
 
           return TRUE;
         }
 
-      g_hash_table_unref (req);
+      g_variant_unref (req);
       i++;
     }
 }
