@@ -165,7 +165,7 @@ static void
 test_permission_plugin_check_cdo (McpDispatchOperationPolicy *policy,
     McpDispatchOperation *dispatch_operation)
 {
-  GHashTable *properties = mcp_dispatch_operation_ref_nth_channel_properties (
+  GVariant *properties = mcp_dispatch_operation_ref_nth_channel_properties (
       dispatch_operation, 0);
 
   DEBUG ("enter");
@@ -178,7 +178,7 @@ test_permission_plugin_check_cdo (McpDispatchOperationPolicy *policy,
 
   /* currently this example just checks the first channel */
 
-  if (!tp_strdiff (tp_asv_get_string (properties,
+  if (!tp_strdiff (tp_vardict_get_string (properties,
           TP_IFACE_CHANNEL ".TargetID"),
         "policy@example.net"))
     {
@@ -206,7 +206,7 @@ test_permission_plugin_check_cdo (McpDispatchOperationPolicy *policy,
       g_object_unref (bus);
   }
 
-  g_hash_table_unref (properties);
+  g_variant_unref (properties);
 }
 
 static void
@@ -219,7 +219,7 @@ handler_is_suitable_async (McpDispatchOperationPolicy *self,
 {
   GSimpleAsyncResult *simple = g_simple_async_result_new ((GObject *) self,
       callback, user_data, handler_is_suitable_async);
-  GHashTable *properties = mcp_dispatch_operation_ref_nth_channel_properties (
+  GVariant *properties = mcp_dispatch_operation_ref_nth_channel_properties (
       dispatch_operation, 0);
 
   DEBUG ("enter");
@@ -232,7 +232,7 @@ handler_is_suitable_async (McpDispatchOperationPolicy *self,
 
   /* currently this example just checks the first channel */
 
-  if (!tp_strdiff (tp_asv_get_string (properties,
+  if (!tp_strdiff (tp_vardict_get_string (properties,
           TP_IFACE_CHANNEL ".TargetID"),
         "policy@example.net"))
     {
@@ -260,7 +260,7 @@ handler_is_suitable_async (McpDispatchOperationPolicy *self,
   }
 
 finally:
-  g_hash_table_unref (properties);
+  g_clear_pointer (&properties, g_variant_unref);
 
   if (simple != NULL)
     {
@@ -283,8 +283,6 @@ static void
 test_permission_plugin_check_request (McpRequestPolicy *policy,
     McpRequest *request)
 {
-  GHashTable *properties = mcp_request_ref_nth_request (request, 0);
-
   DEBUG ("%s", G_STRFUNC);
 
   if (mcp_request_find_request_by_type (request,
@@ -313,8 +311,6 @@ test_permission_plugin_check_request (McpRequestPolicy *policy,
           NULL, G_DBUS_CALL_FLAGS_NONE, -1, NULL, permission_cb, ctx);
       g_object_unref (bus);
     }
-
-  g_hash_table_unref (properties);
 }
 
 static void
@@ -362,7 +358,7 @@ static void
 test_rejection_plugin_check_cdo (McpDispatchOperationPolicy *policy,
     McpDispatchOperation *dispatch_operation)
 {
-  GHashTable *properties = mcp_dispatch_operation_ref_nth_channel_properties (
+  GVariant *properties = mcp_dispatch_operation_ref_nth_channel_properties (
       dispatch_operation, 0);
   const gchar *target_id;
 
@@ -376,7 +372,7 @@ test_rejection_plugin_check_cdo (McpDispatchOperationPolicy *policy,
 
   /* currently this example just checks the first channel */
 
-  target_id = tp_asv_get_string (properties, TP_IFACE_CHANNEL ".TargetID");
+  target_id = tp_vardict_get_string (properties, TP_IFACE_CHANNEL ".TargetID");
 
   if (!tp_strdiff (target_id, "rick.astley@example.net"))
     {
@@ -389,7 +385,7 @@ test_rejection_plugin_check_cdo (McpDispatchOperationPolicy *policy,
       mcp_dispatch_operation_destroy_channels (dispatch_operation, TRUE);
     }
 
-  g_hash_table_unref (properties);
+  g_variant_unref (properties);
 }
 
 static void

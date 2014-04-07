@@ -56,7 +56,7 @@ gboolean mcp_dispatch_operation_find_channel_by_type (
     TpClientFactory *client_factory,
     guint start_from, TpEntityType entity_type, GQuark channel_type,
     guint *ret_index, gchar **ret_dup_path,
-    GHashTable **ret_ref_immutable_properties, TpChannel **ret_ref_channel);
+    GVariant **ret_ref_immutable_properties, TpChannel **ret_ref_channel);
 
 TpConnection *mcp_dispatch_operation_ref_connection (
     McpDispatchOperation *self, TpClientFactory *client_factory);
@@ -79,7 +79,7 @@ const gchar *mcp_dispatch_operation_get_cm_name (McpDispatchOperation *self);
 guint mcp_dispatch_operation_get_n_channels (McpDispatchOperation *self);
 const gchar *mcp_dispatch_operation_get_nth_channel_path (
     McpDispatchOperation *self, guint n);
-GHashTable *mcp_dispatch_operation_ref_nth_channel_properties (
+GVariant *mcp_dispatch_operation_ref_nth_channel_properties (
     McpDispatchOperation *self, guint n);
 
 McpDispatchOperationDelay *mcp_dispatch_operation_start_delay (

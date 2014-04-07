@@ -59,7 +59,7 @@ struct _McpDispatchOperationIface {
     guint (*get_n_channels) (McpDispatchOperation *self);
     const gchar * (*get_nth_channel_path) (McpDispatchOperation *self,
         guint n);
-    GHashTable * (*ref_nth_channel_properties) (McpDispatchOperation *self,
+    GVariant * (*ref_nth_channel_properties) (McpDispatchOperation *self,
         guint n);
 
     /* Delay the dispatch */

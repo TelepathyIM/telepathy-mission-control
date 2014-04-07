@@ -215,14 +215,10 @@ mcp_dispatch_operation_get_nth_channel_path (McpDispatchOperation *self,
  * %NULL if @n is greater than or equal to
  * mcp_dispatch_operation_get_n_channels().
  *
- * The keys of the hash table are strings and the values are in #GValue
- * structures, using the same representation as dbus-glib, tp_asv_get_string()
- * etc. Do not add or remove entries in this hash table.
- *
- * Returns: a reference to a hash table, which must be released with
- *  g_hash_table_unref() by the caller
+ * Returns: (transfer full) (allow-none): a reference to
+ *  a %G_VARIANT_TYPE_VARDICT, or %NULL
  */
-GHashTable *
+GVariant *
 mcp_dispatch_operation_ref_nth_channel_properties (McpDispatchOperation *self,
     guint n)
 {
@@ -343,10 +339,10 @@ mcp_dispatch_operation_destroy_channels (McpDispatchOperation *self,
  *  mcp_dispatch_operation_get_nth_channel_path() etc.
  * @ret_dup_path: if not %NULL, used to return the object path of the first
  *  matching channel, which must be freed with g_free()
- * @ret_ref_immutable_properties: if not %NULL, used to return a reference to
- *  immutable properties, as if via
+ * @ret_ref_immutable_properties: (out) (transfer full) (allow-none): if
+ *  not %NULL, used to return a reference to immutable properties, as if via
  *  mcp_dispatch_operation_ref_nth_channel_properties(), which must be
- *  released with g_hash_table_unref()
+ *  released with g_variant_unref()
  * @ret_ref_channel: if not %NULL, used to return a #TpChannel, which is not
  *  guaranteed to be ready immediately, and must be released with
  *  g_object_unref()
@@ -367,7 +363,7 @@ mcp_dispatch_operation_find_channel_by_type (McpDispatchOperation *self,
     GQuark channel_type,
     guint *ret_index,
     gchar **ret_dup_path,
-    GHashTable **ret_ref_immutable_properties,
+    GVariant **ret_ref_immutable_properties,
     TpChannel **ret_ref_channel)
 {
   const gchar *channel_type_str = g_quark_to_string (channel_type);
@@ -381,27 +377,25 @@ mcp_dispatch_operation_find_channel_by_type (McpDispatchOperation *self,
 
   for (i = start_from; i < mcp_dispatch_operation_get_n_channels (self); i++)
     {
-      GHashTable *properties =
+      GVariant *properties =
         mcp_dispatch_operation_ref_nth_channel_properties (self, i);
       const gchar *channel_path =
         mcp_dispatch_operation_get_nth_channel_path (self, i);
 
       if (properties != NULL &&
           channel_path != NULL &&
-          !tp_strdiff (tp_asv_get_string (properties,
+          !tp_strdiff (tp_vardict_get_string (properties,
               TP_IFACE_CHANNEL ".ChannelType"),
             channel_type_str) &&
-          tp_asv_get_uint32 (properties, TP_IFACE_CHANNEL ".TargetEntityType",
-            &valid) == entity_type &&
+          tp_vardict_get_uint32 (properties,
+            TP_PROP_CHANNEL_TARGET_ENTITY_TYPE, &valid) == entity_type &&
           valid)
         {
           if (ret_index != NULL)
             *ret_index = i;
 
           if (ret_ref_immutable_properties != NULL)
-            *ret_ref_immutable_properties = properties;
-          else
-            g_hash_table_unref (properties);
+            *ret_ref_immutable_properties = g_variant_ref (properties);
 
           if (ret_dup_path != NULL)
             *ret_dup_path = g_strdup (channel_path);
@@ -413,15 +407,16 @@ mcp_dispatch_operation_find_channel_by_type (McpDispatchOperation *self,
 
               *ret_ref_channel = tp_client_factory_ensure_channel (
                   client_factory, connection, channel_path,
-                  tp_asv_to_vardict (properties), NULL);
+                  properties, NULL);
 
               g_object_unref (connection);
             }
 
+          g_variant_unref (properties);
           return TRUE;
         }
 
-      g_hash_table_unref (properties);
+      g_variant_unref (properties);
     }
 
   return FALSE;
@@ -474,7 +469,7 @@ mcp_dispatch_operation_ref_nth_channel (McpDispatchOperation *self,
     guint n)
 {
   TpConnection *connection;
-  GHashTable *channel_properties = NULL;
+  GVariant *channel_properties = NULL;
   const gchar *channel_path = NULL;
   TpChannel *channel = NULL;
 
@@ -497,11 +492,11 @@ mcp_dispatch_operation_ref_nth_channel (McpDispatchOperation *self,
     goto finally;
 
   channel = tp_client_factory_ensure_channel (client_factory,
-      connection, channel_path, tp_asv_to_vardict (channel_properties), NULL);
+      connection, channel_path, channel_properties, NULL);
 
 finally:
   tp_clear_object (&connection);
-  tp_clear_pointer (&channel_properties, g_hash_table_unref);
+  g_clear_pointer (&channel_properties, g_variant_unref);
 
   return channel;
 }
