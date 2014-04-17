@@ -92,7 +92,6 @@ struct _McdRequest {
 
 struct _McdRequestClass {
     GObjectClass parent;
-    TpDBusPropertiesMixinClass dbus_properties_class;
 };
 
 static void request_iface_init (TpSvcChannelRequestClass *);
@@ -324,14 +323,6 @@ _mcd_request_class_init (
       { "Hints", "hints", NULL },
       { NULL }
   };
-  static TpDBusPropertiesMixinIfaceImpl prop_interfaces[] = {
-      { TP_IFACE_CHANNEL_REQUEST,
-          tp_dbus_properties_mixin_getter_gobject_properties,
-          NULL,
-          request_props,
-      },
-      { NULL }
-  };
   GObjectClass *object_class = (GObjectClass *) cls;
 
   object_class->constructed = _mcd_request_constructed;
@@ -408,9 +399,10 @@ _mcd_request_class_init (
       G_OBJECT_CLASS_TYPE (cls), G_SIGNAL_RUN_LAST, 0, NULL, NULL,
       g_cclosure_marshal_VOID__VOID, G_TYPE_NONE, 0);
 
-  cls->dbus_properties_class.interfaces = prop_interfaces,
-  tp_dbus_properties_mixin_class_init (object_class,
-      G_STRUCT_OFFSET (McdRequestClass, dbus_properties_class));
+  tp_dbus_properties_mixin_class_init (object_class, 0);
+  tp_dbus_properties_mixin_implement_interface (object_class,
+      TP_IFACE_QUARK_CHANNEL_REQUEST,
+      tp_dbus_properties_mixin_getter_gobject_properties, NULL, request_props);
 }
 
 McdRequest *

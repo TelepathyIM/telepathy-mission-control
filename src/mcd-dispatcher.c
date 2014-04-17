@@ -819,19 +819,6 @@ mcd_dispatcher_class_init (McdDispatcherClass * klass)
         { "DispatchOperations", "dispatch-operations", NULL },
         { NULL }
     };
-    static TpDBusPropertiesMixinIfaceImpl prop_interfaces[] = {
-        { TP_IFACE_CHANNEL_DISPATCHER,
-          tp_dbus_properties_mixin_getter_gobject_properties,
-          NULL,
-          cd_props,
-        },
-        { TP_IFACE_CHANNEL_DISPATCHER_INTERFACE_OPERATION_LIST1,
-          tp_dbus_properties_mixin_getter_gobject_properties,
-          NULL,
-          op_list_props,
-        },
-        { NULL }
-    };
     GObjectClass *object_class = G_OBJECT_CLASS (klass);
 
     g_type_class_add_private (object_class, sizeof (McdDispatcherPrivate));
@@ -868,9 +855,14 @@ mcd_dispatcher_class_init (McdDispatcherClass * klass)
                              TP_ARRAY_TYPE_DISPATCH_OPERATION_DETAILS_LIST,
                              G_PARAM_READABLE | G_PARAM_STATIC_STRINGS));
 
-    klass->dbus_properties_class.interfaces = prop_interfaces,
-    tp_dbus_properties_mixin_class_init (object_class,
-        G_STRUCT_OFFSET (McdDispatcherClass, dbus_properties_class));
+    tp_dbus_properties_mixin_class_init (object_class, 0);
+    tp_dbus_properties_mixin_implement_interface (object_class,
+        TP_IFACE_QUARK_CHANNEL_DISPATCHER,
+        tp_dbus_properties_mixin_getter_gobject_properties, NULL, cd_props);
+    tp_dbus_properties_mixin_implement_interface (object_class,
+        TP_IFACE_QUARK_CHANNEL_DISPATCHER_INTERFACE_OPERATION_LIST1,
+        tp_dbus_properties_mixin_getter_gobject_properties, NULL,
+        op_list_props);
 }
 
 static void

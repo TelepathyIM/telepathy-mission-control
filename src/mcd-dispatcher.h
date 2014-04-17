@@ -57,7 +57,6 @@ struct _McdDispatcher
 struct _McdDispatcherClass
 {
     GObjectClass parent_class;
-    TpDBusPropertiesMixinClass dbus_properties_class;
 };
 
 GType mcd_dispatcher_get_type (void);
