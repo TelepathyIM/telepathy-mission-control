@@ -1,7 +1,17 @@
-telepathy-mission-control 5.99.11 (UNRELEASED)
+telepathy-mission-control 5.99.11 (2014-05-14)
 ==============================================
 
-...
+The “electioneering” release.
+
+Fixes:
+
+• Update for compatibility with telepathy-glib 0.99.11
+  (fd.o #77189, fd.o #77144, fd.o #77139; Simon)
+
+• Use GVariant for channel properties, etc. (fd.o #77139, Simon)
+
+• Rewrite local-xmpp accounts imported from Telepathy0 into local_xmpp
+  accounts (fd.o #77029, Simon)
 
 telepathy-mission-control 5.99.10 (2014-04-03)
 ==============================================
