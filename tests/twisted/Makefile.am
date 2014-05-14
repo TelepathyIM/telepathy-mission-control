@@ -137,7 +137,7 @@ run-test.sh: run-test.sh.in Makefile
 	@chmod +x $@
 
 if ENABLE_INSTALLED_TESTS
-insttestdir = ${datadir}/installed-tests/telepathy-mission-control
+insttestdir = ${datadir}/installed-tests/telepathy-mission-control-6
 nobase_nodist_insttest_DATA = \
 	$(patsubst %.py,%.test,$(TWISTED_BASIC_TESTS)) \
 	$(patsubst %.py,%.test,$(TWISTED_SEPARATE_TESTS)) \
