@@ -399,7 +399,6 @@ _mcd_request_class_init (
       G_OBJECT_CLASS_TYPE (cls), G_SIGNAL_RUN_LAST, 0, NULL, NULL,
       g_cclosure_marshal_VOID__VOID, G_TYPE_NONE, 0);
 
-  tp_dbus_properties_mixin_class_init (object_class, 0);
   tp_dbus_properties_mixin_implement_interface (object_class,
       TP_IFACE_QUARK_CHANNEL_REQUEST,
       tp_dbus_properties_mixin_getter_gobject_properties, NULL, request_props);

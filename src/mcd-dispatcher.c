@@ -855,7 +855,6 @@ mcd_dispatcher_class_init (McdDispatcherClass * klass)
                              TP_ARRAY_TYPE_DISPATCH_OPERATION_DETAILS_LIST,
                              G_PARAM_READABLE | G_PARAM_STATIC_STRINGS));
 
-    tp_dbus_properties_mixin_class_init (object_class, 0);
     tp_dbus_properties_mixin_implement_interface (object_class,
         TP_IFACE_QUARK_CHANNEL_DISPATCHER,
         tp_dbus_properties_mixin_getter_gobject_properties, NULL, cd_props);
