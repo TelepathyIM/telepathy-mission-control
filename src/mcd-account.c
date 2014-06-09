@@ -126,6 +126,7 @@ struct _McdAccountPrivate
 
     McdStorage *storage;
     TpDBusDaemon *dbus_daemon;
+    gboolean registered;
     McdConnectivityMonitor *connectivity;
 
     McdAccountConnectionContext *connection_context;
@@ -686,6 +687,22 @@ account_delete_identify_account_cb (TpProxy *protocol,
   g_object_unref (account);
 }
 
+static void
+unregister_dbus_service (McdAccount *self)
+{
+    DBusGConnection *dbus_connection;
+
+    g_return_if_fail (MCD_IS_ACCOUNT (self));
+
+    if (!self->priv->registered)
+        return;
+
+    dbus_connection = tp_proxy_get_dbus_connection (self->priv->dbus_daemon);
+    dbus_g_connection_unregister_g_object (dbus_connection, (GObject *) self);
+
+    self->priv->registered = FALSE;
+}
+
 void
 mcd_account_delete (McdAccount *account,
                      McdAccountDeleteCb callback,
@@ -769,6 +786,8 @@ mcd_account_delete (McdAccount *account,
         priv->removed = TRUE;
         tp_svc_account_emit_removed (account);
     }
+
+    unregister_dbus_service (account);
 }
 
 void
@@ -3067,10 +3086,13 @@ register_dbus_service (McdAccount *self,
 
     dbus_connection = tp_proxy_get_dbus_connection (TP_PROXY (dbus_daemon));
 
-    if (G_LIKELY (dbus_connection))
-	dbus_g_connection_register_g_object (dbus_connection,
-					     self->priv->object_path,
-					     (GObject *) self);
+    if (G_LIKELY (dbus_connection)) {
+        dbus_g_connection_register_g_object (dbus_connection,
+                                             self->priv->object_path,
+                                             (GObject *) self);
+
+        self->priv->registered = TRUE;
+    }
 }
 
 /*
