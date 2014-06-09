@@ -577,8 +577,12 @@ deleted_cb (McpAccountStorage *plugin,
 
   if (check_is_responsible (self, plugin, account_name, "deleting",
         &error))
-    g_signal_emit (self, signals[SIGNAL_DELETED], 0, plugin,
-        account_name);
+    {
+      g_hash_table_remove (self->accounts, account_name);
+
+      g_signal_emit (self, signals[SIGNAL_DELETED], 0, plugin,
+          account_name);
+    }
 }
 
 static void
