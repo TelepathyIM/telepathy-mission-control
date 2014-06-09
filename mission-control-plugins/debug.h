@@ -27,7 +27,7 @@
 
 #define MCP_DEBUG(_type, _fmt, ...) \
   G_STMT_START { if (mcp_is_debugging (_type)) \
-      g_debug ("%s: " _fmt, G_STRLOC, ##__VA_ARGS__); } G_STMT_END
+      g_debug ("%s: " _fmt, G_STRFUNC, ##__VA_ARGS__); } G_STMT_END
 
 G_BEGIN_DECLS
 
