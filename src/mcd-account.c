@@ -774,6 +774,10 @@ mcd_account_delete (McdAccount *account,
 
     mcd_storage_commit (priv->storage, name);
 
+    /* The callback may drop the latest ref on @account so make sure it stays
+     * alive while we still need it. */
+    g_object_ref (account);
+
     if (callback != NULL)
         callback (account, NULL, user_data);
 
@@ -788,6 +792,7 @@ mcd_account_delete (McdAccount *account,
     }
 
     unregister_dbus_service (account);
+    g_object_unref (account);
 }
 
 void
