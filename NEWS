@@ -1,9 +1,15 @@
-telepathy-mission-control 5.16.2 (UNRELEASED)
+telepathy-mission-control 5.16.2 (2014-06-11)
 =============================================
 
 Fixes:
 
 • don't crash in 'mc-tool auto-presence' subcommand (fd.o #74187, Simon)
+
+• fix parallel build (Simon)
+
+• Use G_STRFUNC in mission-control-plugins's DEBUG macro (Guillaume)
+
+• Fix a crash when GOA is restarted (fd.o #79827, Guillaume)
 
 telepathy-mission-control 5.16.1 (2014-01-27)
 =============================================
