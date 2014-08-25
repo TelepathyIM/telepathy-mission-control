@@ -2267,7 +2267,7 @@ _mcd_connection_set_tp_connection (McdConnection *connection,
     if (!priv->tp_conn)
     {
         GHashTable *details = tp_asv_new (
-            "debug-message", inner_error->message,
+            "debug-message", G_TYPE_STRING, inner_error->message,
             NULL);
 
         /* Constructing a TpConnection can only fail from invalid arguments,
