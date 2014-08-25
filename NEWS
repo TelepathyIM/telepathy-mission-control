@@ -1,3 +1,10 @@
+telepathy-mission-control 5.16.3 (2014-08-25)
+=============================================
+
+Fixes:
+
+• mcd-connection: use tp_asv_new() properly (fd.o #81751, Steffen Kieß)
+
 telepathy-mission-control 5.16.2 (2014-06-11)
 =============================================
 
