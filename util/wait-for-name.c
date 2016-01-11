@@ -50,6 +50,7 @@
 #endif
 
 #include <glib.h>
+#include <locale.h>
 
 #include <telepathy-glib/telepathy-glib.h>
 #include <telepathy-glib/telepathy-glib-dbus.h>
@@ -147,6 +148,8 @@ main (int argc,
   GMainLoop *loop;
   GError *error = NULL;
   GOptionContext *context;
+
+  setlocale (LC_ALL, "");
 
   g_set_prgname ("mc-wait-for-name");
 
