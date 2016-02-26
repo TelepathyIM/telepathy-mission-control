@@ -58,7 +58,7 @@ static const McdInterfaceData dispatch_operation_interfaces[] = {
     MCD_IMPLEMENT_IFACE (tp_svc_channel_dispatch_operation_get_type,
                          dispatch_operation,
                          TP_IFACE_CHANNEL_DISPATCH_OPERATION),
-    { G_TYPE_INVALID, }
+    { NULL, }
 };
 
 G_DEFINE_TYPE_WITH_CODE (McdDispatchOperation, _mcd_dispatch_operation,
