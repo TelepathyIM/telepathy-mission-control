@@ -32,7 +32,7 @@
 #endif
 
 #ifdef HAVE_NM
-#include <nm-client.h>
+#include <NetworkManager.h>
 #endif
 
 #ifdef HAVE_UPOWER
@@ -190,10 +190,6 @@ connectivity_monitor_remove_states (
 
 #ifdef HAVE_NM
 
-#if !defined(NM_CHECK_VERSION)
-#define NM_CHECK_VERSION(x,y,z) 0
-#endif
-
 static void
 connectivity_monitor_nm_state_change_cb (NMClient *client,
     const GParamSpec *pspec,
@@ -210,9 +206,7 @@ connectivity_monitor_nm_state_change_cb (NMClient *client,
   state = nm_client_get_state (priv->nm_client);
 
   if (state == NM_STATE_CONNECTING
-#if NM_CHECK_VERSION(0,8,992)
       || state == NM_STATE_DISCONNECTING
-#endif
       || state == NM_STATE_ASLEEP)
     {
       DEBUG ("New NetworkManager network state %d (unstable state)", state);
@@ -504,6 +498,7 @@ static void
 mcd_connectivity_monitor_init (McdConnectivityMonitor *connectivity_monitor)
 {
   McdConnectivityMonitorPrivate *priv;
+  GError *error = NULL;
 
   priv = G_TYPE_INSTANCE_GET_PRIVATE (connectivity_monitor,
       MCD_TYPE_CONNECTIVITY_MONITOR, McdConnectivityMonitorPrivate);
@@ -532,7 +527,7 @@ mcd_connectivity_monitor_init (McdConnectivityMonitor *connectivity_monitor)
 #endif
 
 #ifdef HAVE_NM
-  priv->nm_client = nm_client_new ();
+  priv->nm_client = nm_client_new (NULL, &error);
   if (priv->nm_client != NULL)
     {
       priv->state_change_signal_id = g_signal_connect (priv->nm_client,
@@ -543,7 +538,7 @@ mcd_connectivity_monitor_init (McdConnectivityMonitor *connectivity_monitor)
     }
   else
     {
-      DEBUG ("Failed to get NetworkManager proxy");
+      DEBUG ("Failed to get NetworkManager proxy: %s", error->message);
     }
 #endif
 

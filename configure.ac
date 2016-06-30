@@ -270,7 +270,7 @@ if test "x$with_connectivity" = "xno" || test "x$with_connectivity" = "xconnman"
 else
    PKG_CHECK_MODULES(NETWORK_MANAGER,
    [
-      libnm-glib >= 0.7.0
+      libnm
    ], have_nm="yes", have_nm="no")
 
    if test "x$have_nm" = "xyes"; then
