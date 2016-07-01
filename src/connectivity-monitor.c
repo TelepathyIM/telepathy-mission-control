@@ -498,7 +498,6 @@ static void
 mcd_connectivity_monitor_init (McdConnectivityMonitor *connectivity_monitor)
 {
   McdConnectivityMonitorPrivate *priv;
-  GError *error = NULL;
 
   priv = G_TYPE_INSTANCE_GET_PRIVATE (connectivity_monitor,
       MCD_TYPE_CONNECTIVITY_MONITOR, McdConnectivityMonitorPrivate);
@@ -527,19 +526,24 @@ mcd_connectivity_monitor_init (McdConnectivityMonitor *connectivity_monitor)
 #endif
 
 #ifdef HAVE_NM
-  priv->nm_client = nm_client_new (NULL, &error);
-  if (priv->nm_client != NULL)
-    {
-      priv->state_change_signal_id = g_signal_connect (priv->nm_client,
-          "notify::" NM_CLIENT_STATE,
-          G_CALLBACK (connectivity_monitor_nm_state_change_cb), connectivity_monitor);
+  {
+    GError *error = NULL;
+    priv->nm_client = nm_client_new (NULL, &error);
+    if (priv->nm_client != NULL)
+      {
+        priv->state_change_signal_id = g_signal_connect (priv->nm_client,
+            "notify::" NM_CLIENT_STATE,
+            G_CALLBACK (connectivity_monitor_nm_state_change_cb),
+            connectivity_monitor);
 
-      connectivity_monitor_nm_state_change_cb (priv->nm_client, NULL, connectivity_monitor);
-    }
-  else
-    {
-      DEBUG ("Failed to get NetworkManager proxy: %s", error->message);
-    }
+        connectivity_monitor_nm_state_change_cb (priv->nm_client, NULL,
+            connectivity_monitor);
+      }
+    else
+      {
+        DEBUG ("Failed to get NetworkManager proxy: %s", error->message);
+      }
+  }
 #endif
 
 #ifdef HAVE_UPOWER
