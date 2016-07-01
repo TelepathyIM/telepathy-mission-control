@@ -44,7 +44,9 @@ static GType fake_network_monitor_get_type (void);
 enum
 {
   PROP_0,
-  PROP_NETWORK_AVAILABLE
+  PROP_NETWORK_AVAILABLE,
+  PROP_NETWORK_METERED,
+  PROP_CONNECTIVITY
 };
 
 static void initable_iface_init (GInitableIface *);
@@ -80,7 +82,13 @@ fake_network_monitor_get_property (GObject *object,
       case PROP_NETWORK_AVAILABLE:
         g_value_set_boolean (value, self->available);
         break;
-
+      case PROP_NETWORK_METERED:
+        g_value_set_boolean (value, FALSE);
+        break;
+      case PROP_CONNECTIVITY:
+        g_value_set_enum (value, self->available ?
+            G_NETWORK_CONNECTIVITY_FULL : G_NETWORK_CONNECTIVITY_LOCAL);
+        break;
       default:
         G_OBJECT_WARN_INVALID_PROPERTY_ID (object, param_id, pspec);
         break;
@@ -111,6 +119,10 @@ fake_network_monitor_class_init (FakeNetworkMonitorClass *cls)
 
   g_object_class_override_property (oclass, PROP_NETWORK_AVAILABLE,
       "network-available");
+  g_object_class_override_property (oclass, PROP_NETWORK_METERED,
+      "network-metered");
+  g_object_class_override_property (oclass, PROP_CONNECTIVITY,
+      "connectivity");
 }
 
 static void
