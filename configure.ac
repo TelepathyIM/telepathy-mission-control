@@ -307,7 +307,7 @@ AC_ARG_ENABLE([upower],
     [enable_upower=auto])
 
 if test "x$enable_upower" != xno; then
-    PKG_CHECK_MODULES([UPOWER_GLIB], [upower-glib],
+    PKG_CHECK_MODULES([UPOWER_GLIB], [upower-glib < 0.99],
         [AC_DEFINE([HAVE_UPOWER], [1], [Define to use upower-glib])
          have_upower=yes
         ],
