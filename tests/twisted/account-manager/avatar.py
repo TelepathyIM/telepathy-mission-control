@@ -162,10 +162,8 @@ def test(q, bus, mc):
                 interface=cs.TEST_DBUS_ACCOUNT_PLUGIN_IFACE,
                 signal='DeferringSetAttribute',
                 args=[account.object_path, 'AvatarMime', '']),
-            )
-    q.expect('dbus-signal', path=account.object_path,
-             interface=cs.ACCOUNT_IFACE_AVATAR, signal='AvatarChanged')
-    q.expect_many(
+            EventPattern('dbus-signal', path=account.object_path,
+                interface=cs.ACCOUNT_IFACE_AVATAR, signal='AvatarChanged'),
             EventPattern('dbus-signal',
                 interface=cs.TEST_DBUS_ACCOUNT_PLUGIN_IFACE,
                 signal='CommittingOne',
