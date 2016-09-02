@@ -1,4 +1,4 @@
-telepathy-mission-control 5.16.4 (UNRELEASED)
+telepathy-mission-control 5.16.4 (2016-09-02)
 =============================================
 
 The "get modern" release.
@@ -13,6 +13,7 @@ Fixes:
 • UPower support is now disabled by default if UPower is >= 0.99.
   The features needed have now moved to logind, which is supported
   in MC since 5.15.1 (fd.o #70458, George Kiagiadakis)
+• fix some memory leaks and a potential crash (fd.o #76401, Simon)
 
 Dependencies:
 
