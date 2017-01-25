@@ -1335,7 +1335,7 @@ translate_g_error (GQuark domain,
 
               if (p != NULL)
                 {
-                  gchar *tmp = g_strndup (message, message - p);
+                  gchar *tmp = g_strndup (message, p - message);
 
                   /* The syntactic restrictions for error names are the same
                    * as for interface names. */
