@@ -32,7 +32,7 @@
 #endif
 
 #ifdef HAVE_NM
-#include <nm-client.h>
+#include <NetworkManager.h>
 #endif
 
 #include <telepathy-glib/telepathy-glib.h>
@@ -182,10 +182,6 @@ connectivity_monitor_remove_states (
 
 #ifdef HAVE_NM
 
-#if !defined(NM_CHECK_VERSION)
-#define NM_CHECK_VERSION(x,y,z) 0
-#endif
-
 static void
 connectivity_monitor_nm_state_change_cb (NMClient *client,
     const GParamSpec *pspec,
@@ -202,9 +198,7 @@ connectivity_monitor_nm_state_change_cb (NMClient *client,
   state = nm_client_get_state (priv->nm_client);
 
   if (state == NM_STATE_CONNECTING
-#if NM_CHECK_VERSION(0,8,992)
       || state == NM_STATE_DISCONNECTING
-#endif
       || state == NM_STATE_ASLEEP)
     {
       DEBUG ("New NetworkManager network state %d (unstable state)", state);
@@ -487,19 +481,24 @@ mcd_connectivity_monitor_init (McdConnectivityMonitor *connectivity_monitor)
 #endif
 
 #ifdef HAVE_NM
-  priv->nm_client = nm_client_new ();
-  if (priv->nm_client != NULL)
-    {
-      priv->state_change_signal_id = g_signal_connect (priv->nm_client,
-          "notify::" NM_CLIENT_STATE,
-          G_CALLBACK (connectivity_monitor_nm_state_change_cb), connectivity_monitor);
+  {
+    GError *error = NULL;
+    priv->nm_client = nm_client_new (NULL, &error);
+    if (priv->nm_client != NULL)
+      {
+        priv->state_change_signal_id = g_signal_connect (priv->nm_client,
+            "notify::" NM_CLIENT_STATE,
+            G_CALLBACK (connectivity_monitor_nm_state_change_cb),
+            connectivity_monitor);
 
-      connectivity_monitor_nm_state_change_cb (priv->nm_client, NULL, connectivity_monitor);
-    }
-  else
-    {
-      DEBUG ("Failed to get NetworkManager proxy");
-    }
+        connectivity_monitor_nm_state_change_cb (priv->nm_client, NULL,
+            connectivity_monitor);
+      }
+    else
+      {
+        DEBUG ("Failed to get NetworkManager proxy: %s", error->message);
+      }
+  }
 #endif
 
   g_bus_get (G_BUS_TYPE_SYSTEM, NULL, got_system_bus_cb,

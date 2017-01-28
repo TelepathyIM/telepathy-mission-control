@@ -174,6 +174,8 @@ main (int argc, char **argv)
     tp_debug_set_flags (g_getenv ("MC_TP_DEBUG"));
 
     mcd = mcd_service_new ();
+    if (mcd == NULL)
+      return 1;
 
     /* Listen for suicide notification */
     g_signal_connect_after (mcd, "abort", G_CALLBACK (on_abort), mcd);

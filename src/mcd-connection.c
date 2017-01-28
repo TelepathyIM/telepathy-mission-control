@@ -1335,7 +1335,7 @@ translate_g_error (GQuark domain,
 
               if (p != NULL)
                 {
-                  gchar *tmp = g_strndup (message, message - p);
+                  gchar *tmp = g_strndup (message, p - message);
 
                   /* The syntactic restrictions for error names are the same
                    * as for interface names. */
@@ -2210,7 +2210,7 @@ _mcd_connection_set_tp_connection (McdConnection *connection,
     if (!priv->tp_conn)
     {
         GHashTable *details = tp_asv_new (
-            "debug-message", inner_error->message,
+            "debug-message", G_TYPE_STRING, inner_error->message,
             NULL);
 
         /* Constructing a TpConnection can only fail from invalid arguments,

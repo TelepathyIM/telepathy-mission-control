@@ -6,7 +6,9 @@ import sys
 class FakeConnectivity(object):
     NM_BUS_NAME = 'org.freedesktop.NetworkManager'
     NM_PATH = '/org/freedesktop/NetworkManager'
+    NM_PATH_SETTINGS = NM_PATH + '/Settings'
     NM_INTERFACE = NM_BUS_NAME
+    NM_INTERFACE_SETTINGS = NM_INTERFACE + '.Settings'
 
     NM_STATE_UNKNOWN          = 0
     NM_STATE_ASLEEP           = 10
@@ -46,6 +48,13 @@ class FakeConnectivity(object):
             predicate=lambda e: e.args[0] == self.NM_INTERFACE)
         q.add_dbus_method_impl(self.NM_GetDevices,
             path=self.NM_PATH, interface=self.NM_INTERFACE, method='GetDevices')
+
+        q.add_dbus_method_impl(self.NM_Settings_Get,
+            path=self.NM_PATH_SETTINGS, interface=dbus.PROPERTIES_IFACE, method='Get',
+            predicate=lambda e: e.args[0] == self.NM_INTERFACE_SETTINGS)
+        q.add_dbus_method_impl(self.NM_Settings_GetAll,
+            path=self.NM_PATH_SETTINGS, interface=dbus.PROPERTIES_IFACE, method='GetAll',
+            predicate=lambda e: e.args[0] == self.NM_INTERFACE_SETTINGS)
 
         q.add_dbus_method_impl(self.ConnMan_GetProperties,
             path=self.CONNMAN_PATH, interface=self.CONNMAN_INTERFACE,
@@ -91,6 +100,19 @@ class FakeConnectivity(object):
 
     def NM_GetDevices(self, e):
         self.q.dbus_return(e.message, [], signature='ao')
+
+    def nm_settings_props(self):
+        return {
+            'CanModify': False,
+            'Hostname': 'localhost',
+            'Connections': dbus.Array([], signature='o'),
+        }
+
+    def NM_Settings_Get(self, e):
+        self.q.dbus_return(e.message, self.nm_settings_props()[e.args[1]], signature='v')
+
+    def NM_Settings_GetAll(self, e):
+        self.q.dbus_return(e.message, self.nm_settings_props(), signature='a{sv}')
 
     def Connman_props(self):
         return {

@@ -75,7 +75,49 @@ Fixes:
   suspending" on systems with either systemd-logind, or a reimplementation
   with the same D-Bus API. (fd.o #70458, Simon)
 
+telepathy-mission-control 5.16.4 (2016-09-02)
+=============================================
+
+The "get modern" release.
+
+Fixes:
+
+• exit gracefully at startup if the D-Bus connection fails (Guillaume)
+• fix some warnings when building with clang (fd.o #94310, Ting-Wei Lan)
+• fix unit tests to work with GLib >= 2.46 (fd.o #96763, George Kiagiadakis)
+• mc-wait-for-name now shows readable output on the command line on
+  exotic locales (fd.o #93661, Ting-Wei Lan)
+• UPower support is now disabled by default if UPower is >= 0.99.
+  The features needed have now moved to logind, which is supported
+  in MC since 5.15.1 (fd.o #70458, George Kiagiadakis)
+• fix some memory leaks and a potential crash (fd.o #76401, Simon)
+
+Dependencies:
+
+• GLib 2.46 is now required
+• NetworkManager support was ported to use libnm instead of the
+  deprecated libnm-glib (fd.o #96707, Diane Trout)
+
+
+telepathy-mission-control 5.16.3 (2014-08-25)
+=============================================
+
+Fixes:
+
+• mcd-connection: use tp_asv_new() properly (fd.o #81751, Steffen Kieß)
+
+telepathy-mission-control 5.16.2 (2014-06-11)
+=============================================
+
+Fixes:
+
 • don't crash in 'mc-tool auto-presence' subcommand (fd.o #74187, Simon)
+
+• fix parallel build (Simon)
+
+• Use G_STRFUNC in mission-control-plugins's DEBUG macro (Guillaume)
+
+• Fix a crash when GOA is restarted (fd.o #79827, Guillaume)
 
 telepathy-mission-control 5.16.1 (2014-01-27)
 =============================================

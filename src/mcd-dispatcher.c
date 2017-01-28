@@ -1969,10 +1969,10 @@ dispatcher_delegate_channels (
 {
     McdDispatcher *self = (McdDispatcher *) iface;
     GError *error = NULL;
-    const gchar *sender;
+    gchar *sender = NULL;
     McdConnection *conn = NULL;
     DelegateChannelsCtx *ctx = NULL;
-    McdAccountManager *am;
+    McdAccountManager *am = NULL;
     guint i;
     GList *l;
 
@@ -2054,11 +2054,13 @@ dispatcher_delegate_channels (
         try_delegating (to_delegate);
       }
 
+    g_free (sender);
     g_object_unref (am);
 
     return;
 
 error:
+    g_free (sender);
     dbus_g_method_return_error (context, error);
     g_error_free (error);
 

@@ -74,7 +74,7 @@ static const McdInterfaceData account_interfaces[] = {
         account_addressing,
         TP_IFACE_ACCOUNT_INTERFACE_ADDRESSING),
 
-    { G_TYPE_INVALID, }
+    { NULL, }
 };
 
 G_DEFINE_TYPE_WITH_CODE (McdAccount, mcd_account, G_TYPE_OBJECT,

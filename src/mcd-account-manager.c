@@ -68,7 +68,7 @@ static const McdInterfaceData account_manager_interfaces[] = {
     MCD_IMPLEMENT_IFACE (tp_svc_account_manager_get_type,
 			 account_manager,
 			 TP_IFACE_ACCOUNT_MANAGER),
-    { G_TYPE_INVALID, }
+    { NULL, }
 };
 
 G_DEFINE_TYPE_WITH_CODE (McdAccountManager, mcd_account_manager, G_TYPE_OBJECT,
