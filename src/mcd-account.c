@@ -450,10 +450,15 @@ mcd_account_get_parameter_of_known_type (McdAccount *account,
         {
             memcpy (parameter, &tmp, sizeof (tmp));
         }
+        else
+        {
+            g_value_unset (&tmp);
+        }
 
         return TRUE;
     }
 
+    g_value_unset (&tmp);
     return FALSE;
 }
 
@@ -3305,6 +3310,7 @@ finally:
     g_free (new_dir);
     g_free (contents);
     g_free (old_file);
+    g_free (old_dir);
 }
 
 static gboolean
