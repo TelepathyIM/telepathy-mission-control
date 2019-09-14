@@ -9,7 +9,6 @@ EXTRA_DIST = \
     glib-interfaces-body-generator.xsl \
     glib-ginterface-gen.py \
     glib-gtypes-generator.py \
-    glib-signals-marshal-gen.py \
     gquark-gen.py \
     identity.xsl \
     lcov.am \
@@ -30,8 +29,6 @@ glib-client-marshaller-gen.py: libglibcodegen.py
 glib-ginterface-gen.py: libglibcodegen.py
 	$(AM_V_GEN)test -e ${srcdir}/$@ && touch ${srcdir}/$@
 glib-gtypes-generator.py: libglibcodegen.py
-	$(AM_V_GEN)test -e ${srcdir}/$@ && touch ${srcdir}/$@
-glib-signals-marshal-gen.py: libglibcodegen.py
 	$(AM_V_GEN)test -e ${srcdir}/$@ && touch ${srcdir}/$@
 
 TELEPATHY_GLIB_SRCDIR = $(top_srcdir)/../telepathy-glib

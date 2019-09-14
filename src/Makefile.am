@@ -57,9 +57,6 @@ nodist_libmcd_convenience_la_SOURCES = \
 	_gen/gtypes-body.h \
 	_gen/interfaces-body.h \
 	_gen/register-dbus-glib-marshallers-body.h \
-	_gen/signals-marshal.c \
-	_gen/signals-marshal.h \
-	_gen/signals-marshal.list \
 	_gen/svc-Account_Interface_Conditions.c \
 	_gen/svc-Account_Interface_External_Password_Storage.c \
 	_gen/svc-Account_Interface_Hidden.c \
@@ -236,18 +233,6 @@ _gen/%.xml: $(top_srcdir)/xml/%.xml $(wildcard $(top_srcdir)/xml/*.xml)
 
 # Generated files which can be done for all "classes" at once
 
-_gen/signals-marshal.list: _gen/mcd.xml \
-	$(tools_dir)/glib-signals-marshal-gen.py
-	$(AM_V_GEN)$(PYTHON) $(tools_dir)/glib-signals-marshal-gen.py $< > $@
-
-_gen/signals-marshal.h: _gen/signals-marshal.list Makefile.am
-	$(AM_V_GEN)$(GLIB_GENMARSHAL) --header --prefix=_mcd_ext_marshal $< > $@
-
-_gen/signals-marshal.c: _gen/signals-marshal.list Makefile.am
-	$(AM_V_GEN){ echo '#include "_gen/signals-marshal.h"' && \
-	$(GLIB_GENMARSHAL) --body --prefix=_mcd_ext_marshal $<; } \
-	> $@
-
 _gen/register-dbus-glib-marshallers-body.h: _gen/mcd.xml \
 	$(tools_dir)/glib-client-marshaller-gen.py Makefile.am
 	$(AM_V_GEN)$(PYTHON) $(tools_dir)/glib-client-marshaller-gen.py $< \
@@ -328,7 +313,6 @@ _gen/svc-%-gtk-doc.h: _gen/%.xml \
 		--filename=_gen/svc-$* \
 		--signal-marshal-prefix=_mcd_ext \
 		--include='<telepathy-glib/telepathy-glib.h>' \
-		--include='"_gen/signals-marshal.h"' \
 		--not-implemented-func='tp_dbus_g_method_return_not_implemented' \
 		--allow-unstable \
 		$< Mc_Svc_
