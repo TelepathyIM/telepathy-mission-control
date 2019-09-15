@@ -1,3 +1,20 @@
+telepathy-mission-control 5.16.5 (2019-09-15)
+=============================================
+
+The "magic number three" release.
+
+Enhancements:
+
+• Port build tools to Python 3
+
+Fixes:
+
+• Fix memory leak in get_parameter_of_known_type() (Slava Monich)
+• Fix autoconnection of accounts with always_dispatch=true (Martin Klapetek)
+• Fix crash on any of the active connection managers disappears
+  from dbus (Tiago Salem Herrmann)
+
+
 telepathy-mission-control 5.16.4 (2016-09-02)
 =============================================
 
