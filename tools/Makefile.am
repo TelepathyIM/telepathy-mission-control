@@ -9,7 +9,6 @@ EXTRA_DIST = \
     glib-interfaces-body-generator.xsl \
     glib-ginterface-gen.py \
     glib-gtypes-generator.py \
-    gquark-gen.py \
     identity.xsl \
     lcov.am \
     libtpcodegen.py \
