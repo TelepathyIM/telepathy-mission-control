@@ -12,7 +12,6 @@ SUBDIRS = \
     tools \
     xml \
     mission-control-plugins \
-    plugins \
     src \
     server \
     util \

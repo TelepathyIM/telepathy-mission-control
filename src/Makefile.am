@@ -97,10 +97,6 @@ libmcd_convenience_la_LIBADD += $(LIBACCOUNTS_SSO_LIBS)
 INCLUDES += $(LIBACCOUNTS_SSO_CFLAGS)
 endif
 
-if ENABLE_AEGIS
-libmcd_convenience_la_LIBADD += $(top_builddir)/plugins/libmcp-aegis.la
-endif
-
 noinst_LTLIBRARIES = libmcd-convenience.la
 
 libmcd_convenience_la_SOURCES = \

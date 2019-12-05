@@ -152,29 +152,6 @@ fi
 AC_SUBST(ACCOUNTS_CACHE_DIR)
 AC_DEFINE_UNQUOTED(ACCOUNTS_CACHE_DIR,"$ACCOUNTS_CACHE_DIR", [Directory for account/connection mapping for crash recovery])
 
-aegis_enabled="no"
-AC_MSG_CHECKING([whether to build with Aegis (libcreds) support])
-AC_ARG_ENABLE(aegis,
-              AC_HELP_STRING([--enable-aegis],
-                             [Aegis security framework support]),
-              [
-                AC_CHECK_LIB(creds, creds_init,
-                             [
-                               AC_DEFINE([ENABLE_AEGIS], [1],
-                                         [Define if Aegis is supported])
-                               AC_SUBST([AEGIS_LIBS], [-lcreds])
-                             ],
-                             [ AC_MSG_ERROR([Aegis: libcreds not found]) ])
-                aegis_enabled="yes"
-              ],
-              [
-                aegis_enabled="no"
-                AC_MSG_RESULT(no)
-                AC_DEFINE([ENABLE_AEGIS], [0], [Define if Aegis is supported])
-              ])
-
-AM_CONDITIONAL(ENABLE_AEGIS, [test x$aegis_enabled = xyes])
-
 PKG_PROG_PKG_CONFIG()
 
 dnl libaccounts-glib SSO
@@ -348,7 +325,6 @@ m4/Makefile \
 mission-control-plugins.pc \
 mission-control-plugins-uninstalled.pc \
 mission-control-plugins/Makefile \
-plugins/Makefile \
 server/Makefile \
 src/Makefile \
 tests/Makefile \
@@ -380,7 +356,6 @@ Configure summary:
         ConnMan integration..........:  ${have_connman}
         Connectivity GSetting........:  ${enable_conn_setting}
         Suspend tracking with UPower.:  ${have_upower}
-        Aegis........................:  ${aegis_enabled}
         libaccounts-glib backend.....:  ${libaccounts_sso_enabled}
         Hidden accounts-glib accounts:  ${with_accounts_glib_hidden_service_type}
         Nokia Mode Control Entity....:  ${HAVE_MCE}
