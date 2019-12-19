@@ -3442,7 +3442,7 @@ mcd_account_class_init (McdAccountClass * klass)
 
     g_object_class_install_property
         (object_class, PROP_CONNECTIVITY_MONITOR,
-         g_param_spec_object ("connectivity monitor",
+         g_param_spec_object ("connectivity-monitor",
                               "Connectivity monitor",
                               "Connectivity monitor",
                               MCD_TYPE_CONNECTIVITY_MONITOR,
