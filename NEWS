@@ -1,3 +1,19 @@
+telepathy-mission-control 5.16.6 (2020-08-24)
+=============================================
+
+The "leave no space" release.
+
+This release contains a critical compatibility fix for GLib >= 2.63.3.
+Without this fix you won't be able to add an account.
+Big thanks to Florian Müllner for the information and the patch!
+
+Fixes:
+
+• account: Fix property name (Florian Müllner)
+• Update test to Python 3 (Tomi Leppänen)
+• Make the tests runner busybox compatible (Tomi Leppänen)
+
+
 telepathy-mission-control 5.16.5 (2019-09-15)
 =============================================
 
