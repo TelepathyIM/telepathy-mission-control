@@ -55,8 +55,8 @@ def test(q, bus, mc):
     account.Set(cs.ACCOUNT, 'Enabled', True,
             dbus_interface=cs.PROPERTIES_IFACE)
 
-    requested_presence = dbus.Struct((dbus.UInt32(2L),
-        dbus.String(u'available'), dbus.String(u'')))
+    requested_presence = dbus.Struct((dbus.UInt32(2),
+        dbus.String('available'), dbus.String('')))
     account.Set(cs.ACCOUNT,
             'RequestedPresence', requested_presence,
             dbus_interface=cs.PROPERTIES_IFACE)

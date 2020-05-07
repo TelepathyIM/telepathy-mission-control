@@ -256,7 +256,7 @@ def test(q, bus, mc):
             'AutomaticPresence', 'ConnectAutomatically', 'RequestedPresence'):
         try:
             account_props.Set(cs.ACCOUNT, p, badly_typed)
-        except dbus.DBusException, e:
+        except dbus.DBusException as e:
             assert e.get_dbus_name() == cs.INVALID_ARGUMENT, \
                     (p, e.get_dbus_name())
         else:
@@ -265,7 +265,7 @@ def test(q, bus, mc):
     for p in ('Avatar',):
         try:
             account_props.Set(cs.ACCOUNT_IFACE_AVATAR, p, badly_typed)
-        except dbus.DBusException, e:
+        except dbus.DBusException as e:
             assert e.get_dbus_name() == cs.INVALID_ARGUMENT, \
                     (p, e.get_dbus_name())
         else:
@@ -275,7 +275,7 @@ def test(q, bus, mc):
         try:
             account_props.Set(cs.ACCOUNT_IFACE_NOKIA_CONDITIONS, p,
                     badly_typed)
-        except dbus.DBusException, e:
+        except dbus.DBusException as e:
             assert e.get_dbus_name() == cs.INVALID_ARGUMENT, \
                     (p, e.get_dbus_name())
         else:

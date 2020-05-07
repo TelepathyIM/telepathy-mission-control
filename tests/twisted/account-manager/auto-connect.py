@@ -40,7 +40,7 @@ def preseed(q, bus, fake_accounts_service):
     accounts_dir = os.environ['MC_ACCOUNT_DIR']
 
     try:
-        os.mkdir(accounts_dir, 0700)
+        os.mkdir(accounts_dir, 0o700)
     except OSError:
         pass
 
@@ -155,7 +155,7 @@ def test(q, bus, unused, **kwargs):
     assert props['ConnectionStatus'] == cs.CONN_STATUS_CONNECTING
     assert props['ConnectionStatusReason'] == cs.CONN_STATUS_REASON_REQUESTED
 
-    print "becoming connected"
+    print("becoming connected")
     conn.StatusChanged(cs.CONN_STATUS_CONNECTED, cs.CONN_STATUS_REASON_NONE)
 
     set_aliases, set_presence, set_avatar, prop_changed = q.expect_many(

@@ -124,7 +124,7 @@ def exec_test_deferred (fun, params, protocol=None, timeout=None,
     if preload_mc:
         try:
             mc = MC(queue, bus, initially_online=initially_online)
-        except Exception, e:
+        except Exception as e:
             import traceback
             traceback.print_exc()
             os._exit(1)
@@ -149,7 +149,7 @@ def exec_test_deferred (fun, params, protocol=None, timeout=None,
 
     try:
         fun(queue, bus, mc, **kwargs)
-    except Exception, e:
+    except Exception as e:
         import traceback
         traceback.print_exc()
         error = e
@@ -168,25 +168,25 @@ def exec_test_deferred (fun, params, protocol=None, timeout=None,
                 account.Properties.Set(cs.ACCOUNT, 'RequestedPresence',
                         (dbus.UInt32(cs.PRESENCE_TYPE_OFFLINE), 'offline',
                             ''))
-            except dbus.DBusException, e:
-                print >> sys.stderr, "Can't set %s offline: %s" % (a, e)
+            except dbus.DBusException as e:
+                print("Can't set %s offline: %s" % (a, e), file=sys.stderr)
 
             try:
                 account.Properties.Set(cs.ACCOUNT, 'Enabled', False)
-            except dbus.DBusException, e:
-                print >> sys.stderr, "Can't disable %s: %s" % (a, e)
+            except dbus.DBusException as e:
+                print("Can't disable %s: %s" % (a, e), file=sys.stderr)
 
             try:
                 account.Remove()
-            except dbus.DBusException, e:
-                print >> sys.stderr, "Can't remove %s: %s" % (a, e)
+            except dbus.DBusException as e:
+                print("Can't remove %s: %s" % (a, e), file=sys.stderr)
 
             servicetest.sync_dbus(bus, queue, am)
 
-    except dbus.DBusException, e:
-        print >> sys.stderr, "Couldn't clean up left-over accounts: %s" % e
+    except dbus.DBusException as e:
+        print("Couldn't clean up left-over accounts: %s" % e, file=sys.stderr)
 
-    except Exception, e:
+    except Exception as e:
         import traceback
         traceback.print_exc()
         error = e
@@ -1052,9 +1052,9 @@ def create_fakecm_account(q, bus, mc, params, properties={},
 
     account = Account(bus, account_path)
 
-    for key, value in properties.iteritems():
+    for key, value in properties.items():
         interface, prop = key.rsplit('.', 1)
-        servicetest.assertEquals(value, account.Properties.Get(interface, prop))
+        servicetest.assertEqual(value, account.Properties.Get(interface, prop))
 
     return (cm_name_ref, account)
 

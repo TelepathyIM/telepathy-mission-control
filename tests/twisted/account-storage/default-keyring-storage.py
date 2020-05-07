@@ -149,7 +149,7 @@ def test(q, bus, mc):
     low_prio_key_file_name = os.path.join(
             os.environ['XDG_DATA_DIRS'].split(':')[0],
             'telepathy', 'mission-control', 'accounts.cfg')
-    os.makedirs(os.path.dirname(low_prio_key_file_name), 0700)
+    os.makedirs(os.path.dirname(low_prio_key_file_name), 0o700)
 
     # This is deliberately a lower-priority location
     os.remove(new_key_file_name)
@@ -224,7 +224,7 @@ AutomaticPresence=2;available;;
 if __name__ == '__main__':
     ctl_dir = os.environ['MC_ACCOUNT_DIR']
     try:
-        os.mkdir(ctl_dir, 0700)
+        os.mkdir(ctl_dir, 0o700)
     except OSError:
         pass
     exec_test(test, {}, timeout=10, use_fake_accounts_service=False)

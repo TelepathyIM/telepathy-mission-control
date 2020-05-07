@@ -63,8 +63,8 @@ class FakeClient(dbus.service.Object):
         if interface_name == client_handler_iface and \
                            property_name == "HandlerChannelFilter":
             return self.caps
-        print "Error: interface_name=%s property_name=%s" % \
-            (interface_name, property_name)
+        print("Error: interface_name=%s property_name=%s" % \
+            (interface_name, property_name))
         return None
 
     @dbus.service.method(dbus_interface=properties_iface,

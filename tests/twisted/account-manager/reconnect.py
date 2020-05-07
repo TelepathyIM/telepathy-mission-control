@@ -52,7 +52,7 @@ def test(q, bus, mc):
     q.expect('dbus-return', method='Set')
 
     requested_presence = dbus.Struct((dbus.UInt32(cs.PRESENCE_TYPE_AVAILABLE),
-        dbus.String(u'available'), dbus.String(u'')))
+        dbus.String('available'), dbus.String('')))
     call_async(q, account, 'Set', cs.ACCOUNT,
             'RequestedPresence', requested_presence,
             dbus_interface=cs.PROPERTIES_IFACE)
@@ -66,7 +66,7 @@ def test(q, bus, mc):
     # While we want to be offline but the account is enabled, Reconnect is
     # still a no-op.
     requested_presence = dbus.Struct((dbus.UInt32(cs.PRESENCE_TYPE_OFFLINE),
-        dbus.String(u'offline'), dbus.String(u'')))
+        dbus.String('offline'), dbus.String('')))
     call_async(q, account, 'Set', cs.ACCOUNT,
             'RequestedPresence', requested_presence,
             dbus_interface=cs.PROPERTIES_IFACE)
@@ -99,7 +99,7 @@ def test(q, bus, mc):
     q.unforbid_events(looks_like_reconnection)
 
     requested_presence = dbus.Struct((dbus.UInt32(cs.PRESENCE_TYPE_AVAILABLE),
-        dbus.String(u'brb'), dbus.String(u'Be back soon!')))
+        dbus.String('brb'), dbus.String('Be back soon!')))
     account.Set(cs.ACCOUNT,
             'RequestedPresence', requested_presence,
             dbus_interface=cs.PROPERTIES_IFACE)

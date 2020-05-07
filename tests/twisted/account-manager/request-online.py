@@ -34,7 +34,7 @@ def test(q, bus, mc):
             tp_name_prefix + '.ConnectionManager.fakecm', bus=bus)
 
     http_fixed_properties = dbus.Dictionary({
-        cs.CHANNEL + '.TargetHandleType': 1L,
+        cs.CHANNEL + '.TargetHandleType': 1,
         cs.CHANNEL + '.ChannelType': cs.CHANNEL_TYPE_STREAM_TUBE,
         cs.CHANNEL_TYPE_STREAM_TUBE + '.Service':
             'http'
@@ -76,8 +76,8 @@ def test(q, bus, mc):
     assertEquals(cs.PRESENCE_TYPE_OFFLINE, props['CurrentPresence'][0])
 
     # Go online
-    requested_presence = dbus.Struct((dbus.UInt32(2L), dbus.String(u'brb'),
-                dbus.String(u'Be back soon!')))
+    requested_presence = dbus.Struct((dbus.UInt32(2), dbus.String('brb'),
+                dbus.String('Be back soon!')))
     account.Set(cs.ACCOUNT,
             'RequestedPresence', requested_presence,
             dbus_interface=cs.PROPERTIES_IFACE)
