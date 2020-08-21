@@ -17,8 +17,8 @@ MC_TEST_CURDIR="`pwd`"
 export MC_TEST_CURDIR
 
 if test "x$MC_TEST_UNINSTALLED" = x; then
-  script_fullname=`readlink -e "@mctestsdir@/twisted/run-test.sh"`
-  if [ `readlink -e "$0"` != "$script_fullname" ] ; then
+  script_fullname=`readlink -f "@mctestsdir@/twisted/run-test.sh"`
+  if [ `readlink -f "$0"` != "$script_fullname" ] ; then
     echo "This script is meant to be installed at $script_fullname" >&2
     exit 1
   fi
