@@ -78,8 +78,8 @@ def test(q, bus, mc):
 
         for struct in structs:
             assert struct[0] not in filters
-            filters[struct[0]] = sorted(struct[1])
-            tokens[struct[0]] = sorted(struct[2])
+            filters[struct[0]] = struct[1]
+            tokens[struct[0]] = struct[2]
 
         assert media_fixed_properties in filters[cs.CLIENT + '.MediaCall']
         assert len(filters[cs.CLIENT + '.MediaCall']) == 1

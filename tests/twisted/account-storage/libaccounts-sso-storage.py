@@ -34,7 +34,7 @@ from mctest import exec_test, create_fakecm_account, get_account_manager, \
 import constants as cs
 
 if ('ACCOUNTS' not in os.environ or not os.environ['ACCOUNTS']):
-    print "Not testing accounts-sso storage"
+    print("Not testing accounts-sso storage")
     sys.exit(0)
 
 def account_store(op, backend, key=None, value=None):
@@ -73,7 +73,7 @@ def test(q, bus, mc):
     assert len(ia) == 1
 
     account_path = ia[0]
-    print repr(account_path)
+    print(repr(account_path))
 
     account = get_fakecm_account(bus, mc, account_path)
     account_iface = dbus.Interface(account, cs.ACCOUNT)

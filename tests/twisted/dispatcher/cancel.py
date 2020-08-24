@@ -95,7 +95,7 @@ def test_channel_creation(q, bus, account, client, conn,
         # the channel request has gone away
         try:
             cr.Proceed(dbus_interface=cs.CR)
-        except dbus.DBusException, e:
+        except dbus.DBusException as e:
             pass
         else:
             raise AssertionError('Wanted an error')

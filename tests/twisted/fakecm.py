@@ -104,7 +104,7 @@ class FakeConn(dbus.service.Object):
         return dbus.Array([conn_iface, caps_iface, requests_iface])
 
     def get_handle(self, id):
-        for handle, id_ in self.handles.iteritems():
+        for handle, id_ in self.handles.items():
             if id_ == id:
                 return handle
         handle = self.next_handle
@@ -134,12 +134,12 @@ class FakeConn(dbus.service.Object):
                     obj=self, path=self.object_path, handle_type=handle_type,
                     handles=handles))
         if handle_type != 1:
-            raise "non-contact handles don't exist"
+            raise Exception("non-contact handles don't exist")
 
         ret = []
         for handle in handles:
             if handle not in self.handles:
-                raise "%d is not a valid handle" % handle
+                raise Exception("%d is not a valid handle" % handle)
             ret.append(self.handles[handle])
 
         return ret
@@ -148,7 +148,7 @@ class FakeConn(dbus.service.Object):
                          in_signature='uas', out_signature='au')
     def RequestHandles(self, type, ids):
         if type != 1:
-            raise "non-contact handles don't exist"
+            raise Exception("non-contact handles don't exist")
 
         ret = []
         for id in ids:
@@ -190,8 +190,8 @@ class FakeConn(dbus.service.Object):
         if interface_name == requests_iface and \
                            property_name == "Channels":
             return dbus.Array(self.channels, signature='(oa{sv})')
-        print "Error: interface_name=%s property_name=%s" % \
-            (interface_name, property_name)
+        print("Error: interface_name=%s property_name=%s" % \
+            (interface_name, property_name))
         return None
 
     @dbus.service.method(dbus_interface=properties_iface,
@@ -201,7 +201,7 @@ class FakeConn(dbus.service.Object):
                     obj=self, interface_name=interface_name))
         if interface_name == conn_iface:
             return dbus.Dictionary({
-                    'SelfHandle': 0L
+                    'SelfHandle': 0
                     }, signature='sv')
         if interface_name == requests_iface:
             return dbus.Dictionary({

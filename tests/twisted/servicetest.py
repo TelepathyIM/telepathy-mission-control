@@ -20,9 +20,9 @@
 Infrastructure code for testing Mission Control
 """
 
-from twisted.internet import glib2reactor
+from twisted.internet import gireactor
 from twisted.internet.protocol import Protocol, Factory, ClientFactory
-glib2reactor.install()
+gireactor.install()
 import sys
 
 import pprint
@@ -80,7 +80,7 @@ class EventPattern:
         if event.type != self.type:
             return False
 
-        for key, value in self.properties.iteritems():
+        for key, value in self.properties.items():
             try:
                 if getattr(event, key) != value:
                     return False
@@ -122,14 +122,14 @@ class BaseEventQueue:
 
     def log(self, s):
         if self.verbose:
-            print s
+            print(s)
 
     def log_event(self, event):
         if self.verbose:
             self.log('got event:')
 
             if self.verbose:
-                map(self.log, format_event(event))
+                list(map(self.log, format_event(event)))
 
     def flush_past_events(self):
         self.past_events = []
@@ -140,7 +140,7 @@ class BaseEventQueue:
         for event in self.past_events:
             if pattern.match(event):
                 self.log('past event handled')
-                map(self.log, format_event(event))
+                list(map(self.log, format_event(event)))
                 self.log('')
                 self.past_events.remove(event)
                 return event
@@ -331,7 +331,7 @@ class IteratingEventQueue(BaseEventQueue):
                         Event('dbus-signal',
                             path=unwrap(kw['path']),
                             signal=kw['member'],
-                            args=map(unwrap, args),
+                            args=list(map(unwrap, args)),
                             interface=kw['interface'])),
                 None,
                 None,
@@ -365,7 +365,7 @@ class IteratingEventQueue(BaseEventQueue):
             e = Event('dbus-method-call', message=message,
                 interface=message.get_interface(), path=message.get_path(),
                 raw_args=message.get_args_list(byte_arrays=True),
-                args=map(unwrap, message.get_args_list(byte_arrays=True)),
+                args=list(map(unwrap, message.get_args_list(byte_arrays=True))),
                 destination=str(destination),
                 method=message.get_member(),
                 sender=message.get_sender(),
@@ -437,18 +437,18 @@ def unwrap(x):
     printed."""
 
     if isinstance(x, list):
-        return map(unwrap, x)
+        return list(map(unwrap, x))
 
     if isinstance(x, tuple):
         return tuple(map(unwrap, x))
 
     if isinstance(x, dict):
-        return dict([(unwrap(k), unwrap(v)) for k, v in x.iteritems()])
+        return dict([(unwrap(k), unwrap(v)) for k, v in x.items()])
 
     if isinstance(x, dbus.Boolean):
         return bool(x)
 
-    for t in [unicode, str, long, int, float]:
+    for t in [str, str, int, int, float]:
         if isinstance(x, t):
             return t(x)
 
@@ -489,7 +489,7 @@ class ProxyWrapper:
             dbus.Interface(object, tp_name_prefix + '.Properties')
         self.interfaces = dict([
             (name, dbus.Interface(object, iface))
-            for name, iface in others.iteritems()])
+            for name, iface in others.items()])
 
     def __getattr__(self, name):
         if name in self.interfaces:
@@ -575,7 +575,7 @@ def watch_tube_signals(q, tube):
         q.handle_event(Event('tube-signal',
             path=kwargs['path'],
             signal=kwargs['member'],
-            args=map(unwrap, args),
+            args=list(map(unwrap, args)),
             tube=tube))
 
     tube.add_signal_receiver(got_signal_cb,

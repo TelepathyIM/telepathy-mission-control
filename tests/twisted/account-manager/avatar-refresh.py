@@ -173,7 +173,7 @@ class Account(object):
             initial_avatar = dbus.Struct((dbus.ByteArray(self.remote_avatar),
                 'text/plain'), signature='ays')
         else:
-            initial_avatar = dbus.Struct((dbus.ByteArray(''), ''),
+            initial_avatar = dbus.Struct((dbus.ByteArray(b''), ''),
                     signature='ays')
 
         conn = SimulatedConnection(q, bus, 'fakecm', 'fakeprotocol',
@@ -300,7 +300,7 @@ class Account(object):
             # If we set the avatar to be empty, that's written out as a file,
             # so it'll override the one in XDG_DATA_DIRS
             call_async(q, account_props, 'Set', cs.ACCOUNT_IFACE_AVATAR,
-                    'Avatar', (dbus.ByteArray(''), ''))
+                    'Avatar', (dbus.ByteArray(b''), ''))
 
             q.expect_many(
                     EventPattern('dbus-method-call',
@@ -324,7 +324,7 @@ def preseed(q, bus, fake_accounts_service):
     accounts_dir = os.environ['MC_ACCOUNT_DIR']
 
     try:
-        os.mkdir(accounts_dir, 0700)
+        os.mkdir(accounts_dir, 0o700)
     except OSError:
         pass
 

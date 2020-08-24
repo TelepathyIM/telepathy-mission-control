@@ -35,7 +35,7 @@ import constants as cs
 def test(q, bus, mc):
     accounts_dir = os.environ['MC_ACCOUNT_DIR']
     try:
-        os.mkdir(accounts_dir, 0700)
+        os.mkdir(accounts_dir, 0o700)
     except OSError:
         pass
 

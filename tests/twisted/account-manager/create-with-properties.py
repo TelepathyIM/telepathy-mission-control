@@ -68,7 +68,7 @@ def test(q, bus, mc):
         cs.ACCOUNT + '.Icon': 'quake3arena',
         cs.ACCOUNT + '.Nickname': 'AnArKi',
         cs.ACCOUNT + '.ConnectAutomatically': True,
-        cs.ACCOUNT_IFACE_AVATAR + '.Avatar': (dbus.ByteArray('foo'),
+        cs.ACCOUNT_IFACE_AVATAR + '.Avatar': (dbus.ByteArray(b'foo'),
             'image/jpeg'),
         cs.ACCOUNT_IFACE_NOKIA_CONDITIONS + '.Condition':
             dbus.Dictionary({ 'has-quad-damage': ':y' }, signature='ss'),

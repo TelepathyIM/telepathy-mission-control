@@ -50,8 +50,8 @@ def test(q, bus, mc, **kwargs):
             interface=cs.ACCOUNT)
 
     # Go online
-    requested_presence = dbus.Struct((dbus.UInt32(2L), dbus.String(u'brb'),
-                dbus.String(u'Be back soon!')))
+    requested_presence = dbus.Struct((dbus.UInt32(2), dbus.String('brb'),
+                dbus.String('Be back soon!')))
     account.Set(cs.ACCOUNT,
             'RequestedPresence', requested_presence,
             dbus_interface=cs.PROPERTIES_IFACE)

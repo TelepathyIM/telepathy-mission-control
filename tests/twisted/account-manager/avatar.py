@@ -42,7 +42,7 @@ def test(q, bus, mc):
         '/telepathy/mission-control/' + avatar_filename)
 
     call_async(q, account_props, 'Set', cs.ACCOUNT_IFACE_AVATAR, 'Avatar',
-            dbus.Struct((dbus.ByteArray('AAAA'), 'image/jpeg')))
+            dbus.Struct((dbus.ByteArray(b'AAAA'), 'image/jpeg')))
     q.expect_many(
         EventPattern('dbus-signal',
             path=account.object_path,
@@ -63,7 +63,7 @@ def test(q, bus, mc):
             method='UpdateAttributes'),
         )
     assert account_props.Get(cs.ACCOUNT_IFACE_AVATAR, 'Avatar',
-            byte_arrays=True) == ('AAAA', 'image/jpeg')
+            byte_arrays=True) == dbus.Struct((dbus.ByteArray(b'AAAA'), 'image/jpeg'))
 
     assertEquals('AAAA', ''.join(open(avatar_filename, 'r').readlines()))
     # We aren't storing in the old location
@@ -75,17 +75,17 @@ def test(q, bus, mc):
             expect_after_connect=[
                 EventPattern('dbus-method-call',
                     interface=cs.CONN_IFACE_AVATARS, method='SetAvatar',
-                    handled=True, args=['AAAA', 'image/jpeg']),
+                    handled=True, args=[b'AAAA', 'image/jpeg']),
                 ])
 
     # Change avatar after going online
     call_async(q, account_props, 'Set', cs.ACCOUNT_IFACE_AVATAR, 'Avatar',
-            (dbus.ByteArray('BBBB'), 'image/png'))
+            (dbus.ByteArray(b'BBBB'), 'image/png'))
 
     q.expect_many(
             EventPattern('dbus-method-call',
                 interface=cs.CONN_IFACE_AVATARS, method='SetAvatar',
-                args=['BBBB', 'image/png'],
+                args=[b'BBBB', 'image/png'],
                 handled=True),
             EventPattern('dbus-signal', path=account.object_path,
                 interface=cs.ACCOUNT_IFACE_AVATAR, signal='AvatarChanged'),
@@ -104,7 +104,7 @@ def test(q, bus, mc):
             )
 
     assert account_props.Get(cs.ACCOUNT_IFACE_AVATAR, 'Avatar',
-            byte_arrays=True) == ('BBBB', 'image/png')
+            byte_arrays=True) == dbus.Struct((dbus.ByteArray(b'BBBB'), 'image/png'))
 
     assertEquals('BBBB', ''.join(open(avatar_filename, 'r').readlines()))
     assert not os.path.exists(os.environ['MC_ACCOUNT_DIR'] + '/fakecm')
@@ -117,7 +117,7 @@ def test(q, bus, mc):
 
     # Another client changes our avatar remotely
     q.dbus_emit(conn.object_path, cs.CONN_IFACE_AVATARS, 'AvatarUpdated',
-            conn.self_handle, 'CCCC', signature='us')
+            conn.self_handle, b'CCCC', signature='us')
 
     e = q.expect('dbus-method-call',
             interface=cs.CONN_IFACE_AVATARS, method='RequestAvatars',
@@ -126,15 +126,15 @@ def test(q, bus, mc):
     q.dbus_return(e.message, signature='')
 
     q.dbus_emit(conn.object_path, cs.CONN_IFACE_AVATARS,
-            'AvatarRetrieved', conn.self_handle, 'CCCC',
-            dbus.ByteArray('CCCC'), 'image/svg', signature='usays')
+            'AvatarRetrieved', conn.self_handle, b'CCCC',
+            dbus.ByteArray(b'CCCC'), 'image/svg', signature='usays')
     q.expect_many(
             EventPattern('dbus-signal', path=account.object_path,
                 interface=cs.ACCOUNT_IFACE_AVATAR, signal='AvatarChanged'),
             EventPattern('dbus-signal',
                 interface=cs.TEST_DBUS_ACCOUNT_PLUGIN_IFACE,
                 signal='DeferringSetAttribute',
-                args=[account.object_path, 'avatar_token', 'CCCC']),
+                args=[account.object_path, 'avatar_token', b'CCCC']),
             EventPattern('dbus-signal',
                 interface=cs.TEST_DBUS_ACCOUNT_PLUGIN_IFACE,
                 signal='CommittingOne',
@@ -145,7 +145,7 @@ def test(q, bus, mc):
             )
 
     assert account_props.Get(cs.ACCOUNT_IFACE_AVATAR, 'Avatar',
-            byte_arrays=True) == ('CCCC', 'image/svg')
+            byte_arrays=True) == dbus.Struct((dbus.ByteArray(b'CCCC'), 'image/svg'))
 
     assertEquals('CCCC', ''.join(open(avatar_filename, 'r').readlines()))
 

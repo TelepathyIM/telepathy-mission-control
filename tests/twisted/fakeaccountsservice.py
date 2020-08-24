@@ -118,7 +118,7 @@ class FakeAccountsService(object):
         if account not in self.accounts:
             self.create_account(account)
 
-        for (attribute, value) in changed.items():
+        for (attribute, value) in list(changed.items()):
             self.accounts[account][ATTRS][attribute] = value
             self.accounts[account][ATTR_FLAGS][attribute] = flags.get(
                     attribute, dbus.UInt32(0))
@@ -149,14 +149,14 @@ class FakeAccountsService(object):
         if account not in self.accounts:
             self.create_account(account)
 
-        for (param, value) in changed.items():
+        for (param, value) in list(changed.items()):
             self.accounts[account][PARAMS][param] = value
             if param in self.accounts[account][UNTYPED_PARAMS]:
                 del self.accounts[account][UNTYPED_PARAMS][param]
             self.accounts[account][PARAM_FLAGS][param] = flags.get(
                     param, dbus.UInt32(0))
 
-        for (param, value) in untyped.items():
+        for (param, value) in list(untyped.items()):
             self.accounts[account][UNTYPED_PARAMS][param] = value
             if param in self.accounts[account][PARAMS]:
                 del self.accounts[account][PARAMS][param]
