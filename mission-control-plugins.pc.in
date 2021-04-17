@@ -10,7 +10,7 @@ missioncontrolpath=${libexecdir}/mission-control-5
 
 Name: mission-control-plugins
 Description: Mission Control plugin API
-Requires: telepathy-glib
+Requires: telepathy-glib gio-2.0
 Version: @VERSION@
 Libs: -L${libdir} -lmission-control-plugins
 Cflags: -I${includedir}/mission-control-${MCP_API_VERSION}
